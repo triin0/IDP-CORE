@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "10VXuzyaKG17IK6kD_81t"
+uri = "file://docs/cloud-ide-architecture-challenges.md"
+type = "text"
+title = "Cloud IDE Architecture Challenges Reference"
