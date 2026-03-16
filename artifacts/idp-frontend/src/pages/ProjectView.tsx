@@ -3,6 +3,10 @@ import { useParams, useLocation } from "wouter";
 import { Workspace } from "@/components/Workspace";
 import { AlertCircle, Loader2, WifiOff } from "lucide-react";
 
+function isApiError(err: unknown): err is { name: string; status: number } {
+  return err !== null && typeof err === "object" && "name" in err && (err as { name: string }).name === "ApiError" && "status" in err;
+}
+
 export function ProjectView() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
@@ -31,7 +35,7 @@ export function ProjectView() {
   }
 
   if (isError) {
-    const is404 = error instanceof Response ? error.status === 404 : (error && typeof error === "object" && "status" in error && (error as unknown as { status: number }).status === 404);
+    const is404 = isApiError(error) && error.status === 404;
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center max-w-md">
