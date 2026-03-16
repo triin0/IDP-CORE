@@ -129,6 +129,74 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /projects/{id}/regenerate-spec:
+    post:
+      operationId: regenerateSpec
+      tags: [projects]
+      summary: Regenerate the architectural spec from the original prompt
+      description: Discards the current spec and triggers a new AI spec generation. Only valid when project status is planned or failed.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Spec regeneration started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegenerateSpecResponse"
+        "400":
+          description: Project not in a valid status for regeneration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{id}/update-spec:
+    patch:
+      operationId: updateSpec
+      tags: [projects]
+      summary: Update the architectural spec before approval
+      description: Allows editing individual sections of the spec while in planned status.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSpecBody"
+      responses:
+        "200":
+          description: Spec updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectDetails"
+        "400":
+          description: Project not in planned status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /projects/{id}/deploy:
     post:
       operationId: deployProject
@@ -378,6 +446,42 @@ components:
         - total
         - limit
         - offset
+    RegenerateSpecResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [planning]
+      required:
+        - id
+        - status
+    UpdateSpecBody:
+      type: object
+      properties:
+        overview:
+          type: string
+        fileStructure:
+          type: array
+          items:
+            type: string
+        apiEndpoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApiEndpointSpec"
+        databaseTables:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatabaseTableSpec"
+        middleware:
+          type: array
+          items:
+            type: string
+        architecturalDecisions:
+          type: array
+          items:
+            type: string
     ErrorResponse:
       type: object
       properties:

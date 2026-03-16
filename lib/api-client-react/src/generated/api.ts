@@ -26,6 +26,8 @@ import type {
   ListProjectsParams,
   ProjectDetails,
   ProjectListResponse,
+  RegenerateSpecResponse,
+  UpdateSpecBody,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -466,6 +468,179 @@ export const useApproveSpec = <
   TContext
 > => {
   return useMutation(getApproveSpecMutationOptions(options));
+};
+
+/**
+ * Discards the current spec and triggers a new AI spec generation. Only valid when project status is planned or failed.
+ * @summary Regenerate the architectural spec from the original prompt
+ */
+export const getRegenerateSpecUrl = (id: string) => {
+  return `/api/projects/${id}/regenerate-spec`;
+};
+
+export const regenerateSpec = async (
+  id: string,
+  options?: RequestInit,
+): Promise<RegenerateSpecResponse> => {
+  return customFetch<RegenerateSpecResponse>(getRegenerateSpecUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRegenerateSpecMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof regenerateSpec>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof regenerateSpec>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["regenerateSpec"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof regenerateSpec>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return regenerateSpec(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegenerateSpecMutationResult = NonNullable<
+  Awaited<ReturnType<typeof regenerateSpec>>
+>;
+
+export type RegenerateSpecMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Regenerate the architectural spec from the original prompt
+ */
+export const useRegenerateSpec = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof regenerateSpec>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof regenerateSpec>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getRegenerateSpecMutationOptions(options));
+};
+
+/**
+ * Allows editing individual sections of the spec while in planned status.
+ * @summary Update the architectural spec before approval
+ */
+export const getUpdateSpecUrl = (id: string) => {
+  return `/api/projects/${id}/update-spec`;
+};
+
+export const updateSpec = async (
+  id: string,
+  updateSpecBody: UpdateSpecBody,
+  options?: RequestInit,
+): Promise<ProjectDetails> => {
+  return customFetch<ProjectDetails>(getUpdateSpecUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateSpecBody),
+  });
+};
+
+export const getUpdateSpecMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSpec>>,
+    TError,
+    { id: string; data: BodyType<UpdateSpecBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateSpec>>,
+  TError,
+  { id: string; data: BodyType<UpdateSpecBody> },
+  TContext
+> => {
+  const mutationKey = ["updateSpec"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateSpec>>,
+    { id: string; data: BodyType<UpdateSpecBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateSpec(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateSpecMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateSpec>>
+>;
+export type UpdateSpecMutationBody = BodyType<UpdateSpecBody>;
+export type UpdateSpecMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update the architectural spec before approval
+ */
+export const useUpdateSpec = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSpec>>,
+    TError,
+    { id: string; data: BodyType<UpdateSpecBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateSpec>>,
+  TError,
+  { id: string; data: BodyType<UpdateSpecBody> },
+  TContext
+> => {
+  return useMutation(getUpdateSpecMutationOptions(options));
 };
 
 /**

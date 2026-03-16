@@ -26,3 +26,6 @@ export * from "./projectListResponse";
 export * from "./projectSpec";
 export * from "./projectSummary";
 export * from "./projectSummaryStatus";
+export * from "./regenerateSpecResponse";
+export * from "./regenerateSpecResponseStatus";
+export * from "./updateSpecBody";

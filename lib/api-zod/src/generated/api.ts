@@ -146,6 +146,102 @@ export const ApproveSpecResponse = zod.object({
 });
 
 /**
+ * Discards the current spec and triggers a new AI spec generation. Only valid when project status is planned or failed.
+ * @summary Regenerate the architectural spec from the original prompt
+ */
+export const RegenerateSpecParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const RegenerateSpecResponse = zod.object({
+  id: zod.string(),
+  status: zod.enum(["planning"]),
+});
+
+/**
+ * Allows editing individual sections of the spec while in planned status.
+ * @summary Update the architectural spec before approval
+ */
+export const UpdateSpecParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateSpecBody = zod.object({
+  overview: zod.string().optional(),
+  fileStructure: zod.array(zod.string()).optional(),
+  apiEndpoints: zod
+    .array(
+      zod.object({
+        method: zod.string(),
+        path: zod.string(),
+        description: zod.string(),
+      }),
+    )
+    .optional(),
+  databaseTables: zod
+    .array(
+      zod.object({
+        name: zod.string(),
+        columns: zod.array(zod.string()),
+      }),
+    )
+    .optional(),
+  middleware: zod.array(zod.string()).optional(),
+  architecturalDecisions: zod.array(zod.string()).optional(),
+});
+
+export const UpdateSpecResponse = zod.object({
+  id: zod.string(),
+  prompt: zod.string(),
+  status: zod.enum([
+    "pending",
+    "planning",
+    "planned",
+    "generating",
+    "ready",
+    "deployed",
+    "failed",
+  ]),
+  spec: zod
+    .object({
+      overview: zod.string(),
+      fileStructure: zod.array(zod.string()),
+      apiEndpoints: zod.array(
+        zod.object({
+          method: zod.string(),
+          path: zod.string(),
+          description: zod.string(),
+        }),
+      ),
+      databaseTables: zod.array(
+        zod.object({
+          name: zod.string(),
+          columns: zod.array(zod.string()),
+        }),
+      ),
+      middleware: zod.array(zod.string()),
+      architecturalDecisions: zod.array(zod.string()),
+    })
+    .optional(),
+  files: zod.array(
+    zod.object({
+      path: zod.string(),
+      content: zod.string(),
+    }),
+  ),
+  goldenPathChecks: zod.array(
+    zod.object({
+      name: zod.string(),
+      passed: zod.boolean(),
+      description: zod.string(),
+    }),
+  ),
+  deployUrl: zod.string().nullish(),
+  createdAt: zod.date(),
+  error: zod.string().nullish(),
+});
+
+/**
  * Packages generated code and deploys it to a live preview URL.
  * @summary Deploy a generated project
  */

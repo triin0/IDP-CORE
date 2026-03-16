@@ -48,7 +48,9 @@ The API server is the platform's "conductor". Key endpoints:
 
 - `POST /api/projects` — Create a project from a prompt. Returns project ID immediately, kicks off async AI spec generation.
 - `GET /api/projects/:id` — Poll project status (`pending` → `planning` → `planned` → `generating` → `ready` → `deployed`). Returns spec, file tree, Golden Path compliance checks, and deploy URL.
-- `POST /api/projects/:id/approve-spec` — Approve the architectural spec and begin code generation (transitions `planned` → `generating`).
+- `POST /api/projects/:id/approve-spec` — Approve the architectural spec and begin code generation (atomic transition `planned` → `generating`).
+- `POST /api/projects/:id/regenerate-spec` — Discard current spec and trigger fresh AI spec generation (valid from `planned` or `failed`).
+- `PATCH /api/projects/:id/update-spec` — Edit individual spec sections (overview, fileStructure, middleware, architecturalDecisions) while in `planned` status.
 - `POST /api/projects/:id/deploy` — Deploy generated code to a live preview URL.
 - `GET /api/healthz` — Health check with LLM connectivity probe (cached 60s).
 

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, and } from "drizzle-orm";
 import { db, projectsTable } from "@workspace/db";
 import {
   CreateProjectBody,
@@ -7,6 +7,9 @@ import {
   DeployProjectParams,
   ListProjectsQueryParams,
   ApproveSpecParams,
+  RegenerateSpecParams,
+  UpdateSpecParams,
+  UpdateSpecBody,
 } from "@workspace/api-zod";
 import { generateProjectCode } from "../lib/generate";
 import { generateProjectSpec } from "../lib/spec-generator";
@@ -145,22 +148,35 @@ router.post("/projects/:id/approve-spec", async (req, res) => {
       return;
     }
 
-    const [project] = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.id, id));
+    const result = await db
+      .update(projectsTable)
+      .set({ status: "generating" })
+      .where(
+        and(
+          eq(projectsTable.id, id),
+          eq(projectsTable.status, "planned"),
+        ),
+      )
+      .returning();
 
-    if (!project) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    if (result.length === 0) {
+      const [existing] = await db
+        .select({ status: projectsTable.status })
+        .from(projectsTable)
+        .where(eq(projectsTable.id, id));
 
-    if (project.status !== "planned") {
+      if (!existing) {
+        res.status(404).json({ error: "Project not found" });
+        return;
+      }
+
       res.status(400).json({
-        error: `Cannot approve spec. Project status is '${project.status}', expected 'planned'.`,
+        error: `Cannot approve spec. Project status is '${existing.status}', expected 'planned'.`,
       });
       return;
     }
+
+    const project = result[0];
 
     const spec = project.spec as {
       overview: string;
@@ -180,6 +196,104 @@ router.post("/projects/:id/approve-spec", async (req, res) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Invalid request";
     console.error("Failed to approve spec:", message);
+    res.status(400).json({ error: message });
+  }
+});
+
+router.post("/projects/:id/regenerate-spec", async (req, res) => {
+  try {
+    const { id } = RegenerateSpecParams.parse(req.params);
+
+    if (!UUID_REGEX.test(id)) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const [project] = await db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.id, id));
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    if (project.status !== "planned" && project.status !== "failed") {
+      res.status(400).json({
+        error: `Cannot regenerate spec. Project status is '${project.status}', expected 'planned' or 'failed'.`,
+      });
+      return;
+    }
+
+    await db
+      .update(projectsTable)
+      .set({ status: "pending", spec: null, error: null })
+      .where(eq(projectsTable.id, id));
+
+    generateProjectSpec(project.id, project.prompt).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Spec regeneration failed for project ${project.id}:`, message);
+    });
+
+    res.json({ id: project.id, status: "planning" });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Invalid request";
+    console.error("Failed to regenerate spec:", message);
+    res.status(400).json({ error: message });
+  }
+});
+
+router.patch("/projects/:id/update-spec", async (req, res) => {
+  try {
+    const { id } = UpdateSpecParams.parse(req.params);
+    const updates = UpdateSpecBody.parse(req.body);
+
+    if (!UUID_REGEX.test(id)) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const [project] = await db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.id, id));
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    if (project.status !== "planned") {
+      res.status(400).json({
+        error: `Cannot update spec. Project status is '${project.status}', expected 'planned'.`,
+      });
+      return;
+    }
+
+    const currentSpec = (project.spec ?? {}) as Record<string, unknown>;
+    const mergedSpec = { ...currentSpec, ...updates };
+
+    const [updated] = await db
+      .update(projectsTable)
+      .set({ spec: mergedSpec })
+      .where(eq(projectsTable.id, id))
+      .returning();
+
+    res.json({
+      id: updated.id,
+      prompt: updated.prompt,
+      status: updated.status,
+      spec: updated.spec ?? undefined,
+      files: updated.files ?? [],
+      goldenPathChecks: updated.goldenPathChecks ?? [],
+      deployUrl: updated.deployUrl,
+      createdAt: updated.createdAt.toISOString(),
+      error: updated.error,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Invalid request";
+    console.error("Failed to update spec:", message);
     res.status(400).json({ error: message });
   }
 });

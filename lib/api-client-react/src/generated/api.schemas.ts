@@ -145,6 +145,27 @@ export interface ProjectListResponse {
   offset: number;
 }
 
+export type RegenerateSpecResponseStatus =
+  (typeof RegenerateSpecResponseStatus)[keyof typeof RegenerateSpecResponseStatus];
+
+export const RegenerateSpecResponseStatus = {
+  planning: "planning",
+} as const;
+
+export interface RegenerateSpecResponse {
+  id: string;
+  status: RegenerateSpecResponseStatus;
+}
+
+export interface UpdateSpecBody {
+  overview?: string;
+  fileStructure?: string[];
+  apiEndpoints?: ApiEndpointSpec[];
+  databaseTables?: DatabaseTableSpec[];
+  middleware?: string[];
+  architecturalDecisions?: string[];
+}
+
 export interface ErrorResponse {
   error: string;
 }
