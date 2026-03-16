@@ -1,0 +1,13 @@
+packages:
+  "framer-motion": "For smooth transitions and terminal-like animations"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility function to efficiently merge Tailwind CSS classes"
+  "date-fns": "For formatting timestamps"
+  "lucide-react": "For beautiful UI icons"
+
+images: []
+
+notes:
+  - Using generated React Query hooks from @workspace/api-client-react
+  - Implementing a dark terminal/developer aesthetic as requested
+  - Single-page application orchestrating the prompt-to-code workflow

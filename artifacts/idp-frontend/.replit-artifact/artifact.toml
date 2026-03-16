@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "AI-Native IDP"
+version = "1.0.0"
+id = "artifacts/idp-frontend"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 21820
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/idp-frontend run dev"
+
+[services.env]
+PORT = "21820"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/idp-frontend", "run", "build"]
+publicDir = "artifacts/idp-frontend/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"

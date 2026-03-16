@@ -16,6 +16,7 @@ pnpm workspace monorepo for an AI-Native Internal Developer Platform. The platfo
 - **API codegen**: Orval (from OpenAPI spec)
 - **AI**: OpenAI via Replit AI Integrations (gpt-5.2 for code generation)
 - **Build**: esbuild (CJS bundle)
+- **Frontend**: React + Vite + Tailwind CSS + Shadcn UI + Framer Motion
 
 ## Structure
 
@@ -23,6 +24,7 @@ pnpm workspace monorepo for an AI-Native Internal Developer Platform. The platfo
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
 │   ├── api-server/         # Express API server (orchestration backend)
+│   ├── idp-frontend/       # React frontend (MVP UI) — served at /
 │   └── mockup-sandbox/     # Component preview sandbox
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
@@ -47,7 +49,7 @@ The API server is the platform's "conductor". Key endpoints:
 - `POST /api/projects` — Create a project from a prompt. Returns project ID immediately, kicks off async AI generation.
 - `GET /api/projects/:id` — Poll project status (`pending` → `generating` → `ready` → `deployed`). Returns file tree, Golden Path compliance checks, and deploy URL.
 - `POST /api/projects/:id/deploy` — Deploy generated code to a live preview URL.
-- `GET /api/healthz` — Health check.
+- `GET /api/healthz` — Health check with LLM connectivity probe (cached 60s).
 
 ### Golden Path Engine
 
@@ -65,6 +67,26 @@ Nine automated compliance checks run after generation: Folder Structure, Securit
 ### Deployment
 
 Generated projects are written to `deployed-projects/<project-id>/` and served as static files at `/deployed/<project-id>/`.
+
+### Frontend (MVP UI)
+
+React + Vite app at `artifacts/idp-frontend/` served at `/`. Features:
+- **Prompt Input**: Terminal-styled textarea where users describe the app they want
+- **Generation Status**: Real-time polling during AI generation with terminal animation
+- **Results View**: File tree, code viewer, and Golden Path compliance checklist (9/9 checks)
+- **Deploy**: One-click deploy with live preview URL
+- **Health Indicators**: Shows system status and LLM connectivity in header
+- **Design**: Dark mode professional theme with terminal/developer aesthetic
+
+Key frontend components:
+- `src/pages/Home.tsx` — Main page orchestrating the flow
+- `src/components/PromptForm.tsx` — Terminal-styled prompt input
+- `src/components/StatusTerminal.tsx` — Generation progress display
+- `src/components/Workspace.tsx` — Results layout (file tree + code viewer + checks)
+- `src/components/FileTree.tsx` — Navigable file tree
+- `src/components/CodeViewer.tsx` — Syntax-highlighted code display
+- `src/components/GoldenPath.tsx` — Compliance checklist
+- `src/components/HealthIndicator.tsx` — System/LLM status badges
 
 ## Database Schema
 
@@ -96,15 +118,25 @@ Every lib package extends `tsconfig.base.json` with `composite: true`. The root 
 
 Express 5 orchestration server with:
 - `src/routes/projects.ts` — Project CRUD + deploy endpoints
-- `src/routes/health.ts` — Health check
+- `src/routes/health.ts` — Health check with cached LLM probe
 - `src/lib/golden-path.ts` — Golden Path system prompt + compliance checker
 - `src/lib/generate.ts` — AI code generation via OpenAI
 - `src/lib/deploy.ts` — File deployment to disk
 - Depends on: `@workspace/db`, `@workspace/api-zod`, `@workspace/integrations-openai-ai-server`
 
+### `artifacts/idp-frontend` (`@workspace/idp-frontend`)
+
+React + Vite frontend served at `/`:
+- Uses generated React Query hooks from `@workspace/api-client-react`
+- Dark professional theme with terminal aesthetic
+- Framer Motion for animations
+- Lucide React for icons
+
 ### `lib/db` (`@workspace/db`)
 
 - `src/schema/projects.ts` — Projects table definition
+- `src/schema/conversations.ts` — Conversations table (from OpenAI template)
+- `src/schema/messages.ts` — Messages table (from OpenAI template)
 - Push schema: `pnpm --filter @workspace/db run push`
 
 ### `lib/integrations-openai-ai-server`
