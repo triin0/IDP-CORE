@@ -1,0 +1,126 @@
+:root {
+  color-scheme: light;
+  --bg: #0b1020;
+  --panel: #121a33;
+  --text: #e8ecff;
+  --muted: #b7c0ea;
+  --border: rgba(255, 255, 255, 0.12);
+  --accent: #7aa2ff;
+  --danger: #ff6b6b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji",
+    "Segoe UI Emoji";
+  background: radial-gradient(1200px 800px at 20% 10%, #15214a 0%, var(--bg) 55%);
+  color: var(--text);
+}
+
+a { color: inherit; }
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.card {
+  background: rgba(18, 26, 51, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  backdrop-filter: blur(8px);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  outline: none;
+}
+
+.button {
+  background: var(--accent);
+  border: none;
+  color: #0b1020;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.button.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.button.danger {
+  background: rgba(255, 107, 107, 0.14);
+  color: #ffd1d1;
+  border: 1px solid rgba(255, 107, 107, 0.35);
+}
+
+.list {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.itemTitle {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.titleText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.error {
+  margin-top: 12px;
+  color: #ffd1d1;
+  background: rgba(255, 107, 107, 0.14);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  padding: 10px 12px;
+  border-radius: 12px;
+}
