@@ -30,13 +30,19 @@ export function GoldenPath({ checks }: GoldenPathProps) {
         </div>
       </div>
 
-      {allPassed && (
-        <div className="mb-2 p-2 rounded-lg bg-success/10 border border-success/20 text-center">
-          <span className="text-xs font-mono font-bold text-success tracking-wider">
-            GOLDEN PATH COMPLIANT
-          </span>
-        </div>
-      )}
+      <div className={cn(
+        "mb-2 p-2 rounded-lg border text-center",
+        allPassed
+          ? "bg-success/10 border-success/20"
+          : "bg-destructive/10 border-destructive/20"
+      )}>
+        <span className={cn(
+          "text-xs font-mono font-bold tracking-wider",
+          allPassed ? "text-success" : "text-destructive"
+        )}>
+          {allPassed ? "GOLDEN PATH COMPLIANT" : "GOLDEN PATH NON-COMPLIANT"}
+        </span>
+      </div>
 
       <div className="space-y-1">
         {checks.map((check, i) => (

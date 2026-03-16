@@ -31,7 +31,7 @@ export function ProjectView() {
   }
 
   if (isError) {
-    const is404 = error && typeof error === "object" && "status" in error && (error as { status: number }).status === 404;
+    const is404 = error instanceof Response ? error.status === 404 : (error && typeof error === "object" && "status" in error && (error as unknown as { status: number }).status === 404);
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center max-w-md">
