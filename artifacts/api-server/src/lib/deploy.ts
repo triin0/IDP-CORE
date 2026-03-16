@@ -12,6 +12,21 @@ export interface DeployResult {
   deployUrl: string;
 }
 
+function sanitizePath(basePath: string, filePath: string): string {
+  if (path.isAbsolute(filePath)) {
+    throw new Error(`Absolute path not allowed: ${filePath}`);
+  }
+
+  const resolved = path.resolve(basePath, filePath);
+  const normalizedBase = path.resolve(basePath) + path.sep;
+
+  if (!resolved.startsWith(normalizedBase) && resolved !== path.resolve(basePath)) {
+    throw new Error(`Path traversal detected: ${filePath}`);
+  }
+
+  return resolved;
+}
+
 export async function deployProject(project: Project): Promise<DeployResult> {
   const files = project.files as Array<{ path: string; content: string }> | null;
   if (!files || files.length === 0) {
@@ -22,10 +37,10 @@ export async function deployProject(project: Project): Promise<DeployResult> {
   await fs.mkdir(projectDir, { recursive: true });
 
   for (const file of files) {
-    const filePath = path.join(projectDir, file.path);
-    const dir = path.dirname(filePath);
+    const safePath = sanitizePath(projectDir, file.path);
+    const dir = path.dirname(safePath);
     await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(filePath, file.content, "utf-8");
+    await fs.writeFile(safePath, file.content, "utf-8");
   }
 
   const domains = process.env["REPLIT_DOMAINS"] ?? process.env["REPLIT_DEV_DOMAIN"] ?? "localhost";

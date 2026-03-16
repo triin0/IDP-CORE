@@ -453,6 +453,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 25.3.5
+      openai:
+        specifier: ^6.29.0
+        version: 6.29.0(zod@4.3.6)
       tsx:
         specifier: 'catalog:'
         version: 4.21.0

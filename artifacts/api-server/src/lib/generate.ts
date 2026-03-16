@@ -33,7 +33,7 @@ export async function generateProjectCode(
 
     let parsed: { files: Array<{ path: string; content: string }> };
     try {
-      parsed = JSON.parse(rawContent);
+      parsed = JSON.parse(rawContent) as { files: Array<{ path: string; content: string }> };
     } catch {
       throw new Error("AI model returned invalid JSON");
     }
@@ -52,13 +52,14 @@ export async function generateProjectCode(
         goldenPathChecks,
       })
       .where(eq(projectsTable.id, projectId));
-  } catch (err: any) {
-    console.error(`Code generation failed for project ${projectId}:`, err);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown generation error";
+    console.error(`Code generation failed for project ${projectId}:`, message);
     await db
       .update(projectsTable)
       .set({
         status: "failed",
-        error: err.message ?? "Unknown generation error",
+        error: message,
       })
       .where(eq(projectsTable.id, projectId));
   }

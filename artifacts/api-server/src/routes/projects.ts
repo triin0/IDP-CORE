@@ -20,20 +20,28 @@ router.post("/projects", async (req, res) => {
       .values({ prompt: body.prompt })
       .returning();
 
-    generateProjectCode(project.id, body.prompt).catch((err) => {
-      console.error(`Generation failed for project ${project.id}:`, err);
+    generateProjectCode(project.id, body.prompt).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Generation failed for project ${project.id}:`, message);
     });
 
     res.status(201).json({ id: project.id, status: project.status });
-  } catch (err: any) {
-    console.error("Failed to create project:", err);
-    res.status(400).json({ error: err.message ?? "Invalid request" });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Invalid request";
+    console.error("Failed to create project:", message);
+    res.status(400).json({ error: message });
   }
 });
 
 router.get("/projects/:id", async (req, res) => {
   try {
     const { id } = GetProjectParams.parse(req.params);
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
 
     const [project] = await db
       .select()
@@ -55,15 +63,22 @@ router.get("/projects/:id", async (req, res) => {
       createdAt: project.createdAt.toISOString(),
       error: project.error,
     });
-  } catch (err: any) {
-    console.error("Failed to get project:", err);
-    res.status(400).json({ error: err.message ?? "Invalid request" });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Invalid request";
+    console.error("Failed to get project:", message);
+    res.status(400).json({ error: message });
   }
 });
 
 router.post("/projects/:id/deploy", async (req, res) => {
   try {
     const { id } = DeployProjectParams.parse(req.params);
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
 
     const [project] = await db
       .select()
@@ -85,9 +100,10 @@ router.post("/projects/:id/deploy", async (req, res) => {
     const result = await deployProject(project);
 
     res.json(result);
-  } catch (err: any) {
-    console.error("Failed to deploy project:", err);
-    res.status(500).json({ error: err.message ?? "Deployment failed" });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Deployment failed";
+    console.error("Failed to deploy project:", message);
+    res.status(500).json({ error: message });
   }
 });
 
