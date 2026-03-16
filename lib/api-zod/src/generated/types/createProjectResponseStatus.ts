@@ -11,6 +11,8 @@ export type CreateProjectResponseStatus =
 
 export const CreateProjectResponseStatus = {
   pending: "pending",
+  planning: "planning",
+  planned: "planned",
   generating: "generating",
   ready: "ready",
   deployed: "deployed",

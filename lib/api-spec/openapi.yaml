@@ -59,7 +59,7 @@ paths:
       operationId: createProject
       tags: [projects]
       summary: Create a new project from a prompt
-      description: Accepts a natural language prompt, creates a project record, and kicks off async AI code generation following Golden Path templates.
+      description: Accepts a natural language prompt, creates a project record, and kicks off async AI spec generation following Golden Path templates.
       requestBody:
         required: true
         content:
@@ -78,7 +78,7 @@ paths:
       operationId: getProject
       tags: [projects]
       summary: Get project status and files
-      description: Returns project status, generated file tree, and deploy URL. Poll-friendly.
+      description: Returns project status, spec, generated file tree, and deploy URL. Poll-friendly.
       parameters:
         - name: id
           in: path
@@ -92,6 +92,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectDetails"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{id}/approve-spec:
+    post:
+      operationId: approveSpec
+      tags: [projects]
+      summary: Approve the architectural spec and begin code generation
+      description: Transitions project from planned to generating status and kicks off code generation using the approved spec.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Spec approved and generation started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApproveSpecResponse"
+        "400":
+          description: Project not in planned status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Project not found
           content:
@@ -153,7 +184,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, generating, ready, deployed, failed]
+          enum: [pending, planning, planned, generating, ready, deployed, failed]
       required:
         - id
         - status
@@ -180,6 +211,63 @@ components:
         - name
         - passed
         - description
+    ApiEndpointSpec:
+      type: object
+      properties:
+        method:
+          type: string
+        path:
+          type: string
+        description:
+          type: string
+      required:
+        - method
+        - path
+        - description
+    DatabaseTableSpec:
+      type: object
+      properties:
+        name:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - columns
+    ProjectSpec:
+      type: object
+      properties:
+        overview:
+          type: string
+        fileStructure:
+          type: array
+          items:
+            type: string
+        apiEndpoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ApiEndpointSpec"
+        databaseTables:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatabaseTableSpec"
+        middleware:
+          type: array
+          items:
+            type: string
+        architecturalDecisions:
+          type: array
+          items:
+            type: string
+      required:
+        - overview
+        - fileStructure
+        - apiEndpoints
+        - databaseTables
+        - middleware
+        - architecturalDecisions
     ProjectDetails:
       type: object
       properties:
@@ -189,7 +277,9 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, generating, ready, deployed, failed]
+          enum: [pending, planning, planned, generating, ready, deployed, failed]
+        spec:
+          $ref: "#/components/schemas/ProjectSpec"
         files:
           type: array
           items:
@@ -214,6 +304,17 @@ components:
         - files
         - goldenPathChecks
         - createdAt
+    ApproveSpecResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [generating]
+      required:
+        - id
+        - status
     DeployProjectResponse:
       type: object
       properties:
@@ -237,7 +338,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, generating, ready, deployed, failed]
+          enum: [pending, planning, planned, generating, ready, deployed, failed]
         fileCount:
           type: integer
         goldenPathScore:

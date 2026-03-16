@@ -6,6 +6,14 @@ import { GOLDEN_PATH_SYSTEM_PROMPT, runGoldenPathChecks } from "./golden-path";
 export async function generateProjectCode(
   projectId: string,
   prompt: string,
+  spec?: {
+    overview: string;
+    fileStructure: string[];
+    apiEndpoints: Array<{ method: string; path: string; description: string }>;
+    databaseTables: Array<{ name: string; columns: string[] }>;
+    middleware: string[];
+    architecturalDecisions: string[];
+  },
 ): Promise<void> {
   try {
     await db
@@ -13,15 +21,26 @@ export async function generateProjectCode(
       .set({ status: "generating" })
       .where(eq(projectsTable.id, projectId));
 
+    let userContent = `Build the following application:\n\n${prompt}\n\n`;
+
+    if (spec) {
+      userContent += `### APPROVED ARCHITECTURAL SPEC\nYou MUST follow this approved specification exactly:\n\n`;
+      userContent += `**Overview:** ${spec.overview}\n\n`;
+      userContent += `**File Structure:** Generate exactly these files:\n${spec.fileStructure.map(f => `- ${f}`).join("\n")}\n\n`;
+      userContent += `**API Endpoints:**\n${spec.apiEndpoints.map(e => `- ${e.method} ${e.path} — ${e.description}`).join("\n")}\n\n`;
+      userContent += `**Database Tables:**\n${spec.databaseTables.map(t => `- ${t.name}: ${t.columns.join(", ")}`).join("\n")}\n\n`;
+      userContent += `**Middleware:** ${spec.middleware.join(", ")}\n\n`;
+      userContent += `**Architectural Decisions:** ${spec.architecturalDecisions.join("; ")}\n\n`;
+    }
+
+    userContent += `Generate ALL files needed for a complete, working application. Include package.json, server code, client code, and configuration files. Follow the Golden Path rules strictly.`;
+
     const response = await openai.chat.completions.create({
       model: "gpt-5.2",
       max_completion_tokens: 16384,
       messages: [
         { role: "system", content: GOLDEN_PATH_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Build the following application:\n\n${prompt}\n\nGenerate ALL files needed for a complete, working application. Include package.json, server code, client code, and configuration files. Follow the Golden Path rules strictly.`,
-        },
+        { role: "user", content: userContent },
       ],
       response_format: { type: "json_object" },
     });

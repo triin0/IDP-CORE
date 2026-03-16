@@ -6,8 +6,10 @@ import {
   GetProjectParams,
   DeployProjectParams,
   ListProjectsQueryParams,
+  ApproveSpecParams,
 } from "@workspace/api-zod";
 import { generateProjectCode } from "../lib/generate";
+import { generateProjectSpec } from "../lib/spec-generator";
 import { deployProject } from "../lib/deploy";
 
 const router: IRouter = Router();
@@ -22,6 +24,8 @@ interface FileRecord {
   path: string;
   content: string;
 }
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 router.get("/projects", async (req, res) => {
   let limit: number;
@@ -82,9 +86,9 @@ router.post("/projects", async (req, res) => {
       .values({ prompt: body.prompt })
       .returning();
 
-    generateProjectCode(project.id, body.prompt).catch((err: unknown) => {
+    generateProjectSpec(project.id, body.prompt).catch((err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`Generation failed for project ${project.id}:`, message);
+      console.error(`Spec generation failed for project ${project.id}:`, message);
     });
 
     res.status(201).json({ id: project.id, status: project.status });
@@ -99,8 +103,7 @@ router.get("/projects/:id", async (req, res) => {
   try {
     const { id } = GetProjectParams.parse(req.params);
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    if (!UUID_REGEX.test(id)) {
       res.status(404).json({ error: "Project not found" });
       return;
     }
@@ -119,6 +122,7 @@ router.get("/projects/:id", async (req, res) => {
       id: project.id,
       prompt: project.prompt,
       status: project.status,
+      spec: project.spec ?? undefined,
       files: project.files ?? [],
       goldenPathChecks: project.goldenPathChecks ?? [],
       deployUrl: project.deployUrl,
@@ -132,12 +136,59 @@ router.get("/projects/:id", async (req, res) => {
   }
 });
 
+router.post("/projects/:id/approve-spec", async (req, res) => {
+  try {
+    const { id } = ApproveSpecParams.parse(req.params);
+
+    if (!UUID_REGEX.test(id)) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const [project] = await db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.id, id));
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    if (project.status !== "planned") {
+      res.status(400).json({
+        error: `Cannot approve spec. Project status is '${project.status}', expected 'planned'.`,
+      });
+      return;
+    }
+
+    const spec = project.spec as {
+      overview: string;
+      fileStructure: string[];
+      apiEndpoints: Array<{ method: string; path: string; description: string }>;
+      databaseTables: Array<{ name: string; columns: string[] }>;
+      middleware: string[];
+      architecturalDecisions: string[];
+    } | null;
+
+    generateProjectCode(project.id, project.prompt, spec ?? undefined).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Generation failed for project ${project.id}:`, message);
+    });
+
+    res.json({ id: project.id, status: "generating" });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Invalid request";
+    console.error("Failed to approve spec:", message);
+    res.status(400).json({ error: message });
+  }
+});
+
 router.post("/projects/:id/deploy", async (req, res) => {
   try {
     const { id } = DeployProjectParams.parse(req.params);
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    if (!UUID_REGEX.test(id)) {
       res.status(404).json({ error: "Project not found" });
       return;
     }

@@ -46,8 +46,9 @@ artifacts-monorepo/
 
 The API server is the platform's "conductor". Key endpoints:
 
-- `POST /api/projects` — Create a project from a prompt. Returns project ID immediately, kicks off async AI generation.
-- `GET /api/projects/:id` — Poll project status (`pending` → `generating` → `ready` → `deployed`). Returns file tree, Golden Path compliance checks, and deploy URL.
+- `POST /api/projects` — Create a project from a prompt. Returns project ID immediately, kicks off async AI spec generation.
+- `GET /api/projects/:id` — Poll project status (`pending` → `planning` → `planned` → `generating` → `ready` → `deployed`). Returns spec, file tree, Golden Path compliance checks, and deploy URL.
+- `POST /api/projects/:id/approve-spec` — Approve the architectural spec and begin code generation (transitions `planned` → `generating`).
 - `POST /api/projects/:id/deploy` — Deploy generated code to a live preview URL.
 - `GET /api/healthz` — Health check with LLM connectivity probe (cached 60s).
 
@@ -82,6 +83,7 @@ Key frontend components:
 - `src/pages/Dashboard.tsx` — Project registry listing all generated projects with status, Golden Path scores, file counts, timestamps
 - `src/pages/Home.tsx` — New project prompt page
 - `src/components/PromptForm.tsx` — Terminal-styled prompt input
+- `src/components/SpecReview.tsx` — Architectural spec review screen (overview, file structure, endpoints, tables, middleware, decisions) with APPROVE & GENERATE button
 - `src/components/StatusTerminal.tsx` — Generation progress display
 - `src/components/Workspace.tsx` — Results layout (file tree + code viewer + checks)
 - `src/components/FileTree.tsx` — Navigable file tree
@@ -90,7 +92,7 @@ Key frontend components:
 - `src/components/HealthIndicator.tsx` — System/LLM status badges
 - `src/pages/ProjectView.tsx` — Standalone project workspace (shareable URL at /project/:id)
 
-Routes: `/` (Dashboard — project registry), `/new` (Prompt input), `/project/:id` (3-panel workspace: left file explorer, center code viewer, right status panel with Golden Path + deploy)
+Routes: `/` (Dashboard — project registry), `/new` (Prompt input), `/project/:id` (spec review when status=planned; 3-panel workspace when status=ready/deployed: left file explorer, center code viewer, right status panel with Golden Path + deploy)
 
 Navigation: Persistent header with IDP.CORE logo (links to /), PROJECTS tab (links to /), NEW tab (links to /new), and health indicators. Active tab is highlighted.
 
@@ -103,7 +105,8 @@ Navigation: Persistent header with IDP.CORE logo (links to /), PROJECTS tab (lin
 ### `projects` table
 - `id` (UUID, PK) — auto-generated
 - `prompt` (text) — user's natural language prompt
-- `status` (enum: pending/generating/ready/deployed/failed)
+- `status` (enum: pending/planning/planned/generating/ready/deployed/failed)
+- `spec` (JSONB, nullable) — architectural spec `{ overview, fileStructure, apiEndpoints, databaseTables, middleware, architecturalDecisions }`
 - `files` (JSONB) — array of `{ path, content }` objects
 - `golden_path_checks` (JSONB) — array of `{ name, passed, description }`
 - `deploy_url` (text, nullable)
@@ -130,7 +133,8 @@ Express 5 orchestration server with:
 - `src/routes/projects.ts` — Project CRUD + deploy endpoints
 - `src/routes/health.ts` — Health check with cached LLM probe
 - `src/lib/golden-path.ts` — Golden Path system prompt + compliance checker
-- `src/lib/generate.ts` — AI code generation via OpenAI
+- `src/lib/spec-generator.ts` — AI architectural spec generation (planning phase)
+- `src/lib/generate.ts` — AI code generation via OpenAI (uses approved spec as context)
 - `src/lib/deploy.ts` — File deployment to disk
 - Depends on: `@workspace/db`, `@workspace/api-zod`, `@workspace/integrations-openai-ai-server`
 

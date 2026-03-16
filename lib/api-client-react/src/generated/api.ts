@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ApproveSpecResponse,
   CreateProjectBody,
   CreateProjectResponse,
   DeployProjectResponse,
@@ -208,7 +209,7 @@ export function useListProjects<
 }
 
 /**
- * Accepts a natural language prompt, creates a project record, and kicks off async AI code generation following Golden Path templates.
+ * Accepts a natural language prompt, creates a project record, and kicks off async AI spec generation following Golden Path templates.
  * @summary Create a new project from a prompt
  */
 export const getCreateProjectUrl = () => {
@@ -295,7 +296,7 @@ export const useCreateProject = <
 };
 
 /**
- * Returns project status, generated file tree, and deploy URL. Poll-friendly.
+ * Returns project status, spec, generated file tree, and deploy URL. Poll-friendly.
  * @summary Get project status and files
  */
 export const getGetProjectUrl = (id: string) => {
@@ -381,6 +382,91 @@ export function useGetProject<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Transitions project from planned to generating status and kicks off code generation using the approved spec.
+ * @summary Approve the architectural spec and begin code generation
+ */
+export const getApproveSpecUrl = (id: string) => {
+  return `/api/projects/${id}/approve-spec`;
+};
+
+export const approveSpec = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ApproveSpecResponse> => {
+  return customFetch<ApproveSpecResponse>(getApproveSpecUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getApproveSpecMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveSpec>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveSpec>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["approveSpec"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveSpec>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return approveSpec(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveSpecMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveSpec>>
+>;
+
+export type ApproveSpecMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Approve the architectural spec and begin code generation
+ */
+export const useApproveSpec = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveSpec>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveSpec>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getApproveSpecMutationOptions(options));
+};
 
 /**
  * Packages generated code and deploys it to a live preview URL.

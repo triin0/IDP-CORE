@@ -8,11 +8,13 @@
 import type { GoldenPathCheck } from "./goldenPathCheck";
 import type { ProjectDetailsStatus } from "./projectDetailsStatus";
 import type { ProjectFile } from "./projectFile";
+import type { ProjectSpec } from "./projectSpec";
 
 export interface ProjectDetails {
   id: string;
   prompt: string;
   status: ProjectDetailsStatus;
+  spec?: ProjectSpec;
   files: ProjectFile[];
   goldenPathChecks: GoldenPathCheck[];
   deployUrl?: string | null;

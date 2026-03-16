@@ -44,6 +44,8 @@ export const ListProjectsResponse = zod.object({
       prompt: zod.string(),
       status: zod.enum([
         "pending",
+        "planning",
+        "planned",
         "generating",
         "ready",
         "deployed",
@@ -62,7 +64,7 @@ export const ListProjectsResponse = zod.object({
 });
 
 /**
- * Accepts a natural language prompt, creates a project record, and kicks off async AI code generation following Golden Path templates.
+ * Accepts a natural language prompt, creates a project record, and kicks off async AI spec generation following Golden Path templates.
  * @summary Create a new project from a prompt
  */
 export const CreateProjectBody = zod.object({
@@ -72,7 +74,7 @@ export const CreateProjectBody = zod.object({
 });
 
 /**
- * Returns project status, generated file tree, and deploy URL. Poll-friendly.
+ * Returns project status, spec, generated file tree, and deploy URL. Poll-friendly.
  * @summary Get project status and files
  */
 export const GetProjectParams = zod.object({
@@ -82,7 +84,36 @@ export const GetProjectParams = zod.object({
 export const GetProjectResponse = zod.object({
   id: zod.string(),
   prompt: zod.string(),
-  status: zod.enum(["pending", "generating", "ready", "deployed", "failed"]),
+  status: zod.enum([
+    "pending",
+    "planning",
+    "planned",
+    "generating",
+    "ready",
+    "deployed",
+    "failed",
+  ]),
+  spec: zod
+    .object({
+      overview: zod.string(),
+      fileStructure: zod.array(zod.string()),
+      apiEndpoints: zod.array(
+        zod.object({
+          method: zod.string(),
+          path: zod.string(),
+          description: zod.string(),
+        }),
+      ),
+      databaseTables: zod.array(
+        zod.object({
+          name: zod.string(),
+          columns: zod.array(zod.string()),
+        }),
+      ),
+      middleware: zod.array(zod.string()),
+      architecturalDecisions: zod.array(zod.string()),
+    })
+    .optional(),
   files: zod.array(
     zod.object({
       path: zod.string(),
@@ -99,6 +130,19 @@ export const GetProjectResponse = zod.object({
   deployUrl: zod.string().nullish(),
   createdAt: zod.date(),
   error: zod.string().nullish(),
+});
+
+/**
+ * Transitions project from planned to generating status and kicks off code generation using the approved spec.
+ * @summary Approve the architectural spec and begin code generation
+ */
+export const ApproveSpecParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ApproveSpecResponse = zod.object({
+  id: zod.string(),
+  status: zod.enum(["generating"]),
 });
 
 /**

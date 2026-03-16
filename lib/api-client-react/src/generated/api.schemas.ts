@@ -19,6 +19,8 @@ export type CreateProjectResponseStatus =
 
 export const CreateProjectResponseStatus = {
   pending: "pending",
+  planning: "planning",
+  planned: "planned",
   generating: "generating",
   ready: "ready",
   deployed: "deployed",
@@ -41,11 +43,33 @@ export interface GoldenPathCheck {
   description: string;
 }
 
+export interface ApiEndpointSpec {
+  method: string;
+  path: string;
+  description: string;
+}
+
+export interface DatabaseTableSpec {
+  name: string;
+  columns: string[];
+}
+
+export interface ProjectSpec {
+  overview: string;
+  fileStructure: string[];
+  apiEndpoints: ApiEndpointSpec[];
+  databaseTables: DatabaseTableSpec[];
+  middleware: string[];
+  architecturalDecisions: string[];
+}
+
 export type ProjectDetailsStatus =
   (typeof ProjectDetailsStatus)[keyof typeof ProjectDetailsStatus];
 
 export const ProjectDetailsStatus = {
   pending: "pending",
+  planning: "planning",
+  planned: "planned",
   generating: "generating",
   ready: "ready",
   deployed: "deployed",
@@ -56,11 +80,24 @@ export interface ProjectDetails {
   id: string;
   prompt: string;
   status: ProjectDetailsStatus;
+  spec?: ProjectSpec;
   files: ProjectFile[];
   goldenPathChecks: GoldenPathCheck[];
   deployUrl?: string | null;
   createdAt: string;
   error?: string | null;
+}
+
+export type ApproveSpecResponseStatus =
+  (typeof ApproveSpecResponseStatus)[keyof typeof ApproveSpecResponseStatus];
+
+export const ApproveSpecResponseStatus = {
+  generating: "generating",
+} as const;
+
+export interface ApproveSpecResponse {
+  id: string;
+  status: ApproveSpecResponseStatus;
 }
 
 export type DeployProjectResponseStatus =
@@ -81,6 +118,8 @@ export type ProjectSummaryStatus =
 
 export const ProjectSummaryStatus = {
   pending: "pending",
+  planning: "planning",
+  planned: "planned",
   generating: "generating",
   ready: "ready",
   deployed: "deployed",

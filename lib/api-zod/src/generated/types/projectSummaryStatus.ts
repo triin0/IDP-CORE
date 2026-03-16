@@ -11,6 +11,8 @@ export type ProjectSummaryStatus =
 
 export const ProjectSummaryStatus = {
   pending: "pending",
+  planning: "planning",
+  planned: "planned",
   generating: "generating",
   ready: "ready",
   deployed: "deployed",

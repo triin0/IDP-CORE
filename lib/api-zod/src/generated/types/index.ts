@@ -6,9 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./apiEndpointSpec";
+export * from "./approveSpecResponse";
+export * from "./approveSpecResponseStatus";
 export * from "./createProjectBody";
 export * from "./createProjectResponse";
 export * from "./createProjectResponseStatus";
+export * from "./databaseTableSpec";
 export * from "./deployProjectResponse";
 export * from "./deployProjectResponseStatus";
 export * from "./errorResponse";
@@ -19,5 +23,6 @@ export * from "./projectDetails";
 export * from "./projectDetailsStatus";
 export * from "./projectFile";
 export * from "./projectListResponse";
+export * from "./projectSpec";
 export * from "./projectSummary";
 export * from "./projectSummaryStatus";

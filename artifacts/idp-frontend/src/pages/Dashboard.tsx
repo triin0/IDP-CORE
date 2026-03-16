@@ -1,12 +1,14 @@
 import { useListProjects } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
-import { Plus, FolderCode, Rocket, Clock, AlertTriangle, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, FolderCode, Rocket, Clock, AlertTriangle, Loader2, CheckCircle2, XCircle, Lightbulb, FileCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   pending: { label: "PENDING", color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20", icon: Clock },
+  planning: { label: "PLANNING", color: "text-violet-400 bg-violet-400/10 border-violet-400/20", icon: Loader2 },
+  planned: { label: "SPEC READY", color: "text-amber-400 bg-amber-400/10 border-amber-400/20", icon: FileCheck },
   generating: { label: "GENERATING", color: "text-blue-400 bg-blue-400/10 border-blue-400/20", icon: Loader2 },
   ready: { label: "READY", color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20", icon: CheckCircle2 },
   deployed: { label: "DEPLOYED", color: "text-primary bg-primary/10 border-primary/20", icon: Rocket },
@@ -86,7 +88,7 @@ export function Dashboard() {
                   <div className="flex-1 min-w-0 mr-4">
                     <div className="flex items-center gap-3 mb-2">
                       <span className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border", config.color)}>
-                        <StatusIcon className={cn("w-3 h-3 inline mr-1", project.status === "generating" && "animate-spin")} />
+                        <StatusIcon className={cn("w-3 h-3 inline mr-1", (project.status === "generating" || project.status === "planning") && "animate-spin")} />
                         {config.label}
                       </span>
                       <span className="text-[10px] font-mono text-zinc-600 uppercase">

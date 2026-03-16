@@ -1,10 +1,28 @@
 import { useGetProject } from "@workspace/api-client-react";
 import { useParams, useLocation } from "wouter";
 import { Workspace } from "@/components/Workspace";
+import { SpecReview } from "@/components/SpecReview";
 import { AlertCircle, Loader2, WifiOff } from "lucide-react";
+import { motion } from "framer-motion";
 
 function isApiError(err: unknown): err is { name: string; status: number } {
   return err !== null && typeof err === "object" && "name" in err && (err as { name: string }).name === "ApiError" && "status" in err;
+}
+
+function PlanningSpinner() {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex-1 flex items-center justify-center"
+    >
+      <div className="text-center">
+        <Loader2 className="w-10 h-10 text-primary animate-spin mx-auto mb-4" />
+        <h2 className="text-lg font-mono font-semibold text-zinc-200 mb-1">GENERATING_SPEC</h2>
+        <p className="text-xs font-mono text-zinc-500">Analyzing your prompt and designing the architecture...</p>
+      </div>
+    </motion.div>
+  );
 }
 
 export function ProjectView() {
@@ -20,7 +38,7 @@ export function ProjectView() {
         enabled: !!projectId,
         refetchInterval: (query) => {
           const status = query.state.data?.status;
-          return (status === "pending" || status === "generating") ? 2000 : false;
+          return (status === "pending" || status === "planning" || status === "generating") ? 2000 : false;
         }
       }
     }
@@ -65,6 +83,20 @@ export function ProjectView() {
 
   if (!project) {
     return null;
+  }
+
+  if (project.status === "pending" || project.status === "planning") {
+    return <PlanningSpinner />;
+  }
+
+  if (project.status === "planned" && project.spec) {
+    return (
+      <SpecReview
+        projectId={project.id}
+        prompt={project.prompt}
+        spec={project.spec}
+      />
+    );
   }
 
   return (

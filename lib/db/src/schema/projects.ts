@@ -5,7 +5,15 @@ import { z } from "zod/v4";
 export const projectsTable = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   prompt: text("prompt").notNull(),
-  status: text("status", { enum: ["pending", "generating", "ready", "deployed", "failed"] }).notNull().default("pending"),
+  status: text("status", { enum: ["pending", "planning", "planned", "generating", "ready", "deployed", "failed"] }).notNull().default("pending"),
+  spec: jsonb("spec").$type<{
+    overview: string;
+    fileStructure: string[];
+    apiEndpoints: Array<{ method: string; path: string; description: string }>;
+    databaseTables: Array<{ name: string; columns: string[] }>;
+    middleware: string[];
+    architecturalDecisions: string[];
+  }>(),
   files: jsonb("files").$type<Array<{ path: string; content: string }>>().default([]),
   goldenPathChecks: jsonb("golden_path_checks").$type<Array<{ name: string; passed: boolean; description: string }>>().default([]),
   deployUrl: text("deploy_url"),
