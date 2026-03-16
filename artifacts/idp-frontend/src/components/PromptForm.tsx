@@ -27,7 +27,7 @@ export function PromptForm({ onProjectCreated }: PromptFormProps) {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="w-full max-w-3xl mx-auto mt-24 px-4"
@@ -40,7 +40,7 @@ export function PromptForm({ onProjectCreated }: PromptFormProps) {
           AI-Native <span className="text-primary font-mono tracking-normal text-3xl md:text-4xl">{"<IDP />"}</span>
         </h1>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-          Describe your application architecture. The Golden Path engine will generate, validate, and deploy it instantly.
+          Production-grade apps from a single prompt
         </p>
       </div>
 
@@ -58,22 +58,22 @@ export function PromptForm({ onProjectCreated }: PromptFormProps) {
               SYSTEM_PROMPT.EXE
             </div>
           </div>
-          
+
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g., A REST API for managing bookmarks with CRUD operations, using PostgreSQL and Zod validation..."
+            placeholder="Describe the app you want to build..."
             className="w-full h-40 p-6 bg-transparent resize-none outline-none font-mono text-sm leading-relaxed placeholder:text-zinc-600 focus:ring-0"
             disabled={createProject.isPending}
             autoFocus
           />
-          
+
           <div className="flex items-center justify-between p-4 bg-secondary/20 border-t border-border/50">
             <div className="text-xs font-mono text-muted-foreground flex items-center">
               <span className="w-2 h-4 bg-primary inline-block mr-2 animate-cursor-blink"></span>
               AWAITING_INPUT
             </div>
-            
+
             <button
               type="submit"
               disabled={!prompt.trim() || createProject.isPending}
@@ -98,7 +98,7 @@ export function PromptForm({ onProjectCreated }: PromptFormProps) {
           </div>
         </div>
       </form>
-      
+
       {createProject.isError && (
         <div className="mt-4 p-4 border border-destructive/50 bg-destructive/10 rounded-xl text-sm font-mono text-destructive flex items-start">
           <div className="mr-3 mt-0.5 text-destructive font-bold">ERR:</div>

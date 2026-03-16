@@ -87,10 +87,9 @@ Key frontend components:
 - `src/components/CodeViewer.tsx` — Syntax-highlighted code display (react-syntax-highlighter/Prism + oneDark theme, line numbers, language detection, line count)
 - `src/components/GoldenPath.tsx` — Compliance checklist
 - `src/components/HealthIndicator.tsx` — System/LLM status badges
-- `src/pages/Dashboard.tsx` — Project list with status badges, file counts, GP scores, timestamps
 - `src/pages/ProjectView.tsx` — Standalone project workspace (shareable URL at /project/:id)
 
-Routes: `/` (Dashboard), `/new` (Generate/Prompt), `/project/:id` (Project workspace)
+Routes: `/` (Prompt landing), `/project/:id` (3-panel workspace: left file explorer, center code viewer, right status panel with Golden Path + deploy)
 
 ### Custom Skill
 
