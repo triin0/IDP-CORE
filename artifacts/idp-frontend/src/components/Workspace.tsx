@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDeployProject } from "@workspace/api-client-react";
 import type { ProjectDetails } from "@workspace/api-client-react";
 import { FileTree } from "./FileTree";
@@ -176,10 +177,18 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
     }
   }, [activeFile, project.files]);
 
+  const queryClient = useQueryClient();
   const deployMut = useDeployProject();
 
   const handleDeploy = () => {
-    deployMut.mutate({ id: project.id });
+    deployMut.mutate(
+      { id: project.id },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}`] });
+        },
+      }
+    );
   };
 
   const activeContent = project.files.find((f: { path: string; content: string }) => f.path === activeFile)?.content || "";
