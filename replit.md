@@ -79,7 +79,8 @@ React + Vite app at `artifacts/idp-frontend/` served at `/`. Features:
 - **Design**: Dark mode professional theme with terminal/developer aesthetic
 
 Key frontend components:
-- `src/pages/Home.tsx` — Main page orchestrating the flow
+- `src/pages/Dashboard.tsx` — Project registry listing all generated projects with status, Golden Path scores, file counts, timestamps
+- `src/pages/Home.tsx` — New project prompt page
 - `src/components/PromptForm.tsx` — Terminal-styled prompt input
 - `src/components/StatusTerminal.tsx` — Generation progress display
 - `src/components/Workspace.tsx` — Results layout (file tree + code viewer + checks)
@@ -89,7 +90,9 @@ Key frontend components:
 - `src/components/HealthIndicator.tsx` — System/LLM status badges
 - `src/pages/ProjectView.tsx` — Standalone project workspace (shareable URL at /project/:id)
 
-Routes: `/` (Prompt landing), `/project/:id` (3-panel workspace: left file explorer, center code viewer, right status panel with Golden Path + deploy)
+Routes: `/` (Dashboard — project registry), `/new` (Prompt input), `/project/:id` (3-panel workspace: left file explorer, center code viewer, right status panel with Golden Path + deploy)
+
+Navigation: Persistent header with IDP.CORE logo (links to /), PROJECTS tab (links to /), NEW tab (links to /new), and health indicators. Active tab is highlighted.
 
 ### Custom Skill
 

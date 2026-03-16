@@ -108,7 +108,10 @@ export function Dashboard() {
                     {project.goldenPathScore !== "0/0" && (
                       <div className={cn(
                         "flex items-center gap-1",
-                        project.goldenPathScore.startsWith(project.goldenPathScore.split("/")[1]) ? "text-emerald-400" : "text-yellow-500"
+                        (() => {
+                          const [passed, total] = project.goldenPathScore.split("/");
+                          return passed === total ? "text-emerald-400" : "text-yellow-500";
+                        })()
                       )}>
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>{project.goldenPathScore}</span>
