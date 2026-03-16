@@ -2,9 +2,17 @@ import { eq } from "drizzle-orm";
 import { db, projectsTable, type Project } from "@workspace/db";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { fileURLToPath } from "url";
 
-const WORKSPACE_ROOT = path.resolve(import.meta.dirname, "../../../..");
-const DEPLOY_BASE_DIR = path.resolve(WORKSPACE_ROOT, "deployed-projects");
+const currentDir =
+  typeof __dirname !== "undefined"
+    ? __dirname
+    : path.dirname(fileURLToPath(import.meta.url));
+
+const DEPLOY_BASE_DIR =
+  process.env.NODE_ENV === "production"
+    ? path.resolve(currentDir, "../../deployed-projects")
+    : path.resolve(currentDir, "../../../../deployed-projects");
 
 export interface DeployResult {
   id: string;

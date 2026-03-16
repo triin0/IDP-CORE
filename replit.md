@@ -14,7 +14,7 @@ pnpm workspace monorepo for an AI-Native Internal Developer Platform. The platfo
 - **Database**: PostgreSQL + Drizzle ORM
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
-- **AI**: OpenAI via Replit AI Integrations (gpt-5.2 for code generation)
+- **AI**: Dual-provider support — OpenAI (via Replit AI Integrations, gpt-5.2) or Gemini Pro (via user API key, gemini-2.5-pro). Auto-selects Gemini if `GEMINI_API_KEY` is set, otherwise falls back to OpenAI.
 - **Build**: esbuild (CJS bundle)
 - **Frontend**: React + Vite + Tailwind CSS + Shadcn UI + Framer Motion
 
@@ -52,7 +52,19 @@ The API server is the platform's "conductor". Key endpoints:
 - `POST /api/projects/:id/regenerate-spec` — Discard current spec and trigger fresh AI spec generation (valid from `planned` or `failed`).
 - `PATCH /api/projects/:id/update-spec` — Edit individual spec sections (overview, fileStructure, middleware, architecturalDecisions) while in `planned` status.
 - `POST /api/projects/:id/deploy` — Deploy generated code to a live preview URL.
-- `GET /api/healthz` — Health check with LLM connectivity probe (cached 60s).
+- `GET /api/healthz` — Health check with LLM connectivity probe (cached 60s). Returns active provider (openai/gemini).
+
+### AI Provider Layer
+
+Dual-provider support via `ai-retry.ts`:
+- **Auto-detection**: If `GEMINI_API_KEY` env var is set, uses Gemini Pro. Otherwise falls back to OpenAI via Replit AI Integrations.
+- **Retry logic**: 3-attempt retry with exponential backoff (2s, 4s). Logs `finish_reason` and `content_length` per attempt.
+- **Token limits**: Spec generation: 8192 tokens. Code generation: 32768 tokens.
+- **Models**: OpenAI uses `gpt-5.2`, Gemini uses `gemini-2.5-pro`.
+
+### Orphan Recovery
+
+On server startup, `recovery.ts` scans for projects stuck in `planning` or `generating` status (e.g., from a server restart during generation) and automatically restarts their AI processing.
 
 ### Golden Path Engine
 
@@ -69,23 +81,33 @@ Nine automated compliance checks run after generation: Folder Structure, Securit
 
 ### Deployment
 
+#### Generated Projects
 Generated projects are written to `deployed-projects/<project-id>/` and served as static files at `/deployed/<project-id>/`.
+
+#### Production Deployment
+The API server serves both the API and the frontend in production:
+- Build: `pnpm --filter @workspace/idp-frontend run build && pnpm --filter @workspace/api-server run build`
+- Run: `node artifacts/api-server/dist/index.cjs`
+- Frontend built to `artifacts/idp-frontend/dist/public/`, served via Express static middleware
+- SPA catch-all route for client-side routing
+- Deployment target: autoscale
 
 ### Frontend (MVP UI)
 
 React + Vite app at `artifacts/idp-frontend/` served at `/`. Features:
 - **Prompt Input**: Terminal-styled textarea where users describe the app they want
+- **Spec Review**: Architectural spec review with sections for overview, file structure, endpoints, tables, middleware. APPROVE & GENERATE / REGENERATE buttons.
 - **Generation Status**: Real-time polling during AI generation with terminal animation
 - **Results View**: File tree, code viewer, and Golden Path compliance checklist (9/9 checks)
 - **Deploy**: One-click deploy with live preview URL
-- **Health Indicators**: Shows system status and LLM connectivity in header
+- **Health Indicators**: Shows system status and LLM connectivity (with provider name) in header
 - **Design**: Dark mode professional theme with terminal/developer aesthetic
 
 Key frontend components:
 - `src/pages/Dashboard.tsx` — Project registry listing all generated projects with status, Golden Path scores, file counts, timestamps
 - `src/pages/Home.tsx` — New project prompt page
 - `src/components/PromptForm.tsx` — Terminal-styled prompt input
-- `src/components/SpecReview.tsx` — Architectural spec review screen (overview, file structure, endpoints, tables, middleware, decisions) with APPROVE & GENERATE button
+- `src/components/SpecReview.tsx` — Architectural spec review screen with inline editing + APPROVE/REGENERATE buttons
 - `src/components/StatusTerminal.tsx` — Generation progress display
 - `src/components/Workspace.tsx` — Results layout (file tree + code viewer + checks)
 - `src/components/FileTree.tsx` — Navigable file tree
@@ -133,12 +155,14 @@ Every lib package extends `tsconfig.base.json` with `composite: true`. The root 
 
 Express 5 orchestration server with:
 - `src/routes/projects.ts` — Project CRUD + deploy endpoints
-- `src/routes/health.ts` — Health check with cached LLM probe
+- `src/routes/health.ts` — Health check with cached LLM probe (dual provider support)
 - `src/lib/golden-path.ts` — Golden Path system prompt + compliance checker
 - `src/lib/spec-generator.ts` — AI architectural spec generation (planning phase)
-- `src/lib/generate.ts` — AI code generation via OpenAI (uses approved spec as context)
+- `src/lib/generate.ts` — AI code generation (uses approved spec as context)
 - `src/lib/deploy.ts` — File deployment to disk
-- Depends on: `@workspace/db`, `@workspace/api-zod`, `@workspace/integrations-openai-ai-server`
+- `src/lib/ai-retry.ts` — Dual-provider AI wrapper (OpenAI/Gemini) with retry logic
+- `src/lib/recovery.ts` — Orphan project recovery on server startup
+- Depends on: `@workspace/db`, `@workspace/api-zod`, `@workspace/integrations-openai-ai-server`, `@google/generative-ai`
 
 ### `artifacts/idp-frontend` (`@workspace/idp-frontend`)
 
