@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
-import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router: IRouter = Router();
 
@@ -14,6 +13,8 @@ router.get("/healthz", async (_req, res) => {
 
   if (llmConfigured) {
     try {
+      const { openai } = await import("@workspace/integrations-openai-ai-server");
+
       const response = await Promise.race([
         openai.chat.completions.create({
           model: "gpt-5-nano",
