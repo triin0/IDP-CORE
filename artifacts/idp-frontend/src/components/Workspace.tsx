@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDeployProject } from "@workspace/api-client-react";
 import type { ProjectDetails } from "@workspace/api-client-react";
 import { FileTree } from "./FileTree";
@@ -124,7 +124,7 @@ function GenerationProgress() {
 
   const [visibleCount, setVisibleCount] = useState(1);
 
-  useState(() => {
+  useEffect(() => {
     const interval = setInterval(() => {
       setVisibleCount((prev) => {
         if (prev >= steps.length) {
@@ -135,7 +135,7 @@ function GenerationProgress() {
       });
     }, 2000);
     return () => clearInterval(interval);
-  });
+  }, [steps.length]);
 
   return (
     <div className="space-y-1.5">
