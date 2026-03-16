@@ -1,31 +1,27 @@
 import { eq } from "drizzle-orm";
 import { db, projectsTable } from "@workspace/db";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { callWithRetry } from "./ai-retry";
 
-const SPEC_SYSTEM_PROMPT = `### ROLE
-You are the "Golden Path" Architect for a high-end Internal Developer Platform. Your job is to create a detailed architectural specification for a full-stack application (Express backend + React frontend) based on a user's prompt.
+const SPEC_SYSTEM_PROMPT = `You are the "Golden Path" Architect. Create an architectural spec for a full-stack app (Express + React + TypeScript).
 
-### OUTPUT FORMAT
-Return a JSON object with this exact structure:
+Return ONLY a JSON object with this structure:
 {
-  "overview": "2-3 sentence summary of the application architecture",
-  "fileStructure": ["server/src/index.ts", "server/src/routes/users.ts", ...],
+  "overview": "2-3 sentence summary",
+  "fileStructure": ["server/src/index.ts", "server/src/routes/users.ts", "client/src/App.tsx", ...],
   "apiEndpoints": [{"method": "GET", "path": "/api/users", "description": "List all users"}],
   "databaseTables": [{"name": "users", "columns": ["id UUID PK", "email TEXT NOT NULL", "created_at TIMESTAMP"]}],
-  "middleware": ["helmet (security headers)", "cors (cross-origin)", "express-rate-limit"],
-  "architecturalDecisions": ["Using Drizzle ORM for type-safe database access", "Zod for runtime validation"]
+  "middleware": ["helmet", "cors", "express-rate-limit"],
+  "architecturalDecisions": ["Drizzle ORM for type-safe DB access", "Zod for validation"]
 }
 
-### RULES
-- fileStructure must follow Golden Path: server/src/routes/, server/src/middleware/, server/src/schema/, client/src/components/, client/src/hooks/, types/
-- Always include: package.json, .env.example, tsconfig.json
-- Security: helmet, cors, rate limiting, no hardcoded secrets
+Rules:
+- Follow Golden Path structure: server/src/routes/, server/src/middleware/, server/src/schema/, client/src/components/, client/src/hooks/
+- Include: package.json, .env.example, tsconfig.json
+- Security: helmet, cors, rate limiting
 - Validation: Zod on all routes
-- Database: ORM (Drizzle) with schema in server/src/schema/
-- TypeScript strict mode throughout
-- Be thorough: list ALL files, ALL endpoints, ALL tables needed
-
-Do NOT include any text before or after the JSON. Only output the JSON object.`;
+- Database: Drizzle ORM with schema in server/src/schema/
+- Keep fileStructure concise (20-40 key files, not every single file)
+- Return ONLY the JSON object, no other text.`;
 
 interface ProjectSpec {
   overview: string;
@@ -46,23 +42,21 @@ export async function generateProjectSpec(
       .set({ status: "planning" })
       .where(eq(projectsTable.id, projectId));
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 4096,
-      messages: [
-        { role: "system", content: SPEC_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Create an architectural specification for the following application:\n\n${prompt}\n\nBe thorough and list every file, endpoint, table, and middleware needed.`,
-        },
-      ],
-      response_format: { type: "json_object" },
-    });
-
-    const rawContent = response.choices[0]?.message?.content;
-    if (!rawContent) {
-      throw new Error("No response from AI model");
-    }
+    const rawContent = await callWithRetry(
+      {
+        model: "gpt-5.2",
+        max_completion_tokens: 8192,
+        messages: [
+          { role: "system", content: SPEC_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Create an architectural specification for: ${prompt}`,
+          },
+        ],
+        response_format: { type: "json_object" },
+      },
+      `spec-gen:${projectId.slice(0, 8)}`,
+    );
 
     let spec: ProjectSpec;
     try {

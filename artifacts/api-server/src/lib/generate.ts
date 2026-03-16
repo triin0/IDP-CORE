@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db, projectsTable } from "@workspace/db";
-import { openai } from "@workspace/integrations-openai-ai-server";
 import { GOLDEN_PATH_SYSTEM_PROMPT, runGoldenPathChecks } from "./golden-path";
+import { callWithRetry } from "./ai-retry";
 
 export async function generateProjectCode(
   projectId: string,
@@ -35,20 +35,18 @@ export async function generateProjectCode(
 
     userContent += `Generate ALL files needed for a complete, working application. Include package.json, server code, client code, and configuration files. Follow the Golden Path rules strictly.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 16384,
-      messages: [
-        { role: "system", content: GOLDEN_PATH_SYSTEM_PROMPT },
-        { role: "user", content: userContent },
-      ],
-      response_format: { type: "json_object" },
-    });
-
-    const rawContent = response.choices[0]?.message?.content;
-    if (!rawContent) {
-      throw new Error("No response from AI model");
-    }
+    const rawContent = await callWithRetry(
+      {
+        model: "gpt-5.2",
+        max_completion_tokens: 32768,
+        messages: [
+          { role: "system", content: GOLDEN_PATH_SYSTEM_PROMPT },
+          { role: "user", content: userContent },
+        ],
+        response_format: { type: "json_object" },
+      },
+      `code-gen:${projectId.slice(0, 8)}`,
+    );
 
     let parsed: { files: Array<{ path: string; content: string }> };
     try {
