@@ -271,8 +271,22 @@ router.patch("/projects/:id/update-spec", async (req, res) => {
       return;
     }
 
-    const currentSpec = (project.spec ?? {}) as Record<string, unknown>;
-    const mergedSpec = { ...currentSpec, ...updates };
+    type SpecShape = {
+      overview: string;
+      fileStructure: string[];
+      apiEndpoints: Array<{ method: string; path: string; description: string }>;
+      databaseTables: Array<{ name: string; columns: string[] }>;
+      middleware: string[];
+      architecturalDecisions: string[];
+    };
+    const currentSpec = (project.spec ?? {}) as SpecShape;
+    const mergedSpec: SpecShape = { ...currentSpec };
+    if (updates.overview !== undefined) mergedSpec.overview = updates.overview;
+    if (updates.fileStructure !== undefined) mergedSpec.fileStructure = updates.fileStructure;
+    if (updates.apiEndpoints !== undefined) mergedSpec.apiEndpoints = updates.apiEndpoints;
+    if (updates.databaseTables !== undefined) mergedSpec.databaseTables = updates.databaseTables;
+    if (updates.middleware !== undefined) mergedSpec.middleware = updates.middleware;
+    if (updates.architecturalDecisions !== undefined) mergedSpec.architecturalDecisions = updates.architecturalDecisions;
 
     const [updated] = await db
       .update(projectsTable)
