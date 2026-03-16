@@ -84,9 +84,17 @@ Key frontend components:
 - `src/components/StatusTerminal.tsx` — Generation progress display
 - `src/components/Workspace.tsx` — Results layout (file tree + code viewer + checks)
 - `src/components/FileTree.tsx` — Navigable file tree
-- `src/components/CodeViewer.tsx` — Syntax-highlighted code display
+- `src/components/CodeViewer.tsx` — Syntax-highlighted code display (react-syntax-highlighter/Prism + oneDark theme, line numbers, language detection, line count)
 - `src/components/GoldenPath.tsx` — Compliance checklist
 - `src/components/HealthIndicator.tsx` — System/LLM status badges
+- `src/pages/Dashboard.tsx` — Project list with status badges, file counts, GP scores, timestamps
+- `src/pages/ProjectView.tsx` — Standalone project workspace (shareable URL at /project/:id)
+
+Routes: `/` (Dashboard), `/new` (Generate/Prompt), `/project/:id` (Project workspace)
+
+### Custom Skill
+
+`.local/skills/idp-platform/SKILL.md` — Comprehensive architecture reference covering API endpoints, data models, Golden Path engine, frontend patterns, code generation flow, and common pitfalls. Load this skill when working on IDP features.
 
 ## Database Schema
 

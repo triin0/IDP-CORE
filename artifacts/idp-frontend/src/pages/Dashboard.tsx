@@ -15,7 +15,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 
 export function Dashboard() {
   const [, navigate] = useLocation();
-  const { data, isLoading } = useListProjects({ limit: 50, offset: 0 });
+  const { data, isLoading, isError } = useListProjects({ limit: 50, offset: 0 });
 
   return (
     <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full px-6 py-8">
@@ -37,6 +37,16 @@ export function Dashboard() {
       {isLoading && (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        </div>
+      )}
+
+      {isError && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <AlertTriangle className="w-16 h-16 text-destructive/60 mx-auto mb-4" />
+            <h2 className="text-xl font-mono text-destructive mb-2">CONNECTION_ERROR</h2>
+            <p className="text-sm text-zinc-600 font-mono mb-6">Failed to load projects. The API server may be unavailable.</p>
+          </div>
         </div>
       )}
 
