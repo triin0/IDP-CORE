@@ -14,3 +14,57 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Accepts a natural language prompt, creates a project record, and kicks off async AI code generation following Golden Path templates.
+ * @summary Create a new project from a prompt
+ */
+export const CreateProjectBody = zod.object({
+  prompt: zod
+    .string()
+    .describe("Natural language description of the application to build"),
+});
+
+/**
+ * Returns project status, generated file tree, and deploy URL. Poll-friendly.
+ * @summary Get project status and files
+ */
+export const GetProjectParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetProjectResponse = zod.object({
+  id: zod.string(),
+  prompt: zod.string(),
+  status: zod.enum(["pending", "generating", "ready", "deployed", "failed"]),
+  files: zod.array(
+    zod.object({
+      path: zod.string(),
+      content: zod.string(),
+    }),
+  ),
+  goldenPathChecks: zod.array(
+    zod.object({
+      name: zod.string(),
+      passed: zod.boolean(),
+      description: zod.string(),
+    }),
+  ),
+  deployUrl: zod.string().nullish(),
+  createdAt: zod.date(),
+  error: zod.string().nullish(),
+});
+
+/**
+ * Packages generated code and deploys it to a live preview URL.
+ * @summary Deploy a generated project
+ */
+export const DeployProjectParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DeployProjectResponse = zod.object({
+  id: zod.string(),
+  status: zod.enum(["deployed"]),
+  deployUrl: zod.string(),
+});

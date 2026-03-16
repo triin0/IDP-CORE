@@ -5,18 +5,28 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  CreateProjectBody,
+  CreateProjectResponse,
+  DeployProjectResponse,
+  ErrorResponse,
+  HealthStatus,
+  ProjectDetails,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +109,263 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Accepts a natural language prompt, creates a project record, and kicks off async AI code generation following Golden Path templates.
+ * @summary Create a new project from a prompt
+ */
+export const getCreateProjectUrl = () => {
+  return `/api/projects`;
+};
+
+export const createProject = async (
+  createProjectBody: CreateProjectBody,
+  options?: RequestInit,
+): Promise<CreateProjectResponse> => {
+  return customFetch<CreateProjectResponse>(getCreateProjectUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createProjectBody),
+  });
+};
+
+export const getCreateProjectMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProject>>,
+    TError,
+    { data: BodyType<CreateProjectBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createProject>>,
+  TError,
+  { data: BodyType<CreateProjectBody> },
+  TContext
+> => {
+  const mutationKey = ["createProject"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createProject>>,
+    { data: BodyType<CreateProjectBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createProject(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateProjectMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createProject>>
+>;
+export type CreateProjectMutationBody = BodyType<CreateProjectBody>;
+export type CreateProjectMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new project from a prompt
+ */
+export const useCreateProject = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProject>>,
+    TError,
+    { data: BodyType<CreateProjectBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createProject>>,
+  TError,
+  { data: BodyType<CreateProjectBody> },
+  TContext
+> => {
+  return useMutation(getCreateProjectMutationOptions(options));
+};
+
+/**
+ * Returns project status, generated file tree, and deploy URL. Poll-friendly.
+ * @summary Get project status and files
+ */
+export const getGetProjectUrl = (id: string) => {
+  return `/api/projects/${id}`;
+};
+
+export const getProject = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ProjectDetails> => {
+  return customFetch<ProjectDetails>(getGetProjectUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjectQueryKey = (id: string) => {
+  return [`/api/projects/${id}`] as const;
+};
+
+export const getGetProjectQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProject>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProjectQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getProject>>> = ({
+    signal,
+  }) => getProject(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProject>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjectQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProject>>
+>;
+export type GetProjectQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get project status and files
+ */
+
+export function useGetProject<
+  TData = Awaited<ReturnType<typeof getProject>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProject>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjectQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Packages generated code and deploys it to a live preview URL.
+ * @summary Deploy a generated project
+ */
+export const getDeployProjectUrl = (id: string) => {
+  return `/api/projects/${id}/deploy`;
+};
+
+export const deployProject = async (
+  id: string,
+  options?: RequestInit,
+): Promise<DeployProjectResponse> => {
+  return customFetch<DeployProjectResponse>(getDeployProjectUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getDeployProjectMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deployProject>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deployProject>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deployProject"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deployProject>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deployProject(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeployProjectMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deployProject>>
+>;
+
+export type DeployProjectMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Deploy a generated project
+ */
+export const useDeployProject = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deployProject>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deployProject>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeployProjectMutationOptions(options));
+};

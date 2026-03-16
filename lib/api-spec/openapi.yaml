@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: projects
+    description: Project orchestration operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,81 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /projects:
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a new project from a prompt
+      description: Accepts a natural language prompt, creates a project record, and kicks off async AI code generation following Golden Path templates.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectBody"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateProjectResponse"
+  /projects/{id}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get project status and files
+      description: Returns project status, generated file tree, and deploy URL. Poll-friendly.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectDetails"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /projects/{id}/deploy:
+    post:
+      operationId: deployProject
+      tags: [projects]
+      summary: Deploy a generated project
+      description: Packages generated code and deploys it to a live preview URL.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deployment triggered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeployProjectResponse"
+        "400":
+          description: Project not ready for deployment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +110,100 @@ components:
           type: string
       required:
         - status
-
+    CreateProjectBody:
+      type: object
+      properties:
+        prompt:
+          type: string
+          description: Natural language description of the application to build
+      required:
+        - prompt
+    CreateProjectResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [pending, generating, ready, deployed, failed]
+      required:
+        - id
+        - status
+    ProjectFile:
+      type: object
+      properties:
+        path:
+          type: string
+        content:
+          type: string
+      required:
+        - path
+        - content
+    GoldenPathCheck:
+      type: object
+      properties:
+        name:
+          type: string
+        passed:
+          type: boolean
+        description:
+          type: string
+      required:
+        - name
+        - passed
+        - description
+    ProjectDetails:
+      type: object
+      properties:
+        id:
+          type: string
+        prompt:
+          type: string
+        status:
+          type: string
+          enum: [pending, generating, ready, deployed, failed]
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectFile"
+        goldenPathChecks:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoldenPathCheck"
+        deployUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        error:
+          type: string
+          nullable: true
+      required:
+        - id
+        - prompt
+        - status
+        - files
+        - goldenPathChecks
+        - createdAt
+    DeployProjectResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [deployed]
+        deployUrl:
+          type: string
+      required:
+        - id
+        - status
+        - deployUrl
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

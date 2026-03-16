@@ -8,3 +8,74 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface CreateProjectBody {
+  /** Natural language description of the application to build */
+  prompt: string;
+}
+
+export type CreateProjectResponseStatus =
+  (typeof CreateProjectResponseStatus)[keyof typeof CreateProjectResponseStatus];
+
+export const CreateProjectResponseStatus = {
+  pending: "pending",
+  generating: "generating",
+  ready: "ready",
+  deployed: "deployed",
+  failed: "failed",
+} as const;
+
+export interface CreateProjectResponse {
+  id: string;
+  status: CreateProjectResponseStatus;
+}
+
+export interface ProjectFile {
+  path: string;
+  content: string;
+}
+
+export interface GoldenPathCheck {
+  name: string;
+  passed: boolean;
+  description: string;
+}
+
+export type ProjectDetailsStatus =
+  (typeof ProjectDetailsStatus)[keyof typeof ProjectDetailsStatus];
+
+export const ProjectDetailsStatus = {
+  pending: "pending",
+  generating: "generating",
+  ready: "ready",
+  deployed: "deployed",
+  failed: "failed",
+} as const;
+
+export interface ProjectDetails {
+  id: string;
+  prompt: string;
+  status: ProjectDetailsStatus;
+  files: ProjectFile[];
+  goldenPathChecks: GoldenPathCheck[];
+  deployUrl?: string | null;
+  createdAt: string;
+  error?: string | null;
+}
+
+export type DeployProjectResponseStatus =
+  (typeof DeployProjectResponseStatus)[keyof typeof DeployProjectResponseStatus];
+
+export const DeployProjectResponseStatus = {
+  deployed: "deployed",
+} as const;
+
+export interface DeployProjectResponse {
+  id: string;
+  status: DeployProjectResponseStatus;
+  deployUrl: string;
+}
+
+export interface ErrorResponse {
+  error: string;
+}
