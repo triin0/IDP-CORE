@@ -24,9 +24,19 @@ interface FileRecord {
 }
 
 router.get("/projects", async (req, res) => {
+  let limit: number;
+  let offset: number;
   try {
-    const { limit = 20, offset = 0 } = ListProjectsQueryParams.parse(req.query);
+    const parsed = ListProjectsQueryParams.parse(req.query);
+    limit = parsed.limit ?? 20;
+    offset = parsed.offset ?? 0;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Invalid query parameters";
+    res.status(400).json({ error: message });
+    return;
+  }
 
+  try {
     const [totalResult] = await db.select({ value: count() }).from(projectsTable);
     const total = totalResult?.value ?? 0;
 
@@ -41,14 +51,14 @@ router.get("/projects", async (req, res) => {
       const files = (p.files ?? []) as FileRecord[];
       const checks = (p.goldenPathChecks ?? []) as GoldenPathCheckRecord[];
       const passed = checks.filter((c) => c.passed).length;
-      const total = checks.length;
+      const checkTotal = checks.length;
 
       return {
         id: p.id,
         prompt: p.prompt,
         status: p.status,
         fileCount: files.length,
-        goldenPathScore: `${passed}/${total}`,
+        goldenPathScore: `${passed}/${checkTotal}`,
         deployUrl: p.deployUrl,
         createdAt: p.createdAt.toISOString(),
         error: p.error,
