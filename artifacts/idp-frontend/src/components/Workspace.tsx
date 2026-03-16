@@ -163,6 +163,12 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
     project.files.length > 0 ? project.files[0].path : null
   );
 
+  useEffect(() => {
+    if (!activeFile && project.files.length > 0) {
+      setActiveFile(project.files[0].path);
+    }
+  }, [activeFile, project.files]);
+
   const deployMut = useDeployProject();
 
   const handleDeploy = () => {

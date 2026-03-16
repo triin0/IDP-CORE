@@ -30,6 +30,14 @@ export function GoldenPath({ checks }: GoldenPathProps) {
         </div>
       </div>
 
+      {allPassed && (
+        <div className="mb-2 p-2 rounded-lg bg-success/10 border border-success/20 text-center">
+          <span className="text-xs font-mono font-bold text-success tracking-wider">
+            GOLDEN PATH COMPLIANT
+          </span>
+        </div>
+      )}
+
       <div className="space-y-1">
         {checks.map((check, i) => (
           <div
