@@ -13,11 +13,12 @@ interface WorkspaceProps {
   onReset?: () => void;
 }
 
-function StatusPanel({ project, onDeploy, isDeploying, deployUrl }: {
+function StatusPanel({ project, onDeploy, isDeploying, deployUrl, deployError }: {
   project: ProjectDetails;
   onDeploy: () => void;
   isDeploying: boolean;
   deployUrl: string | null;
+  deployError: boolean;
 }) {
   const isGenerating = project.status === "pending" || project.status === "generating";
   const isReady = project.status === "ready" || project.status === "deployed";
@@ -106,6 +107,12 @@ function StatusPanel({ project, onDeploy, isDeploying, deployUrl }: {
               )}
             </button>
           ) : null}
+
+          {deployError && (
+            <div className="mt-2 p-2 rounded-lg border border-destructive/30 bg-destructive/10">
+              <p className="text-xs font-mono text-destructive">DEPLOY_FAILED: Could not deploy project. Please try again.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -241,6 +248,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
             onDeploy={handleDeploy}
             isDeploying={deployMut.isPending}
             deployUrl={deployMut.data?.deployUrl || null}
+            deployError={deployMut.isError}
           />
         </div>
       </div>
