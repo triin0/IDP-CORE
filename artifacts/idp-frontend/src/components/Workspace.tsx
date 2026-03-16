@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useDeployProject } from "@workspace/api-client-react";
-import type { ProjectDetails } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { ProjectDetails } from "@workspace/api-client-react";
 import { FileTree } from "./FileTree";
 import { CodeViewer } from "./CodeViewer";
 import { GoldenPath } from "./GoldenPath";
@@ -23,7 +23,7 @@ export function Workspace({ project }: WorkspaceProps) {
     deployMut.mutate({ id: project.id });
   };
 
-  const activeContent = project.files.find(f => f.path === activeFile)?.content || "";
+  const activeContent = project.files.find((f: { path: string; content: string }) => f.path === activeFile)?.content || "";
 
   return (
     <motion.div 

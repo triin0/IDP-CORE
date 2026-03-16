@@ -16,6 +16,52 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * Returns a paginated list of projects ordered by creation date (newest first).
+ * @summary List all projects
+ */
+export const listProjectsQueryLimitDefault = 20;
+export const listProjectsQueryLimitMax = 100;
+
+export const listProjectsQueryOffsetDefault = 0;
+export const listProjectsQueryOffsetMin = 0;
+
+export const ListProjectsQueryParams = zod.object({
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(listProjectsQueryLimitMax)
+    .default(listProjectsQueryLimitDefault),
+  offset: zod.coerce
+    .number()
+    .min(listProjectsQueryOffsetMin)
+    .default(listProjectsQueryOffsetDefault),
+});
+
+export const ListProjectsResponse = zod.object({
+  projects: zod.array(
+    zod.object({
+      id: zod.string(),
+      prompt: zod.string(),
+      status: zod.enum([
+        "pending",
+        "generating",
+        "ready",
+        "deployed",
+        "failed",
+      ]),
+      fileCount: zod.number(),
+      goldenPathScore: zod.string().describe("Pass rate like '9\/9'"),
+      deployUrl: zod.string().nullish(),
+      createdAt: zod.date(),
+      error: zod.string().nullish(),
+    }),
+  ),
+  total: zod.number(),
+  limit: zod.number(),
+  offset: zod.number(),
+});
+
+/**
  * Accepts a natural language prompt, creates a project record, and kicks off async AI code generation following Golden Path templates.
  * @summary Create a new project from a prompt
  */

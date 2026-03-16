@@ -1,0 +1,120 @@
+import { useListProjects } from "@workspace/api-client-react";
+import { useLocation } from "wouter";
+import { formatDistanceToNow } from "date-fns";
+import { Plus, FolderCode, Rocket, Clock, AlertTriangle, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+
+const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
+  pending: { label: "PENDING", color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20", icon: Clock },
+  generating: { label: "GENERATING", color: "text-blue-400 bg-blue-400/10 border-blue-400/20", icon: Loader2 },
+  ready: { label: "READY", color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20", icon: CheckCircle2 },
+  deployed: { label: "DEPLOYED", color: "text-primary bg-primary/10 border-primary/20", icon: Rocket },
+  failed: { label: "FAILED", color: "text-destructive bg-destructive/10 border-destructive/20", icon: XCircle },
+};
+
+export function Dashboard() {
+  const [, navigate] = useLocation();
+  const { data, isLoading } = useListProjects({ limit: 50, offset: 0 });
+
+  return (
+    <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full px-6 py-8">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-100 font-mono">PROJECT_REGISTRY</h1>
+          <p className="text-sm text-zinc-500 font-mono mt-1">
+            {data ? `${data.total} project${data.total === 1 ? "" : "s"} generated` : "Loading..."}
+          </p>
+        </div>
+        <button
+          onClick={() => navigate("/new")}
+          className="flex items-center px-5 py-2.5 rounded-lg font-mono text-sm font-medium bg-primary text-primary-foreground hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all"
+        >
+          <Plus className="w-4 h-4 mr-2" /> NEW_PROJECT
+        </button>
+      </div>
+
+      {isLoading && (
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        </div>
+      )}
+
+      {data && data.projects.length === 0 && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <FolderCode className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
+            <h2 className="text-xl font-mono text-zinc-400 mb-2">NO_PROJECTS_FOUND</h2>
+            <p className="text-sm text-zinc-600 font-mono mb-6">Generate your first application from a natural language prompt.</p>
+            <button
+              onClick={() => navigate("/new")}
+              className="px-6 py-2.5 bg-primary text-primary-foreground font-mono text-sm rounded-lg hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all"
+            >
+              CREATE_PROJECT
+            </button>
+          </div>
+        </div>
+      )}
+
+      {data && data.projects.length > 0 && (
+        <div className="grid gap-4">
+          {data.projects.map((project, index) => {
+            const config = statusConfig[project.status] || statusConfig.pending;
+            const StatusIcon = config.icon;
+            const timeAgo = formatDistanceToNow(new Date(project.createdAt), { addSuffix: true });
+
+            return (
+              <motion.div
+                key={project.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => navigate(`/project/${project.id}`)}
+                className="group cursor-pointer bg-card border border-border rounded-xl p-5 hover:border-primary/30 hover:shadow-[0_0_30px_rgba(34,211,238,0.08)] transition-all duration-300"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0 mr-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border", config.color)}>
+                        <StatusIcon className={cn("w-3 h-3 inline mr-1", project.status === "generating" && "animate-spin")} />
+                        {config.label}
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-600 uppercase">
+                        ID: {project.id.split("-")[0]}
+                      </span>
+                    </div>
+                    <p className="text-sm text-zinc-300 font-mono truncate group-hover:text-zinc-100 transition-colors">
+                      {project.prompt}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs font-mono text-zinc-500 shrink-0">
+                    {project.fileCount > 0 && (
+                      <div className="flex items-center gap-1">
+                        <FolderCode className="w-3.5 h-3.5" />
+                        <span>{project.fileCount} files</span>
+                      </div>
+                    )}
+                    {project.goldenPathScore !== "0/0" && (
+                      <div className={cn(
+                        "flex items-center gap-1",
+                        project.goldenPathScore.startsWith(project.goldenPathScore.split("/")[1]) ? "text-emerald-400" : "text-yellow-500"
+                      )}>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{project.goldenPathScore}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{timeAgo}</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

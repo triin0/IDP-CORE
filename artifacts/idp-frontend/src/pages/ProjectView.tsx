@@ -1,19 +1,21 @@
-import { useState } from "react";
 import { useGetProject, getGetProjectQueryOptions } from "@workspace/api-client-react";
-import { PromptForm } from "@/components/PromptForm";
+import { useParams, useLocation } from "wouter";
 import { StatusTerminal } from "@/components/StatusTerminal";
 import { Workspace } from "@/components/Workspace";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 
-export function Home() {
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+export function ProjectView() {
+  const params = useParams<{ id: string }>();
+  const [, navigate] = useLocation();
+  const projectId = params.id || "";
 
-  const { data: project, isError } = useGetProject(
-    activeProjectId || "", 
+  const queryOptions = getGetProjectQueryOptions(projectId);
+  const { data: project, isLoading, isError } = useGetProject(
+    projectId,
     {
       query: {
-        queryKey: [`/api/projects/${activeProjectId}`],
-        enabled: !!activeProjectId,
+        ...queryOptions,
+        enabled: !!projectId,
         refetchInterval: (query) => {
           const status = query.state.data?.status;
           return (status === "pending" || status === "generating") ? 2000 : false;
@@ -22,21 +24,23 @@ export function Home() {
     }
   );
 
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col">
-      {!activeProjectId && (
-        <div className="flex-1 flex items-center justify-center py-12">
-          <PromptForm onProjectCreated={setActiveProjectId} />
-        </div>
-      )}
-
-      {activeProjectId && project && (project.status === "pending" || project.status === "generating") && (
+      {project && (project.status === "pending" || project.status === "generating") && (
         <div className="flex-1 py-12 px-4">
           <StatusTerminal status={project.status} />
         </div>
       )}
 
-      {activeProjectId && project && (project.status === "ready" || project.status === "deployed") && (
+      {project && (project.status === "ready" || project.status === "deployed") && (
         <div className="flex-1 py-4">
           <Workspace project={project} />
         </div>
@@ -51,10 +55,11 @@ export function Home() {
               {project?.error || "An unexpected error occurred during the generation sequence."}
             </p>
             <button 
-              onClick={() => setActiveProjectId(null)}
+              onClick={() => navigate("/")}
               className="px-6 py-2 bg-secondary hover:bg-secondary/80 text-foreground font-mono text-sm rounded-lg border border-border transition-colors"
             >
-              RESET_SEQUENCE
+              <ArrowLeft className="w-4 h-4 inline mr-2" />
+              BACK_TO_DASHBOARD
             </button>
           </div>
         </div>

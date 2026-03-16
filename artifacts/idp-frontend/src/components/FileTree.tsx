@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Folder, File, ChevronRight, ChevronDown, FileJson, FileCode2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ProjectFile } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { ProjectFile } from "@workspace/api-client-react";
 
 interface FileTreeProps {
   files: ProjectFile[];
@@ -24,7 +24,7 @@ function buildTree(files: ProjectFile[]): Record<string, TreeNode> {
     const parts = file.path.split('/');
     let current = root;
 
-    parts.forEach((part, i) => {
+    parts.forEach((part: string, i: number) => {
       const isFile = i === parts.length - 1;
       const currentPath = parts.slice(0, i + 1).join('/');
 

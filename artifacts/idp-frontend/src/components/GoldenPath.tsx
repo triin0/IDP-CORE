@@ -1,5 +1,5 @@
 import { CheckCircle2, XCircle, AlertCircle } from "lucide-react";
-import type { GoldenPathCheck } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { GoldenPathCheck } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 
 interface GoldenPathProps {

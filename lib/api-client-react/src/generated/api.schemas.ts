@@ -76,6 +76,48 @@ export interface DeployProjectResponse {
   deployUrl: string;
 }
 
+export type ProjectSummaryStatus =
+  (typeof ProjectSummaryStatus)[keyof typeof ProjectSummaryStatus];
+
+export const ProjectSummaryStatus = {
+  pending: "pending",
+  generating: "generating",
+  ready: "ready",
+  deployed: "deployed",
+  failed: "failed",
+} as const;
+
+export interface ProjectSummary {
+  id: string;
+  prompt: string;
+  status: ProjectSummaryStatus;
+  fileCount: number;
+  /** Pass rate like '9/9' */
+  goldenPathScore: string;
+  deployUrl?: string | null;
+  createdAt: string;
+  error?: string | null;
+}
+
+export interface ProjectListResponse {
+  projects: ProjectSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface ErrorResponse {
   error: string;
 }
+
+export type ListProjectsParams = {
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
+  limit?: number;
+  /**
+   * @minimum 0
+   */
+  offset?: number;
+};

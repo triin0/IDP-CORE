@@ -1,13 +1,23 @@
-import { useHealthCheck } from "@workspace/api-client-react";
-import { Activity, ServerCrash, Server } from "lucide-react";
+import { useHealthCheck, getHealthCheckQueryOptions } from "@workspace/api-client-react";
+import { Activity, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+interface HealthDataWithLlm {
+  status: string;
+  llm?: {
+    configured: boolean;
+    reachable: boolean;
+  };
+}
+
 export function HealthIndicator() {
-  const { data, isLoading, isError } = useHealthCheck({
-    query: { refetchInterval: 30000 },
+  const queryOptions = getHealthCheckQueryOptions();
+  const { data, isError } = useHealthCheck({
+    query: { ...queryOptions, refetchInterval: 30000 },
   });
 
-  const status = isError ? "error" : data?.status || "unknown";
+  const healthData = data as HealthDataWithLlm | undefined;
+  const status = isError ? "error" : healthData?.status || "unknown";
 
   return (
     <div className="flex items-center space-x-2 text-xs font-mono">
@@ -41,15 +51,15 @@ export function HealthIndicator() {
           </>
         )}
       </div>
-      {data?.llm && (
+      {healthData?.llm && (
         <div className={cn(
           "px-2 py-1.5 rounded-full border text-[10px] uppercase tracking-wider flex items-center gap-1",
-          data.llm.reachable 
+          healthData.llm.reachable 
             ? "bg-primary/10 border-primary/20 text-primary" 
             : "bg-destructive/10 border-destructive/20 text-destructive"
         )}>
           <Activity className="w-3 h-3" />
-          LLM: {data.llm.reachable ? "ONLINE" : "OFFLINE"}
+          LLM: {healthData.llm.reachable ? "ONLINE" : "OFFLINE"}
         </div>
       )}
     </div>

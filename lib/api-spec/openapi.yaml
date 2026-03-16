@@ -27,6 +27,34 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
   /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all projects
+      description: Returns a paginated list of projects ordered by creation date (newest first).
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: Project list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectListResponse"
     post:
       operationId: createProject
       tags: [projects]
@@ -200,6 +228,55 @@ components:
         - id
         - status
         - deployUrl
+    ProjectSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        prompt:
+          type: string
+        status:
+          type: string
+          enum: [pending, generating, ready, deployed, failed]
+        fileCount:
+          type: integer
+        goldenPathScore:
+          type: string
+          description: "Pass rate like '9/9'"
+        deployUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        error:
+          type: string
+          nullable: true
+      required:
+        - id
+        - prompt
+        - status
+        - fileCount
+        - goldenPathScore
+        - createdAt
+    ProjectListResponse:
+      type: object
+      properties:
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectSummary"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - projects
+        - total
+        - limit
+        - offset
     ErrorResponse:
       type: object
       properties:

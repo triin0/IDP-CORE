@@ -1,15 +1,67 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, desc, count } from "drizzle-orm";
 import { db, projectsTable } from "@workspace/db";
 import {
   CreateProjectBody,
   GetProjectParams,
   DeployProjectParams,
+  ListProjectsQueryParams,
 } from "@workspace/api-zod";
 import { generateProjectCode } from "../lib/generate";
 import { deployProject } from "../lib/deploy";
 
 const router: IRouter = Router();
+
+interface GoldenPathCheckRecord {
+  name: string;
+  passed: boolean;
+  description: string;
+}
+
+interface FileRecord {
+  path: string;
+  content: string;
+}
+
+router.get("/projects", async (req, res) => {
+  try {
+    const { limit = 20, offset = 0 } = ListProjectsQueryParams.parse(req.query);
+
+    const [totalResult] = await db.select({ value: count() }).from(projectsTable);
+    const total = totalResult?.value ?? 0;
+
+    const projects = await db
+      .select()
+      .from(projectsTable)
+      .orderBy(desc(projectsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const summaries = projects.map((p) => {
+      const files = (p.files ?? []) as FileRecord[];
+      const checks = (p.goldenPathChecks ?? []) as GoldenPathCheckRecord[];
+      const passed = checks.filter((c) => c.passed).length;
+      const total = checks.length;
+
+      return {
+        id: p.id,
+        prompt: p.prompt,
+        status: p.status,
+        fileCount: files.length,
+        goldenPathScore: `${passed}/${total}`,
+        deployUrl: p.deployUrl,
+        createdAt: p.createdAt.toISOString(),
+        error: p.error,
+      };
+    });
+
+    res.json({ projects: summaries, total, limit, offset });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to list projects";
+    console.error("Failed to list projects:", message);
+    res.status(500).json({ error: message });
+  }
+});
 
 router.post("/projects", async (req, res) => {
   try {
