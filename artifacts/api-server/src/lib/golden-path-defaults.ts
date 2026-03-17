@@ -74,7 +74,7 @@ export const DEFAULT_GOLDEN_PATH_CONFIG: GoldenPathConfigRules = {
       name: "Error Handling",
       description: "Includes structured error handling with global middleware",
       promptInstruction: "Implement global error handler middleware with structured responses",
-      check: { type: "content_match", pattern: "errorHandler,catch,middleware" },
+      check: { type: "content_match", pattern: "error,catch,middleware" },
     },
     {
       name: "TypeScript",
@@ -92,7 +92,7 @@ export const DEFAULT_GOLDEN_PATH_CONFIG: GoldenPathConfigRules = {
       name: "Database Schema",
       description: "Database schema defined in dedicated schema directory",
       promptInstruction: "Define database schema in server/src/schema/ directory",
-      check: { type: "file_pattern", pattern: "schema/,schema." },
+      check: { type: "file_pattern", pattern: "schema/" },
     },
   ],
 };
