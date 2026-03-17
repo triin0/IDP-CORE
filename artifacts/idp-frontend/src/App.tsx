@@ -7,6 +7,7 @@ import { Dashboard } from "@/pages/Dashboard";
 import { Home } from "@/pages/Home";
 import { ProjectView } from "@/pages/ProjectView";
 import { Settings } from "@/pages/Settings";
+import { Preview } from "@/pages/Preview";
 import NotFound from "@/pages/not-found";
 import { Terminal, Plus, LayoutGrid, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -85,15 +86,31 @@ function AppRouter() {
   );
 }
 
+function AppContent() {
+  const [location] = useLocation();
+
+  if (location.startsWith("/preview/")) {
+    return (
+      <Switch>
+        <Route path="/preview/:id" component={Preview} />
+      </Switch>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <NavHeader />
+      <AppRouter />
+    </div>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <div className="min-h-screen flex flex-col bg-background text-foreground">
-            <NavHeader />
-            <AppRouter />
-          </div>
+          <AppContent />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

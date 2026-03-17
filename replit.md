@@ -116,7 +116,9 @@ Key frontend components:
 - `src/components/HealthIndicator.tsx` — System/LLM status badges
 - `src/pages/ProjectView.tsx` — Standalone project workspace (shareable URL at /project/:id)
 
-Routes: `/` (Dashboard — project registry), `/new` (Prompt input), `/project/:id` (spec review when status=planned; 3-panel workspace when status=ready/deployed: left file explorer, center code viewer, right status panel with Golden Path + deploy)
+- `src/pages/Preview.tsx` — Deployed project preview page at `/preview/:id`. Split view: left Sandpack code editor with file tree, right static HTML preview showing app structure (pages, components, hooks, backend API, database schema, tech stack). Standalone page (no NavHeader).
+
+Routes: `/` (Dashboard — project registry), `/new` (Prompt input), `/project/:id` (spec review when status=planned; 3-panel workspace when status=ready/deployed: left file explorer, center code viewer, right status panel with Golden Path + deploy), `/preview/:id` (deployed project preview — standalone)
 
 Navigation: Persistent header with IDP.CORE logo (links to /), PROJECTS tab (links to /), NEW tab (links to /new), SETTINGS tab (links to /settings), and health indicators. Active tab is highlighted.
 

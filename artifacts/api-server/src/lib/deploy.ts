@@ -227,7 +227,7 @@ export async function deployProject(project: Project): Promise<DeployResult> {
   const domains = process.env["REPLIT_DOMAINS"] ?? process.env["REPLIT_DEV_DOMAIN"] ?? "localhost";
   const primaryDomain = domains.split(",")[0]?.trim() ?? "localhost";
   const protocol = primaryDomain === "localhost" ? "http" : "https";
-  const deployUrl = `${protocol}://${primaryDomain}/api/projects/${project.id}/preview`;
+  const deployUrl = `${protocol}://${primaryDomain}/preview/${project.id}`;
 
   await db
     .update(projectsTable)
