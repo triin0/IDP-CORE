@@ -24,6 +24,7 @@ The IDP is a pnpm workspace monorepo with an Express 5 API server (orchestration
 *   **Build Verification (Closed-Loop Compiler):** Writes generated files to temp directory, runs `npm install && npm run build`, captures exit code + stderr. On failure, feeds stderr to Fixer Agent for automated repair. 120s timeout. Key file: `build-verification.ts`.
 *   **Cryptographic Hash Manifest:** SHA-256 hashes every generated file, compares full tree against Architect spec's `fileStructure` array (match ratio), computes aggregate payload hash for entire project. Payload hash locked in PostgreSQL `payload_hash` column on verification pass. Prevents shadow branches and silently dropped files. Key file: `hash-integrity.ts`.
 *   **Authentication & Multi-Tenancy:** Replit Auth (OIDC with PKCE). Server-side PostgreSQL sessions with httpOnly secure cookies. `requireAuth` middleware on all mutation routes. `loadOwnedProject()` helper enforces ownership (IDOR prevention). Project list scoped to authenticated user. Key files: `lib/auth.ts`, `middlewares/authMiddleware.ts`, `routes/auth.ts`.
+*   **Credit-Based Billing:** Append-only ledger with cached balance. Reserve→Settle/Refund lifecycle: atomic conditional debit (`UPDATE WHERE balance >= amount`), idempotent settle/refund with `status='pending'` guard. Costs: generation=50, refinement=10, verification_only=2, starter_grant=100. Gate: `POST /approve-spec` (50 credits), `POST /refine` (10 credits). 402 response on insufficient credits. UI: ComputeWallet in header (live balance), cost badges on GENERATE and Refine buttons. Key files: `lib/credits.ts`, `routes/credits.ts`, `schema/credits.ts`. DB tables: `user_credits` (cached balance), `credit_ledger` (append-only log).
 *   **Iterative Refinement:** Delta-only regeneration using existing files + spec as context. Saves `previousFiles` snapshot before merge for diff viewing. Full verification stage after refinement. History tracked in `refinements` JSONB array. Key file: `refine.ts`.
 *   **Deployment:** CodeSandbox cloud VMs (when `CSB_API_KEY`/`codesandbox_api` set) for live previews at `*.csb.app`. Falls back to static HTML. Key file: `sandbox.ts`.
 *   **Sandbox Lifecycle:** Auto-cleanup every 6 hours (projects > 72h old). Manual via `POST /api/projects/cleanup-sandboxes`. Delete endpoint destroys sandbox VM before DB purge.
@@ -66,9 +67,9 @@ The IDP is a pnpm workspace monorepo with an Express 5 API server (orchestration
 ├── artifacts/                    # Deployable applications
 │   ├── api-server/               # Express 5 orchestration backend (port 8080)
 │   │   └── src/
-│   │       ├── routes/           # projects.ts, auth.ts, health.ts
+│   │       ├── routes/           # projects.ts, auth.ts, health.ts, credits.ts
 │   │       ├── lib/              # ai-retry, generate, refine, spec-generator, golden-path,
-│   │       │                     # deploy, sandbox, pipeline-events, recovery,
+│   │       │                     # deploy, sandbox, pipeline-events, recovery, credits,
 │   │       │                     # build-verification, dependency-audit, hash-integrity, auth
 │   │       └── middlewares/      # authMiddleware.ts
 │   ├── idp-frontend/             # React frontend served at / (port from $PORT)
@@ -77,13 +78,13 @@ The IDP is a pnpm workspace monorepo with an Express 5 API server (orchestration
 │   │       ├── components/       # AgentPipelineBar, TrajectoryDashboard, LiveTerminal,
 │   │       │                     # BuildGate, SandboxPreview, PromptForm, SpecReview,
 │   │       │                     # Workspace, DiffViewer, RefinementChat, HealthIndicator
-│   │       └── hooks/            # usePipelineStream (SSE consumer)
+│   │       └── hooks/            # usePipelineStream (SSE consumer), useCredits (balance API)
 │   └── mockup-sandbox/           # Component preview sandbox
 ├── lib/                          # Shared libraries
 │   ├── api-spec/                 # OpenAPI 3.1 spec + Orval codegen config
 │   ├── api-client-react/         # Generated React Query hooks
 │   ├── api-zod/                  # Generated Zod schemas
-│   ├── db/                       # Drizzle schema (projects, golden_path_configs, sessions, users)
+│   ├── db/                       # Drizzle schema (projects, golden_path_configs, sessions, users, credits)
 │   ├── replit-auth-web/          # useAuth() React hook for Replit Auth
 │   └── integrations-openai-ai-server/  # OpenAI SDK client
 ├── deployed-projects/            # Generated project files on disk (do not modify)

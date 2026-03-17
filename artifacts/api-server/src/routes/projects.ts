@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { eq, desc, count, and } from "drizzle-orm";
-import { db, projectsTable } from "@workspace/db";
+import { db, projectsTable, CREDIT_COSTS } from "@workspace/db";
 import {
   CreateProjectBody,
   GetProjectParams,
@@ -19,6 +19,8 @@ import { deployProject, generatePreviewHtml } from "../lib/deploy";
 import { refineProject } from "../lib/refine";
 import { deleteSandbox, cleanupStaleSandboxes } from "../lib/sandbox";
 import { pipelineEvents, type PipelineEvent } from "../lib/pipeline-events";
+import { reserveCredits, settleCredits, refundCredits, CreditError } from "../lib/credits";
+import type { CreditReservation } from "../lib/credits";
 
 const router: IRouter = Router();
 
@@ -53,6 +55,8 @@ async function loadOwnedProject(req: Request, res: Response, id: string) {
 
   return project;
 }
+
+const pendingReservations = new Map<string, CreditReservation>();
 
 interface GoldenPathCheckRecord {
   name: string;
@@ -227,6 +231,28 @@ router.post("/projects/:id/approve-spec", requireAuth, async (req, res) => {
     const owned = await loadOwnedProject(req, res, id);
     if (!owned) return;
 
+    let reservation: CreditReservation;
+    try {
+      reservation = await reserveCredits(
+        req.user!.id,
+        CREDIT_COSTS.generation,
+        "generation",
+        id,
+      );
+    } catch (err: unknown) {
+      if (err instanceof CreditError) {
+        res.status(402).json({
+          error: "Insufficient credits",
+          required: err.requiredAmount,
+          balance: err.currentBalance,
+        });
+        return;
+      }
+      throw err;
+    }
+
+    pendingReservations.set(id, reservation);
+
     const result = await db
       .update(projectsTable)
       .set({ status: "generating" })
@@ -239,6 +265,9 @@ router.post("/projects/:id/approve-spec", requireAuth, async (req, res) => {
       .returning();
 
     if (result.length === 0) {
+      await refundCredits(reservation, "spec_not_planned");
+      pendingReservations.delete(id);
+
       const [existing] = await db
         .select({ status: projectsTable.status })
         .from(projectsTable)
@@ -266,12 +295,27 @@ router.post("/projects/:id/approve-spec", requireAuth, async (req, res) => {
       architecturalDecisions: string[];
     } | null;
 
-    generateProjectCode(project.id, project.prompt, spec ?? undefined).catch((err: unknown) => {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`Generation failed for project ${project.id}:`, message);
-    });
+    generateProjectCode(project.id, project.prompt, spec ?? undefined)
+      .then(() => {
+        const r = pendingReservations.get(id);
+        if (r) {
+          settleCredits(r).catch(e => console.error(`[credits] Failed to settle for ${id}:`, e));
+          pendingReservations.delete(id);
+        }
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`Generation failed for project ${project.id}:`, message);
+        const r = pendingReservations.get(id);
+        if (r) {
+          refundCredits(r, `generation_failed: ${message.slice(0, 200)}`).catch(e =>
+            console.error(`[credits] Failed to refund for ${id}:`, e),
+          );
+          pendingReservations.delete(id);
+        }
+      });
 
-    res.json({ id: project.id, status: "generating" });
+    res.json({ id: project.id, status: "generating", creditsReserved: CREDIT_COSTS.generation });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Invalid request";
     console.error("Failed to approve spec:", message);
@@ -391,18 +435,46 @@ router.post("/projects/:id/refine", requireAuth, async (req, res) => {
       return;
     }
 
-    const result = await refineProject(id, body.prompt);
+    let reservation: CreditReservation;
+    try {
+      reservation = await reserveCredits(
+        req.user!.id,
+        CREDIT_COSTS.refinement,
+        "refinement",
+        id,
+      );
+    } catch (err: unknown) {
+      if (err instanceof CreditError) {
+        res.status(402).json({
+          error: "Insufficient credits",
+          required: err.requiredAmount,
+          balance: err.currentBalance,
+        });
+        return;
+      }
+      throw err;
+    }
 
-    res.json({
-      id,
-      status: result.status,
-      filesChanged: result.filesChanged,
-      previousFiles: result.previousFiles,
-      files: result.files,
-      goldenPathChecks: result.goldenPathChecks,
-      refinement: result.refinement,
-      verificationVerdict: result.verificationVerdict,
-    });
+    try {
+      const result = await refineProject(id, body.prompt);
+
+      await settleCredits(reservation);
+
+      res.json({
+        id,
+        status: result.status,
+        filesChanged: result.filesChanged,
+        previousFiles: result.previousFiles,
+        files: result.files,
+        goldenPathChecks: result.goldenPathChecks,
+        refinement: result.refinement,
+        verificationVerdict: result.verificationVerdict,
+        creditsCharged: CREDIT_COSTS.refinement,
+      });
+    } catch (innerErr: unknown) {
+      await refundCredits(reservation, `refinement_failed: ${innerErr instanceof Error ? innerErr.message.slice(0, 200) : "unknown"}`);
+      throw innerErr;
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Refinement failed";
     console.error("Failed to refine project:", message);

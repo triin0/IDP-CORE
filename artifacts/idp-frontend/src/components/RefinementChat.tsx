@@ -2,10 +2,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRefineProject } from "@workspace/api-client-react";
 import type { ProjectRefinement, RefineProjectResponse } from "@workspace/api-client-react";
-import { Send, Loader2, ChevronDown, ChevronUp, FileCode2, CheckCircle2, Clock, GitCompare } from "lucide-react";
+import { Send, Loader2, ChevronDown, ChevronUp, FileCode2, CheckCircle2, Clock, GitCompare, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DiffViewer, type DiffFile } from "./DiffViewer";
+import { useCredits } from "@/hooks/useCredits";
 
 interface ExtendedRefineResponse extends RefineProjectResponse {
   previousFiles?: Array<{ path: string; content: string }>;
@@ -24,6 +25,9 @@ export function RefinementChat({ projectId, refinements, projectFiles }: Refinem
   const [diffFiles, setDiffFiles] = useState<DiffFile[] | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
+  const { balance, costs, refetch: refetchCredits } = useCredits();
+
+  const canAffordRefinement = balance >= costs.refinement;
 
   const refineMut = useRefineProject();
   const isRefining = refineMut.isPending;
@@ -38,6 +42,7 @@ export function RefinementChat({ projectId, refinements, projectFiles }: Refinem
         onSuccess: (rawData) => {
           setPrompt("");
           queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+          refetchCredits();
 
           const data = rawData as ExtendedRefineResponse;
           const previousFilesData = data.previousFiles ?? [];
@@ -210,12 +215,15 @@ export function RefinementChat({ projectId, refinements, projectFiles }: Refinem
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isRefining}
-          placeholder="Refine: &quot;add authentication&quot;, &quot;switch to MongoDB&quot;, &quot;add dark mode&quot;..."
+          disabled={isRefining || !canAffordRefinement}
+          placeholder={canAffordRefinement
+            ? "Refine: \"add authentication\", \"switch to MongoDB\", \"add dark mode\"..."
+            : `Insufficient credits (need ${costs.refinement}, have ${balance})`
+          }
           rows={1}
           className={cn(
             "flex-1 bg-zinc-900 border border-border rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all",
-            isRefining && "opacity-50 cursor-not-allowed",
+            (isRefining || !canAffordRefinement) && "opacity-50 cursor-not-allowed",
           )}
           style={{ minHeight: "36px", maxHeight: "80px" }}
           onInput={(e) => {
@@ -224,22 +232,28 @@ export function RefinementChat({ projectId, refinements, projectFiles }: Refinem
             target.style.height = `${Math.min(target.scrollHeight, 80)}px`;
           }}
         />
-        <button
-          onClick={handleSubmit}
-          disabled={!prompt.trim() || isRefining}
-          className={cn(
-            "p-2 rounded-lg transition-all shrink-0",
-            prompt.trim() && !isRefining
-              ? "bg-primary text-primary-foreground hover:shadow-[0_0_15px_rgba(34,211,238,0.3)]"
-              : "bg-zinc-800 text-zinc-600 cursor-not-allowed",
-          )}
-        >
-          {isRefining ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Send className="w-4 h-4" />
-          )}
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="inline-flex items-center gap-0.5 text-[10px] font-mono text-zinc-500">
+            <Zap className="w-2.5 h-2.5" />{costs.refinement}
+          </span>
+          <button
+            onClick={handleSubmit}
+            disabled={!prompt.trim() || isRefining || !canAffordRefinement}
+            className={cn(
+              "p-2 rounded-lg transition-all",
+              prompt.trim() && !isRefining && canAffordRefinement
+                ? "bg-primary text-primary-foreground hover:shadow-[0_0_15px_rgba(34,211,238,0.3)]"
+                : "bg-zinc-800 text-zinc-600 cursor-not-allowed",
+            )}
+            title={!canAffordRefinement ? `Requires ${costs.refinement} credits` : undefined}
+          >
+            {isRefining ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

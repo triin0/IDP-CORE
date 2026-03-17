@@ -9,9 +9,10 @@ import { ProjectView } from "@/pages/ProjectView";
 import { Settings } from "@/pages/Settings";
 import { Preview } from "@/pages/Preview";
 import NotFound from "@/pages/not-found";
-import { Terminal, Plus, LayoutGrid, Settings2, LogIn, LogOut, User, Zap } from "lucide-react";
+import { Terminal, Plus, LayoutGrid, Settings2, LogIn, LogOut, User, Zap, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@workspace/replit-auth-web";
+import { useCredits } from "@/hooks/useCredits";
 
 const queryClient = new QueryClient();
 
@@ -70,11 +71,36 @@ function NavHeader() {
 }
 
 function ComputeWallet() {
+  const { balance, isLoading, isAuthenticated } = useCredits();
+
+  if (!isAuthenticated) return null;
+
+  if (isLoading) {
+    return (
+      <div className="hud-badge border-primary/10 hidden sm:inline-flex animate-pulse">
+        <Zap className="w-3 h-3 text-primary" />
+        <span className="text-zinc-500">---</span>
+        <span className="text-zinc-500">Credits</span>
+      </div>
+    );
+  }
+
+  const isLow = balance < 50;
+
   return (
-    <div className="hud-badge border-primary/10 hidden sm:inline-flex">
-      <Zap className="w-3 h-3 text-primary" />
-      <span className="text-primary font-semibold">12,450</span>
-      <span className="text-zinc-500">Cycles</span>
+    <div className={cn(
+      "hud-badge hidden sm:inline-flex",
+      isLow ? "border-destructive/30" : "border-primary/10",
+    )}>
+      {isLow ? (
+        <AlertCircle className="w-3 h-3 text-destructive" />
+      ) : (
+        <Zap className="w-3 h-3 text-primary" />
+      )}
+      <span className={cn("font-semibold", isLow ? "text-destructive" : "text-primary")}>
+        {balance.toLocaleString()}
+      </span>
+      <span className="text-zinc-500">Credits</span>
     </div>
   );
 }

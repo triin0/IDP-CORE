@@ -17,7 +17,9 @@ import {
   Pencil,
   X,
   Save,
+  Zap,
 } from "lucide-react";
+import { useCredits } from "@/hooks/useCredits";
 
 interface ProjectSpec {
   overview: string;
@@ -162,9 +164,13 @@ export function SpecReview({ projectId, prompt, spec }: SpecReviewProps) {
   const approveMut = useApproveSpec();
   const regenerateMut = useRegenerateSpec();
   const updateMut = useUpdateSpec();
+  const { balance, costs, refetch: refetchCredits } = useCredits();
+
+  const canAffordGeneration = balance >= costs.generation;
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+    refetchCredits();
   };
 
   const handleApprove = () => {
@@ -223,18 +229,24 @@ export function SpecReview({ projectId, prompt, spec }: SpecReviewProps) {
           </button>
           <button
             onClick={handleApprove}
-            disabled={approveMut.isPending}
+            disabled={approveMut.isPending || !canAffordGeneration}
             className={cn(
               "flex items-center px-5 py-2.5 rounded-lg font-mono text-sm font-medium transition-all duration-300",
-              approveMut.isPending
+              approveMut.isPending || !canAffordGeneration
                 ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                 : "bg-primary text-primary-foreground hover:shadow-[0_0_20px_rgba(34,211,238,0.4)]"
             )}
+            title={!canAffordGeneration ? `Requires ${costs.generation} credits (you have ${balance})` : undefined}
           >
             {approveMut.isPending ? (
               <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> APPROVING...</>
             ) : (
-              <><Rocket className="w-4 h-4 mr-2" /> APPROVE & GENERATE</>
+              <>
+                <Rocket className="w-4 h-4 mr-2" /> APPROVE & GENERATE
+                <span className="ml-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/20 text-[10px]">
+                  <Zap className="w-2.5 h-2.5" />{costs.generation}
+                </span>
+              </>
             )}
           </button>
         </div>
