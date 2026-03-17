@@ -265,8 +265,12 @@ export async function runVerificationStage(
       description: buildResult.description,
     };
     if (!buildResult.passed) {
-      console.warn(`[pipeline:${projectId.slice(0, 8)}] Build verification failed: ${buildResult.description}`);
-      buildStderr = buildResult.stderr || undefined;
+      console.warn(`[pipeline:${projectId.slice(0, 8)}] Build verification failed: ${buildResult.description.slice(0, 300)}`);
+      const cleanedStderr = (buildResult.stderr || "")
+        .split("\n")
+        .filter((l: string) => !/^npm\s+(warn|notice|WARN|ERR!)/i.test(l) && l.trim().length > 0)
+        .join("\n");
+      buildStderr = cleanedStderr || buildResult.description || undefined;
     } else {
       console.log(`[pipeline:${projectId.slice(0, 8)}] Build verification passed`);
     }

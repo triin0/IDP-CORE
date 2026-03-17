@@ -15,6 +15,38 @@ export interface BuildVerificationResult {
 
 const BUILD_TIMEOUT_MS = 120_000;
 
+function cleanEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  const keep = ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "USER", "SHELL", "TERM"];
+  for (const key of keep) {
+    if (process.env[key]) env[key] = process.env[key]!;
+  }
+  env["NODE_ENV"] = "development";
+  env["npm_config_loglevel"] = "error";
+  return env;
+}
+
+function extractTscErrors(stderr: string): string {
+  const lines = stderr.split("\n");
+  const errorLines = lines.filter(
+    (l) =>
+      l.includes("error TS") ||
+      l.includes("Cannot find") ||
+      l.includes("has no exported member") ||
+      l.includes("is not assignable") ||
+      l.includes("Property") ||
+      l.includes("Module") ||
+      (l.includes(": error") && !l.startsWith("npm"))
+  );
+  if (errorLines.length > 0) {
+    return errorLines.slice(0, 20).join("\n");
+  }
+  return lines
+    .filter((l) => !l.startsWith("npm warn") && !l.startsWith("npm error") && l.trim().length > 0)
+    .slice(0, 20)
+    .join("\n");
+}
+
 async function writeProjectFiles(
   dir: string,
   files: Array<{ path: string; content: string }>,
@@ -80,6 +112,8 @@ export async function runBuildVerification(
     tempDir = await mkdtemp(join(tmpdir(), "gp-build-"));
     await writeProjectFiles(tempDir, files);
 
+    const env = cleanEnv();
+
     let installStdout = "";
     let installStderr = "";
     try {
@@ -89,7 +123,7 @@ export async function runBuildVerification(
         {
           cwd: tempDir,
           timeout: BUILD_TIMEOUT_MS,
-          env: { ...process.env, NODE_ENV: "development" },
+          env,
         },
       );
       installStdout = installResult.stdout;
@@ -113,11 +147,13 @@ export async function runBuildVerification(
       };
     }
 
+    env["NODE_ENV"] = "production";
+
     try {
       const buildResult = await execFileAsync("npm", ["run", "build"], {
         cwd: tempDir,
         timeout: BUILD_TIMEOUT_MS,
-        env: { ...process.env, NODE_ENV: "production" },
+        env,
       });
       return {
         passed: true,
@@ -127,11 +163,14 @@ export async function runBuildVerification(
       };
     } catch (err: unknown) {
       const execErr = err as { stderr?: string; stdout?: string; message?: string };
+      const rawStderr = execErr.stderr ?? "";
+      const tscErrors = extractTscErrors(rawStderr);
+      const combinedStdout = (execErr.stdout ?? "") + "\n" + (installStdout ?? "");
       return {
         passed: false,
-        description: `npm run build failed: ${execErr.stderr || execErr.message || "Unknown error"}`,
-        stdout: execErr.stdout ?? "",
-        stderr: execErr.stderr ?? "",
+        description: `Build failed. TypeScript errors:\n${tscErrors}`,
+        stdout: combinedStdout,
+        stderr: rawStderr,
       };
     }
   } catch (err: unknown) {

@@ -10,9 +10,13 @@ const __dirname = path.dirname(__filename);
 // which helps cold start times without risking some
 // packages that are not bundle compatible
 const allowlist = [
+  "@codesandbox/sdk",
   "@google/generative-ai",
+  "@replit/connectors-sdk",
+  "archiver",
   "axios",
   "connect-pg-simple",
+  "cookie-parser",
   "cors",
   "date-fns",
   "drizzle-orm",
@@ -20,12 +24,14 @@ const allowlist = [
   "express",
   "express-rate-limit",
   "express-session",
+  "helmet",
   "jsonwebtoken",
   "memorystore",
   "multer",
   "nanoid",
   "nodemailer",
   "openai",
+  "openid-client",
   "passport",
   "passport-local",
   "pg",

@@ -15,7 +15,7 @@ The IDP is built as a pnpm workspace monorepo. It features an Express 5 API serv
 *   **AI Provider Layer:** Supports Gemini Pro and OpenAI with built-in retry logic and **token continuation loops** for large responses.
 *   **Golden Path Engine:** Enforces eleven automated compliance checks covering structure, security, validation, database, and TypeScript. Critical checks block deployment readiness. Utilizes config-driven rules and AST-Level Verification (ts-morph) for programmatic security middleware validation.
 *   **Dependency Audit:** Validates npm packages for existence, age, popularity, and CVEs using OSV Guard.
-*   **Build Verification:** Runs `npm install && npm run build` in a temporary environment, feeding stderr to the Fixer Agent on failure.
+*   **Build Verification:** Runs `npm install && npm run build` in a clean environment (stripped of Replit nix config), extracts real TypeScript errors from npm noise, and feeds cleaned stderr to the Fixer Agent on failure.
 *   **Cryptographic Hash Manifest:** Ensures file integrity and prevents silent modifications by computing and comparing SHA-256 hashes of all generated files against the Architect's specification.
 *   **Authentication & Multi-Tenancy:** Implemented with Replit Auth (OIDC with PKCE) and server-side PostgreSQL sessions. `requireAuth` middleware and `loadOwnedProject()` enforce security and ownership.
 *   **Credit-Based Billing:** Manages user credits with an append-only ledger, supporting Reserve→Settle/Refund transactions.

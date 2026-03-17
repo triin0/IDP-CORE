@@ -4,6 +4,8 @@ import { generateProjectSpec } from "./spec-generator";
 import { generateProjectCode } from "./generate";
 
 export async function recoverOrphanedProjects(): Promise<void> {
+  const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
   const orphaned = await db
     .select()
     .from(projectsTable)
@@ -15,13 +17,27 @@ export async function recoverOrphanedProjects(): Promise<void> {
       ),
     );
 
-  if (orphaned.length === 0) {
+  const recent = orphaned.filter((p) => p.createdAt > cutoff);
+  const stale = orphaned.filter((p) => p.createdAt <= cutoff);
+
+  if (stale.length > 0) {
+    console.log(`[recovery] Marking ${stale.length} stale orphaned project(s) as failed`);
+    for (const p of stale) {
+      await db
+        .update(projectsTable)
+        .set({ status: "failed", error: "Pipeline interrupted (server restart). Project too old for automatic recovery." })
+        .where(eq(projectsTable.id, p.id))
+        .catch(() => {});
+    }
+  }
+
+  if (recent.length === 0) {
     return;
   }
 
-  console.log(`[recovery] Found ${orphaned.length} orphaned project(s), restarting...`);
+  console.log(`[recovery] Found ${recent.length} recent orphaned project(s), restarting...`);
 
-  for (const project of orphaned) {
+  for (const project of recent) {
     try {
       if (project.status === "planning") {
         console.log(`[recovery] Re-running spec generation for ${project.id.slice(0, 8)}`);
