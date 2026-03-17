@@ -6,3 +6,9 @@ id = "10VXuzyaKG17IK6kD_81t"
 uri = "file://docs/cloud-ide-architecture-challenges.md"
 type = "text"
 title = "Cloud IDE Architecture Challenges Reference"
+
+[[outputs]]
+id = "zsSSO1RqfBQ4bq3rXbN7p"
+uri = "file://idp-core-full-assessment.md"
+type = "text"
+title = "IDP.CORE — Full Codebase Assessment & Analysis"
