@@ -1,0 +1,175 @@
+import { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRefineProject } from "@workspace/api-client-react";
+import type { ProjectRefinement } from "@workspace/api-client-react";
+import { Send, Loader2, ChevronDown, ChevronUp, FileCode2, CheckCircle2, Clock } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+
+interface RefinementChatProps {
+  projectId: string;
+  refinements: ProjectRefinement[];
+}
+
+export function RefinementChat({ projectId, refinements }: RefinementChatProps) {
+  const [prompt, setPrompt] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const queryClient = useQueryClient();
+
+  const refineMut = useRefineProject();
+  const isRefining = refineMut.isPending;
+
+  const handleSubmit = () => {
+    const trimmed = prompt.trim();
+    if (!trimmed || isRefining) return;
+
+    refineMut.mutate(
+      { id: projectId, data: { prompt: trimmed } },
+      {
+        onSuccess: () => {
+          setPrompt("");
+          queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+        },
+      },
+    );
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  useEffect(() => {
+    if (!isRefining && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isRefining]);
+
+  return (
+    <div className="border-t border-border bg-card">
+      {refinements.length > 0 && (
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="w-full flex items-center justify-between px-4 py-1.5 text-[10px] font-mono uppercase tracking-wider text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors"
+        >
+          <span>Refinement History ({refinements.length})</span>
+          {showHistory ? (
+            <ChevronDown className="w-3 h-3" />
+          ) : (
+            <ChevronUp className="w-3 h-3" />
+          )}
+        </button>
+      )}
+
+      <AnimatePresence>
+        {showHistory && refinements.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="max-h-48 overflow-y-auto border-t border-border/50 scrollbar-thin">
+              {refinements.map((r, i) => (
+                <div
+                  key={i}
+                  className="px-4 py-2 border-b border-border/30 hover:bg-zinc-800/30 transition-colors"
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="mt-0.5 p-1 rounded bg-primary/10">
+                      <FileCode2 className="w-3 h-3 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-zinc-300 font-mono truncate">
+                        {r.prompt}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="flex items-center gap-1 text-[10px] text-zinc-500">
+                          <Clock className="w-2.5 h-2.5" />
+                          {new Date(r.timestamp).toLocaleTimeString()}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] text-zinc-500">
+                          <FileCode2 className="w-2.5 h-2.5" />
+                          {r.filesChanged.length} files
+                        </span>
+                        {r.goldenPathScore && (
+                          <span className="flex items-center gap-1 text-[10px] text-success">
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            {r.goldenPathScore}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {isRefining && (
+        <div className="px-4 py-2 border-t border-border/50">
+          <div className="flex items-center gap-2 text-xs font-mono text-primary animate-pulse">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <span>Refining project...</span>
+          </div>
+          {refineMut.variables && (
+            <p className="mt-1 text-[10px] text-zinc-600 font-mono truncate pl-5">
+              &quot;{(refineMut.variables as { data: { prompt: string } }).data.prompt}&quot;
+            </p>
+          )}
+        </div>
+      )}
+
+      {refineMut.isError && (
+        <div className="px-4 py-2 border-t border-destructive/30 bg-destructive/5">
+          <p className="text-[10px] font-mono text-destructive">
+            Refinement failed: {refineMut.error?.message || "Unknown error"}
+          </p>
+        </div>
+      )}
+
+      <div className="p-3 flex gap-2 items-end">
+        <textarea
+          ref={inputRef}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={isRefining}
+          placeholder="Refine: &quot;add authentication&quot;, &quot;switch to MongoDB&quot;, &quot;add dark mode&quot;..."
+          rows={1}
+          className={cn(
+            "flex-1 bg-zinc-900 border border-border rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all",
+            isRefining && "opacity-50 cursor-not-allowed",
+          )}
+          style={{ minHeight: "36px", maxHeight: "80px" }}
+          onInput={(e) => {
+            const target = e.target as HTMLTextAreaElement;
+            target.style.height = "36px";
+            target.style.height = `${Math.min(target.scrollHeight, 80)}px`;
+          }}
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={!prompt.trim() || isRefining}
+          className={cn(
+            "p-2 rounded-lg transition-all shrink-0",
+            prompt.trim() && !isRefining
+              ? "bg-primary text-primary-foreground hover:shadow-[0_0_15px_rgba(34,211,238,0.3)]"
+              : "bg-zinc-800 text-zinc-600 cursor-not-allowed",
+          )}
+        >
+          {isRefining ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}

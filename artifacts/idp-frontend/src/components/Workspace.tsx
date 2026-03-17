@@ -5,6 +5,7 @@ import type { ProjectDetails } from "@workspace/api-client-react";
 import { FileTree } from "./FileTree";
 import { CodeViewer } from "./CodeViewer";
 import { GoldenPath } from "./GoldenPath";
+import { RefinementChat } from "./RefinementChat";
 import { Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2, AlertCircle, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -259,8 +260,16 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
           )}
         </div>
 
-        <div className="flex-1 overflow-hidden relative bg-zinc-950">
-          <CodeViewer content={activeContent} path={activeFile || ""} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-hidden relative bg-zinc-950">
+            <CodeViewer content={activeContent} path={activeFile || ""} />
+          </div>
+          {(project.status === "ready" || project.status === "deployed") && (
+            <RefinementChat
+              projectId={project.id}
+              refinements={project.refinements ?? []}
+            />
+          )}
         </div>
 
         <div className="w-72 border-l border-border bg-zinc-950/50">

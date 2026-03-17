@@ -116,6 +116,13 @@ export const ProjectDetailsStatus = {
   failed_checks: "failed_checks",
 } as const;
 
+export interface ProjectRefinement {
+  prompt: string;
+  timestamp: string;
+  filesChanged: string[];
+  goldenPathScore?: string | null;
+}
+
 export interface ProjectDetails {
   id: string;
   prompt: string;
@@ -127,6 +134,7 @@ export interface ProjectDetails {
   deployUrl?: string | null;
   sandboxId?: string | null;
   createdAt: string;
+  refinements?: ProjectRefinement[];
   error?: string | null;
 }
 
@@ -312,6 +320,19 @@ export interface UpdateGoldenPathConfigBody {
   description?: string;
   rules?: GoldenPathConfigRules;
   isActive?: boolean;
+}
+
+export interface RefineProjectBody {
+  /** Follow-up instruction to refine the project */
+  prompt: string;
+}
+
+export interface RefineProjectResponse {
+  id: string;
+  status: string;
+  filesChanged: string[];
+  goldenPathChecks: GoldenPathCheck[];
+  refinement: ProjectRefinement;
 }
 
 export interface ErrorResponse {

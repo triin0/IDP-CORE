@@ -151,6 +151,16 @@ export const GetProjectResponse = zod.object({
   deployUrl: zod.string().nullish(),
   sandboxId: zod.string().nullish(),
   createdAt: zod.date(),
+  refinements: zod
+    .array(
+      zod.object({
+        prompt: zod.string(),
+        timestamp: zod.date(),
+        filesChanged: zod.array(zod.string()),
+        goldenPathScore: zod.string().nullish(),
+      }),
+    )
+    .optional(),
   error: zod.string().nullish(),
 });
 
@@ -280,6 +290,16 @@ export const UpdateSpecResponse = zod.object({
   deployUrl: zod.string().nullish(),
   sandboxId: zod.string().nullish(),
   createdAt: zod.date(),
+  refinements: zod
+    .array(
+      zod.object({
+        prompt: zod.string(),
+        timestamp: zod.date(),
+        filesChanged: zod.array(zod.string()),
+        goldenPathScore: zod.string().nullish(),
+      }),
+    )
+    .optional(),
   error: zod.string().nullish(),
 });
 
@@ -296,6 +316,38 @@ export const DeployProjectResponse = zod.object({
   status: zod.enum(["deployed"]),
   deployUrl: zod.string(),
   sandboxId: zod.string().nullish(),
+});
+
+/**
+ * Accepts a follow-up prompt and modifies only the affected files while preserving the rest. Re-runs Golden Path checks after refinement.
+ * @summary Refine a generated project with a follow-up instruction
+ */
+export const RefineProjectParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const RefineProjectBody = zod.object({
+  prompt: zod.string().describe("Follow-up instruction to refine the project"),
+});
+
+export const RefineProjectResponse = zod.object({
+  id: zod.string(),
+  status: zod.string(),
+  filesChanged: zod.array(zod.string()),
+  goldenPathChecks: zod.array(
+    zod.object({
+      name: zod.string(),
+      passed: zod.boolean(),
+      description: zod.string(),
+      critical: zod.boolean().optional(),
+    }),
+  ),
+  refinement: zod.object({
+    prompt: zod.string(),
+    timestamp: zod.date(),
+    filesChanged: zod.array(zod.string()),
+    goldenPathScore: zod.string().nullish(),
+  }),
 });
 
 /**

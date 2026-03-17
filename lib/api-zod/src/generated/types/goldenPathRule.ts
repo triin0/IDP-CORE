@@ -11,5 +11,6 @@ export interface GoldenPathRule {
   name: string;
   description: string;
   promptInstruction: string;
+  critical?: boolean;
   check: GoldenPathRuleCheck;
 }

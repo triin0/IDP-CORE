@@ -14,7 +14,9 @@ export const ProjectSummaryStatus = {
   planning: "planning",
   planned: "planned",
   generating: "generating",
+  validating: "validating",
   ready: "ready",
   deployed: "deployed",
   failed: "failed",
+  failed_checks: "failed_checks",
 } as const;

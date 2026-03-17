@@ -30,6 +30,8 @@ import type {
   ListProjectsParams,
   ProjectDetails,
   ProjectListResponse,
+  RefineProjectBody,
+  RefineProjectResponse,
   RegenerateSpecResponse,
   UpdateGoldenPathConfigBody,
   UpdateSpecBody,
@@ -731,6 +733,94 @@ export const useDeployProject = <
   TContext
 > => {
   return useMutation(getDeployProjectMutationOptions(options));
+};
+
+/**
+ * Accepts a follow-up prompt and modifies only the affected files while preserving the rest. Re-runs Golden Path checks after refinement.
+ * @summary Refine a generated project with a follow-up instruction
+ */
+export const getRefineProjectUrl = (id: string) => {
+  return `/api/projects/${id}/refine`;
+};
+
+export const refineProject = async (
+  id: string,
+  refineProjectBody: RefineProjectBody,
+  options?: RequestInit,
+): Promise<RefineProjectResponse> => {
+  return customFetch<RefineProjectResponse>(getRefineProjectUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(refineProjectBody),
+  });
+};
+
+export const getRefineProjectMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refineProject>>,
+    TError,
+    { id: string; data: BodyType<RefineProjectBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof refineProject>>,
+  TError,
+  { id: string; data: BodyType<RefineProjectBody> },
+  TContext
+> => {
+  const mutationKey = ["refineProject"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof refineProject>>,
+    { id: string; data: BodyType<RefineProjectBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return refineProject(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RefineProjectMutationResult = NonNullable<
+  Awaited<ReturnType<typeof refineProject>>
+>;
+export type RefineProjectMutationBody = BodyType<RefineProjectBody>;
+export type RefineProjectMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Refine a generated project with a follow-up instruction
+ */
+export const useRefineProject = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refineProject>>,
+    TError,
+    { id: string; data: BodyType<RefineProjectBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof refineProject>>,
+  TError,
+  { id: string; data: BodyType<RefineProjectBody> },
+  TContext
+> => {
+  return useMutation(getRefineProjectMutationOptions(options));
 };
 
 /**

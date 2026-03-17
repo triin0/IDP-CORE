@@ -230,6 +230,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /projects/{id}/refine:
+    post:
+      operationId: refineProject
+      tags: [projects]
+      summary: Refine a generated project with a follow-up instruction
+      description: Accepts a follow-up prompt and modifies only the affected files while preserving the rest. Re-runs Golden Path checks after refinement.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefineProjectBody"
+      responses:
+        "200":
+          description: Refinement applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefineProjectResponse"
+        "400":
+          description: Project not in a refinable state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /golden-path-configs:
     get:
       operationId: listGoldenPathConfigs
@@ -561,6 +598,10 @@ components:
         createdAt:
           type: string
           format: date-time
+        refinements:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectRefinement"
         error:
           type: string
           nullable: true
@@ -868,6 +909,56 @@ components:
           $ref: "#/components/schemas/GoldenPathConfigRules"
         isActive:
           type: boolean
+    RefineProjectBody:
+      type: object
+      properties:
+        prompt:
+          type: string
+          description: Follow-up instruction to refine the project
+      required:
+        - prompt
+    ProjectRefinement:
+      type: object
+      properties:
+        prompt:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        filesChanged:
+          type: array
+          items:
+            type: string
+        goldenPathScore:
+          type: string
+          nullable: true
+      required:
+        - prompt
+        - timestamp
+        - filesChanged
+    RefineProjectResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        filesChanged:
+          type: array
+          items:
+            type: string
+        goldenPathChecks:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoldenPathCheck"
+        refinement:
+          $ref: "#/components/schemas/ProjectRefinement"
+      required:
+        - id
+        - status
+        - filesChanged
+        - goldenPathChecks
+        - refinement
     ErrorResponse:
       type: object
       properties:

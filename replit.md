@@ -83,6 +83,7 @@ artifacts-monorepo/
 - `sandbox_id` (text, nullable) — CodeSandbox VM ID
 - `deploy_url` (text, nullable)
 - `pipeline_status` (JSONB, nullable) — per-agent pipeline progress `{ stages: [{ role, label, status, startedAt?, completedAt?, fileCount?, filePaths?, notes?, error? }], currentAgent? }`
+- `refinements` (JSONB) — array of `{ prompt, timestamp, filesChanged[], goldenPathScore? }` tracking iterative refinement history
 - `error` (text, nullable)
 - `created_at` (timestamp)
 
@@ -106,6 +107,7 @@ Express 5 orchestration server with:
 - `src/lib/generate.ts` — AI code generation (uses approved spec as context)
 - `src/lib/deploy.ts` — File deployment to disk
 - `src/lib/sandbox.ts` — CodeSandbox VM creation and deployment
+- `src/lib/refine.ts` — Iterative refinement (delta-only regeneration, file merging, path sanitization, history tracking)
 - `src/lib/ai-retry.ts` — Dual-provider AI wrapper (OpenAI/Gemini) with retry logic
 - `src/lib/recovery.ts` — Orphan project recovery on server startup
 - `src/lib/build-verification.ts` — Build verification (npm install + npm run build in temp dir)

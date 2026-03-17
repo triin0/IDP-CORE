@@ -6,9 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface GoldenPathCheck {
-  name: string;
-  passed: boolean;
-  description: string;
-  critical?: boolean;
+export interface RefineProjectBody {
+  /** Follow-up instruction to refine the project */
+  prompt: string;
 }

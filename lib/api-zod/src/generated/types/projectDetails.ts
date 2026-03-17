@@ -9,6 +9,7 @@ import type { GoldenPathCheck } from "./goldenPathCheck";
 import type { PipelineStatus } from "./pipelineStatus";
 import type { ProjectDetailsStatus } from "./projectDetailsStatus";
 import type { ProjectFile } from "./projectFile";
+import type { ProjectRefinement } from "./projectRefinement";
 import type { ProjectSpec } from "./projectSpec";
 
 export interface ProjectDetails {
@@ -22,5 +23,6 @@ export interface ProjectDetails {
   deployUrl?: string | null;
   sandboxId?: string | null;
   createdAt: Date;
+  refinements?: ProjectRefinement[];
   error?: string | null;
 }

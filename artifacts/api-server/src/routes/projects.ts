@@ -10,10 +10,13 @@ import {
   RegenerateSpecParams,
   UpdateSpecParams,
   UpdateSpecBody,
+  RefineProjectParams,
+  RefineProjectBody,
 } from "@workspace/api-zod";
 import { generateProjectCode } from "../lib/generate";
 import { generateProjectSpec } from "../lib/spec-generator";
 import { deployProject, generatePreviewHtml } from "../lib/deploy";
+import { refineProject } from "../lib/refine";
 
 const router: IRouter = Router();
 
@@ -132,6 +135,7 @@ router.get("/projects/:id", async (req, res) => {
       pipelineStatus: project.pipelineStatus ?? undefined,
       deployUrl: project.deployUrl,
       sandboxId: project.sandboxId,
+      refinements: project.refinements ?? [],
       createdAt: project.createdAt.toISOString(),
       error: project.error,
     });
@@ -312,6 +316,58 @@ router.patch("/projects/:id/update-spec", async (req, res) => {
     const message = err instanceof Error ? err.message : "Invalid request";
     console.error("Failed to update spec:", message);
     res.status(400).json({ error: message });
+  }
+});
+
+router.post("/projects/:id/refine", async (req, res) => {
+  let id: string;
+  let body: { prompt: string };
+
+  try {
+    ({ id } = RefineProjectParams.parse(req.params));
+    body = RefineProjectBody.parse(req.body);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Invalid request";
+    res.status(400).json({ error: message });
+    return;
+  }
+
+  if (!UUID_REGEX.test(id)) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+
+  const [project] = await db
+    .select()
+    .from(projectsTable)
+    .where(eq(projectsTable.id, id));
+
+  if (!project) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+
+  if (project.status !== "ready" && project.status !== "deployed") {
+    res.status(400).json({
+      error: `Cannot refine project. Status is '${project.status}', expected 'ready' or 'deployed'.`,
+    });
+    return;
+  }
+
+  try {
+    const result = await refineProject(id, body.prompt);
+
+    res.json({
+      id,
+      status: result.status,
+      filesChanged: result.filesChanged,
+      goldenPathChecks: result.goldenPathChecks,
+      refinement: result.refinement,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Refinement failed";
+    console.error("Failed to refine project:", message);
+    res.status(500).json({ error: message });
   }
 });
 

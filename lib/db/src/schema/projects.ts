@@ -30,6 +30,12 @@ export const projectsTable = pgTable("projects", {
   }>(),
   deployUrl: text("deploy_url"),
   sandboxId: text("sandbox_id"),
+  refinements: jsonb("refinements").$type<Array<{
+    prompt: string;
+    timestamp: string;
+    filesChanged: string[];
+    goldenPathScore?: string;
+  }>>().default([]),
   error: text("error"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
