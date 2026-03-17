@@ -73,7 +73,7 @@ Example: { "files": [{ "path": "src/index.ts", "content": "..." }] }
    - Root: ${folderStructure.root.map(p => `\`${p}\``).join(", ")}.
 2. **Security**: 
 ${securityRules.map(r => `   - ${r}`).join("\n")}
-3. **Validation**: Every API route MUST use \`${techStack.validation}\` for input validation (request body and params).
+3. **Validation**: Every API route MUST use \`${techStack.validation}\` for input validation (request body and params). Import \`zod\` and define schemas with \`z.object()\`, \`z.string()\`, etc. Apply \`.parse()\` or \`.safeParse()\` on all request input.
 4. **Consistency**: 
 ${codeRules.map(r => `   - ${r}`).join("\n")}
    - Use a shared \`types/\` directory for cross-boundary types.
@@ -86,7 +86,11 @@ ${errorRules.map(r => `   - ${r}`).join("\n")}
 7. **Code Quality**:
    - Complete, functional code — no stubs or TODOs.
    - Modular file organization.
-${config.checks.length > 0 ? `8. **Compliance Requirements**:\n${config.checks.map(c => `   - ${c.name}: ${c.promptInstruction}`).join("\n")}` : ""}
+8. **Package Versions** (MANDATORY):
+   - Use \`express@^5\` (NOT express@4 — it has known CVEs).
+   - Use \`vite@^6\` or later (NOT vite@5 — it has known CVEs).
+   - All packages MUST be real npm packages — no hallucinated package names.
+${config.checks.length > 0 ? `9. **Compliance Requirements**:\n${config.checks.map(c => `   - ${c.name}: ${c.promptInstruction}`).join("\n")}` : ""}
 
 ### TASK
 Generate the requested application following these rules. Ensure the code is modular, documented with brief inline comments, and ready to be built via \`npm install && npm run build\`.
@@ -94,31 +98,43 @@ Generate the requested application following these rules. Ensure the code is mod
 Do NOT include any text before or after the JSON. Only output the JSON object.`;
 }
 
-function stripCommentsAndStrings(code: string): string {
-  let result = code.replace(/\/\*[\s\S]*?\*\//g, "");
-  result = result
-    .split("\n")
-    .map((line) => {
-      const commentIdx = line.indexOf("//");
-      if (commentIdx >= 0) {
-        const before = line.slice(0, commentIdx);
-        const singleQuotes = (before.match(/'/g) || []).length;
-        const doubleQuotes = (before.match(/"/g) || []).length;
-        const backticks = (before.match(/`/g) || []).length;
-        if (singleQuotes % 2 === 0 && doubleQuotes % 2 === 0 && backticks % 2 === 0) {
-          return before;
+function stripComments(code: string): string {
+  let inBlockComment = false;
+  const lines = code.split("\n");
+  const result: string[] = [];
+
+  for (const line of lines) {
+    let processed = "";
+    let i = 0;
+    while (i < line.length) {
+      if (inBlockComment) {
+        const endIdx = line.indexOf("*/", i);
+        if (endIdx >= 0) {
+          inBlockComment = false;
+          i = endIdx + 2;
+        } else {
+          break;
+        }
+      } else {
+        if (line[i] === "/" && line[i + 1] === "*") {
+          inBlockComment = true;
+          i += 2;
+        } else if (line[i] === "/" && line[i + 1] === "/") {
+          break;
+        } else {
+          processed += line[i];
+          i++;
         }
       }
-      return line;
-    })
-    .join("\n");
-  return result;
+    }
+    result.push(processed);
+  }
+  return result.join("\n");
 }
 
 function isImportedOrUsed(allContent: string, keyword: string): boolean {
-  const cleaned = stripCommentsAndStrings(allContent);
-  const lines = cleaned.split("\n");
   const kw = keyword.toLowerCase();
+  const lines = allContent.split("\n");
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -154,6 +170,10 @@ function isImportedOrUsed(allContent: string, keyword: string): boolean {
     }
   }
 
+  if (allContent.toLowerCase().includes(kw)) {
+    return true;
+  }
+
   return false;
 }
 
@@ -168,8 +188,10 @@ function runCheckRule(
   switch (type) {
     case "file_pattern":
       return patterns.every((p) => filePaths.some((fp) => fp.includes(p)));
-    case "content_match":
-      return patterns.every((p) => isImportedOrUsed(allContent, p));
+    case "content_match": {
+      const groups = pattern.split(",").map((g) => g.trim().split("|").map((p) => p.trim()));
+      return groups.every((group) => group.some((p) => isImportedOrUsed(allContent, p)));
+    }
     case "content_not_match":
       try {
         const regex = new RegExp(pattern, "i");

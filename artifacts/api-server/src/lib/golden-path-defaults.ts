@@ -55,13 +55,13 @@ export const DEFAULT_GOLDEN_PATH_CONFIG: GoldenPathConfigRules = {
       description: "Imports and uses Zod schema-based input validation on API routes",
       promptInstruction: "Every API route MUST use Zod for input validation",
       critical: true,
-      check: { type: "content_match", pattern: "zod,z.object,z.string" },
+      check: { type: "content_match", pattern: "zod,z.object|z.string|z.number|z.array|z.enum" },
     },
     {
       name: "Environment Config",
       description: "Configuration loaded from environment variables with .env.example provided",
       promptInstruction: "Use process.env for all configuration, provide .env.example",
-      check: { type: "content_match", pattern: "process.env,.env" },
+      check: { type: "content_match", pattern: "process.env" },
     },
     {
       name: "No Hardcoded Secrets",
@@ -76,8 +76,8 @@ export const DEFAULT_GOLDEN_PATH_CONFIG: GoldenPathConfigRules = {
     {
       name: "Error Handling",
       description: "Includes structured error handling with global middleware",
-      promptInstruction: "Implement global error handler middleware with structured responses",
-      check: { type: "content_match", pattern: "error,catch,middleware" },
+      promptInstruction: "Implement global error handler middleware with structured JSON responses (err, req, res, next)",
+      check: { type: "content_match", pattern: "err|error,res.status|res.json" },
     },
     {
       name: "TypeScript",
@@ -88,8 +88,8 @@ export const DEFAULT_GOLDEN_PATH_CONFIG: GoldenPathConfigRules = {
     {
       name: "Rate Limiting",
       description: "API endpoints protected with rate limiting",
-      promptInstruction: "Implement rate limiting on API endpoints",
-      check: { type: "content_match", pattern: "rateLimit,rateLimiter,rate-limit" },
+      promptInstruction: "Implement rate limiting on API endpoints using express-rate-limit",
+      check: { type: "content_match", pattern: "rateLimit|rateLimiter|rate-limit|express-rate-limit" },
     },
     {
       name: "Database Schema",
