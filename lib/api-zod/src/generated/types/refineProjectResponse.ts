@@ -7,6 +7,7 @@
  */
 import type { GoldenPathCheck } from "./goldenPathCheck";
 import type { ProjectRefinement } from "./projectRefinement";
+import type { VerificationVerdict } from "./verificationVerdict";
 
 export interface RefineProjectResponse {
   id: string;
@@ -14,4 +15,5 @@ export interface RefineProjectResponse {
   filesChanged: string[];
   goldenPathChecks: GoldenPathCheck[];
   refinement: ProjectRefinement;
+  verificationVerdict?: VerificationVerdict;
 }

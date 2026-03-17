@@ -388,6 +388,7 @@ export interface RefineProjectResponse {
   filesChanged: string[];
   goldenPathChecks: GoldenPathCheck[];
   refinement: ProjectRefinement;
+  verificationVerdict?: VerificationVerdict;
 }
 
 export interface ErrorResponse {

@@ -45,7 +45,7 @@ export interface PipelineStatus {
   currentAgent?: AgentRole;
 }
 
-function initPipelineStatus(): PipelineStatus {
+export function initPipelineStatus(): PipelineStatus {
   return {
     stages: AGENTS.map((a) => ({
       role: a.role,
@@ -137,7 +137,7 @@ function reconcileOutputs(outputs: Record<string, AgentOutput>): Array<{ path: s
     .sort((a, b) => a.path.localeCompare(b.path));
 }
 
-function buildExpectedHashManifest(
+export function buildExpectedHashManifest(
   spec: AgentContext["spec"],
   reconciledFiles: Array<{ path: string; content: string }>,
 ): HashManifest {
@@ -186,7 +186,7 @@ function determineFailureCategory(
   return "none";
 }
 
-async function runVerificationStage(
+export async function runVerificationStage(
   projectId: string,
   pipeline: PipelineStatus,
   reconciledFiles: Array<{ path: string; content: string }>,

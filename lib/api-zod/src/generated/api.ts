@@ -412,7 +412,7 @@ export const DeployProjectResponse = zod.object({
 });
 
 /**
- * Accepts a follow-up prompt and modifies only the affected files while preserving the rest. Re-runs Golden Path checks after refinement.
+ * Accepts a follow-up prompt and modifies only the affected files while preserving the rest. Runs full verification stage (Golden Path checks, dependency audit, build verification, hash integrity, and verification agent) after refinement. Deployed projects are always dropped to 'ready' status, requiring explicit re-deploy. Returns 'failed_validation' if verification fails.
  * @summary Refine a generated project with a follow-up instruction
  */
 export const RefineProjectParams = zod.object({
@@ -446,6 +446,40 @@ export const RefineProjectResponse = zod.object({
     filesChanged: zod.array(zod.string()),
     goldenPathScore: zod.string().nullish(),
   }),
+  verificationVerdict: zod
+    .object({
+      passed: zod.boolean(),
+      failureCategory: zod.enum([
+        "golden_path_violation",
+        "dependency_hallucination",
+        "dependency_vulnerability",
+        "build_failure",
+        "hash_integrity",
+        "spec_mismatch",
+        "none",
+      ]),
+      summary: zod.string(),
+      checks: zod.array(
+        zod.object({
+          name: zod.string(),
+          passed: zod.boolean(),
+          description: zod.string(),
+          category: zod.string(),
+        }),
+      ),
+      hashAudit: zod.array(
+        zod.object({
+          path: zod.string(),
+          status: zod.enum(["match", "mismatch", "missing", "unexpected"]),
+          currentHash: zod.string().nullish(),
+          expectedHash: zod.string().nullish(),
+        }),
+      ),
+      buildStderr: zod.string().nullish(),
+      dependencyErrors: zod.array(zod.string()),
+      recommendedFixes: zod.array(zod.string()),
+    })
+    .optional(),
 });
 
 /**

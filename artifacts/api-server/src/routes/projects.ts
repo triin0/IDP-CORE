@@ -364,6 +364,7 @@ router.post("/projects/:id/refine", async (req, res) => {
       filesChanged: result.filesChanged,
       goldenPathChecks: result.goldenPathChecks,
       refinement: result.refinement,
+      verificationVerdict: result.verificationVerdict,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Refinement failed";

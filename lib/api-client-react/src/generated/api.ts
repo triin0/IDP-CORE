@@ -736,7 +736,7 @@ export const useDeployProject = <
 };
 
 /**
- * Accepts a follow-up prompt and modifies only the affected files while preserving the rest. Re-runs Golden Path checks after refinement.
+ * Accepts a follow-up prompt and modifies only the affected files while preserving the rest. Runs full verification stage (Golden Path checks, dependency audit, build verification, hash integrity, and verification agent) after refinement. Deployed projects are always dropped to 'ready' status, requiring explicit re-deploy. Returns 'failed_validation' if verification fails.
  * @summary Refine a generated project with a follow-up instruction
  */
 export const getRefineProjectUrl = (id: string) => {

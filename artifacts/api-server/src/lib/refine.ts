@@ -1,9 +1,15 @@
 import { eq } from "drizzle-orm";
 import { db, projectsTable, type Project } from "@workspace/db";
 import { callWithRetry } from "./ai-retry";
-import { getActiveConfig, runGoldenPathChecks, getCriticalFailures, buildSystemPrompt } from "./golden-path";
+import { getActiveConfig, buildSystemPrompt } from "./golden-path";
 import type { GoldenPathCheck } from "./golden-path";
-import { validateAllManifests } from "./dependency-audit";
+import { computeHashManifest } from "./hash-integrity";
+import {
+  runVerificationStage,
+  buildExpectedHashManifest,
+  initPipelineStatus,
+  type VerificationVerdict,
+} from "./pipeline";
 
 interface RefinementRecord {
   prompt: string;
@@ -18,6 +24,7 @@ interface RefinementResult {
   goldenPathChecks: GoldenPathCheck[];
   filesChanged: string[];
   status: string;
+  verificationVerdict: VerificationVerdict;
   refinement: RefinementRecord;
 }
 
@@ -187,32 +194,35 @@ export async function refineProject(
       `[refine:${projectId.slice(0, 8)}] Merged ${deltaFiles.length} changed files (${changedPaths.join(", ")})`,
     );
 
-    const goldenPathChecks = runGoldenPathChecks(mergedFiles, config);
+    console.log(
+      `[refine:${projectId.slice(0, 8)}] Running full verification stage...`,
+    );
 
-    let depAuditCheck: GoldenPathCheck = {
-      name: "Dependency Audit",
-      passed: true,
-      description:
-        "All dependencies verified against npm registry and OSV vulnerability database",
-    };
-    try {
-      const auditResult = await validateAllManifests(mergedFiles);
-      if (!auditResult.passed) {
-        depAuditCheck = {
-          name: "Dependency Audit",
-          passed: false,
-          description: auditResult.errors.join("; "),
-        };
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      depAuditCheck = {
-        name: "Dependency Audit",
-        passed: false,
-        description: `Audit failed: ${msg}`,
-      };
-    }
-    goldenPathChecks.push(depAuditCheck);
+    await db
+      .update(projectsTable)
+      .set({ status: "validating" })
+      .where(eq(projectsTable.id, projectId));
+
+    const spec = project.spec as {
+      overview: string;
+      fileStructure: string[];
+      apiEndpoints: Array<{ method: string; path: string; description: string }>;
+      databaseTables: Array<{ name: string; columns: string[] }>;
+      middleware: string[];
+      architecturalDecisions: string[];
+    } | undefined;
+
+    const hashManifest = computeHashManifest(mergedFiles);
+    const pipeline = initPipelineStatus();
+    const { verdict, goldenPathChecks } = await runVerificationStage(
+      projectId,
+      pipeline,
+      mergedFiles,
+      config,
+      spec,
+      project.prompt,
+      hashManifest,
+    );
 
     const passed = goldenPathChecks.filter((c) => c.passed).length;
     const total = goldenPathChecks.length;
@@ -227,6 +237,11 @@ export async function refineProject(
     if (addedCount > 0) responseParts.push(`Added ${addedCount} new file${addedCount > 1 ? "s" : ""}`);
     responseParts.push(`(${changedPaths.join(", ")})`);
     responseParts.push(`Golden Path: ${goldenPathScore}`);
+    if (!verdict.passed) {
+      responseParts.push(`Verification: FAILED [${verdict.failureCategory}]`);
+    } else {
+      responseParts.push(`Verification: PASSED`);
+    }
     const responseSummary = responseParts.join(". ") + ".";
 
     const refinement: RefinementRecord = {
@@ -239,20 +254,14 @@ export async function refineProject(
 
     const existingRefinements = (project.refinements ?? []) as RefinementRecord[];
 
-    const previousStatus = project.status;
-    const criticalFailures = getCriticalFailures(goldenPathChecks);
-    const hasHallucinatedDeps = goldenPathChecks.some(
-      (c) => c.name === "Dependency Audit" && !c.passed,
-    );
-
-    let resolvedStatus: "ready" | "deployed" | "failed_checks";
-    if (criticalFailures.length > 0 || hasHallucinatedDeps) {
-      resolvedStatus = "failed_checks";
+    let resolvedStatus: "ready" | "failed_validation";
+    if (!verdict.passed) {
+      resolvedStatus = "failed_validation";
       console.warn(
-        `[refine:${projectId.slice(0, 8)}] Critical check failures after refinement: ${criticalFailures.map((c) => c.name).join(", ")}${hasHallucinatedDeps ? " + Dependency Audit" : ""}`,
+        `[refine:${projectId.slice(0, 8)}] Verification failed after refinement [${verdict.failureCategory}]: ${verdict.recommendedFixes?.join("; ") ?? "unknown"}`,
       );
     } else {
-      resolvedStatus = previousStatus === "deployed" ? "deployed" : "ready";
+      resolvedStatus = "ready";
     }
 
     await db
@@ -261,15 +270,16 @@ export async function refineProject(
         status: resolvedStatus,
         files: mergedFiles,
         goldenPathChecks,
+        verificationVerdict: verdict,
         refinements: [...existingRefinements, refinement],
-        error: criticalFailures.length > 0
-          ? `Refinement failed critical checks: ${criticalFailures.map((c) => c.name).join(", ")}`
+        error: !verdict.passed
+          ? `Refinement failed verification [${verdict.failureCategory}]: ${verdict.summary.slice(0, 500)}`
           : null,
       })
       .where(eq(projectsTable.id, projectId));
 
     console.log(
-      `[refine:${projectId.slice(0, 8)}] Refinement complete: ${changedPaths.length} files changed, Golden Path ${goldenPathScore}, status=${resolvedStatus}`,
+      `[refine:${projectId.slice(0, 8)}] Refinement complete: ${changedPaths.length} files changed, Golden Path ${goldenPathScore}, verification=${verdict.passed ? "PASSED" : "FAILED"}, status=${resolvedStatus}`,
     );
 
     return {
@@ -277,6 +287,7 @@ export async function refineProject(
       goldenPathChecks,
       filesChanged: changedPaths,
       status: resolvedStatus,
+      verificationVerdict: verdict,
       refinement,
     };
   } catch (err: unknown) {

@@ -235,7 +235,7 @@ paths:
       operationId: refineProject
       tags: [projects]
       summary: Refine a generated project with a follow-up instruction
-      description: Accepts a follow-up prompt and modifies only the affected files while preserving the rest. Re-runs Golden Path checks after refinement.
+      description: Accepts a follow-up prompt and modifies only the affected files while preserving the rest. Runs full verification stage (Golden Path checks, dependency audit, build verification, hash integrity, and verification agent) after refinement. Deployed projects are always dropped to 'ready' status, requiring explicit re-deploy. Returns 'failed_validation' if verification fails.
       parameters:
         - name: id
           in: path
@@ -959,6 +959,8 @@ components:
             $ref: "#/components/schemas/GoldenPathCheck"
         refinement:
           $ref: "#/components/schemas/ProjectRefinement"
+        verificationVerdict:
+          $ref: "#/components/schemas/VerificationVerdict"
       required:
         - id
         - status
