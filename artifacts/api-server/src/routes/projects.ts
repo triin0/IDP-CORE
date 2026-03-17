@@ -320,41 +320,41 @@ router.patch("/projects/:id/update-spec", async (req, res) => {
 });
 
 router.post("/projects/:id/refine", async (req, res) => {
-  let id: string;
-  let body: { prompt: string };
-
   try {
-    ({ id } = RefineProjectParams.parse(req.params));
-    body = RefineProjectBody.parse(req.body);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Invalid request";
-    res.status(400).json({ error: message });
-    return;
-  }
+    let id: string;
+    let body: { prompt: string };
 
-  if (!UUID_REGEX.test(id)) {
-    res.status(404).json({ error: "Project not found" });
-    return;
-  }
+    try {
+      ({ id } = RefineProjectParams.parse(req.params));
+      body = RefineProjectBody.parse(req.body);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Invalid request";
+      res.status(400).json({ error: message });
+      return;
+    }
 
-  const [project] = await db
-    .select()
-    .from(projectsTable)
-    .where(eq(projectsTable.id, id));
+    if (!UUID_REGEX.test(id)) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
 
-  if (!project) {
-    res.status(404).json({ error: "Project not found" });
-    return;
-  }
+    const [project] = await db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.id, id));
 
-  if (project.status !== "ready" && project.status !== "deployed") {
-    res.status(400).json({
-      error: `Cannot refine project. Status is '${project.status}', expected 'ready' or 'deployed'.`,
-    });
-    return;
-  }
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
 
-  try {
+    if (project.status !== "ready" && project.status !== "deployed") {
+      res.status(400).json({
+        error: `Cannot refine project. Status is '${project.status}', expected 'ready' or 'deployed'.`,
+      });
+      return;
+    }
+
     const result = await refineProject(id, body.prompt);
 
     res.json({

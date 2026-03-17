@@ -155,6 +155,11 @@ export const GetProjectResponse = zod.object({
     .array(
       zod.object({
         prompt: zod.string(),
+        response: zod
+          .string()
+          .describe(
+            "Summary of the assistant's response describing what was changed",
+          ),
         timestamp: zod.date(),
         filesChanged: zod.array(zod.string()),
         goldenPathScore: zod.string().nullish(),
@@ -294,6 +299,11 @@ export const UpdateSpecResponse = zod.object({
     .array(
       zod.object({
         prompt: zod.string(),
+        response: zod
+          .string()
+          .describe(
+            "Summary of the assistant's response describing what was changed",
+          ),
         timestamp: zod.date(),
         filesChanged: zod.array(zod.string()),
         goldenPathScore: zod.string().nullish(),
@@ -344,6 +354,11 @@ export const RefineProjectResponse = zod.object({
   ),
   refinement: zod.object({
     prompt: zod.string(),
+    response: zod
+      .string()
+      .describe(
+        "Summary of the assistant's response describing what was changed",
+      ),
     timestamp: zod.date(),
     filesChanged: zod.array(zod.string()),
     goldenPathScore: zod.string().nullish(),

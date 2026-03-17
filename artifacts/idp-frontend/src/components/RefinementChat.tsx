@@ -86,6 +86,11 @@ export function RefinementChat({ projectId, refinements }: RefinementChatProps) 
                       <p className="text-xs text-zinc-300 font-mono truncate">
                         {r.prompt}
                       </p>
+                      {r.response && (
+                        <p className="text-[10px] text-zinc-400 font-mono mt-0.5 truncate">
+                          → {r.response}
+                        </p>
+                      )}
                       <div className="flex items-center gap-3 mt-1">
                         <span className="flex items-center gap-1 text-[10px] text-zinc-500">
                           <Clock className="w-2.5 h-2.5" />

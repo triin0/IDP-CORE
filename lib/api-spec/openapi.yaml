@@ -922,6 +922,9 @@ components:
       properties:
         prompt:
           type: string
+        response:
+          type: string
+          description: Summary of the assistant's response describing what was changed
         timestamp:
           type: string
           format: date-time
@@ -934,6 +937,7 @@ components:
           nullable: true
       required:
         - prompt
+        - response
         - timestamp
         - filesChanged
     RefineProjectResponse:

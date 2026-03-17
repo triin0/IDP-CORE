@@ -5,17 +5,20 @@ import { getActiveConfig, runGoldenPathChecks, getCriticalFailures, buildSystemP
 import type { GoldenPathCheck } from "./golden-path";
 import { validateAllManifests } from "./dependency-audit";
 
+interface RefinementRecord {
+  prompt: string;
+  response: string;
+  timestamp: string;
+  filesChanged: string[];
+  goldenPathScore: string;
+}
+
 interface RefinementResult {
   files: Array<{ path: string; content: string }>;
   goldenPathChecks: GoldenPathCheck[];
   filesChanged: string[];
   status: string;
-  refinement: {
-    prompt: string;
-    timestamp: string;
-    filesChanged: string[];
-    goldenPathScore: string;
-  };
+  refinement: RefinementRecord;
 }
 
 function sanitizePath(filePath: string): string | null {
@@ -215,19 +218,26 @@ export async function refineProject(
     const total = goldenPathChecks.length;
     const goldenPathScore = `${passed}/${total}`;
 
-    const refinement = {
+    const modifiedCount = deltaFiles.filter((d) =>
+      existingFiles.some((f) => f.path === d.path),
+    ).length;
+    const addedCount = deltaFiles.length - modifiedCount;
+    const responseParts: string[] = [];
+    if (modifiedCount > 0) responseParts.push(`Modified ${modifiedCount} file${modifiedCount > 1 ? "s" : ""}`);
+    if (addedCount > 0) responseParts.push(`Added ${addedCount} new file${addedCount > 1 ? "s" : ""}`);
+    responseParts.push(`(${changedPaths.join(", ")})`);
+    responseParts.push(`Golden Path: ${goldenPathScore}`);
+    const responseSummary = responseParts.join(". ") + ".";
+
+    const refinement: RefinementRecord = {
       prompt: refinementPrompt,
+      response: responseSummary,
       timestamp: new Date().toISOString(),
       filesChanged: changedPaths,
       goldenPathScore,
     };
 
-    const existingRefinements = ((project.refinements ?? []) as Array<{
-      prompt: string;
-      timestamp: string;
-      filesChanged: string[];
-      goldenPathScore?: string;
-    }>);
+    const existingRefinements = (project.refinements ?? []) as RefinementRecord[];
 
     const previousStatus = project.status;
     const criticalFailures = getCriticalFailures(goldenPathChecks);

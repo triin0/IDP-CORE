@@ -8,6 +8,8 @@
 
 export interface ProjectRefinement {
   prompt: string;
+  /** Summary of the assistant's response describing what was changed */
+  response: string;
   timestamp: Date;
   filesChanged: string[];
   goldenPathScore?: string | null;
