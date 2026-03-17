@@ -32,6 +32,7 @@ export const projectsTable = pgTable("projects", {
   sandboxId: text("sandbox_id"),
   refinements: jsonb("refinements").$type<Array<{
     prompt: string;
+    response: string;
     timestamp: string;
     filesChanged: string[];
     goldenPathScore?: string;
