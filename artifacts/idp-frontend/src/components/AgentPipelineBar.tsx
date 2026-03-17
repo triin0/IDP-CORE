@@ -145,7 +145,7 @@ export function AgentPipelineBar({
 
   return (
     <div className="flex items-center justify-center">
-      <div className="flex items-center gap-0 bg-card/50 border border-border/50 rounded-2xl px-4 py-3 backdrop-blur-sm">
+      <div className="flex items-center gap-0 glass-panel rounded-2xl px-4 py-3">
         {isConnected && (
           <div className="flex items-center gap-1.5 mr-4 pr-4 border-r border-zinc-700/50">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />

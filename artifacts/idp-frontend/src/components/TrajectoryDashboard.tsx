@@ -192,7 +192,7 @@ export function TrajectoryDashboard({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-3 py-2 text-xs font-mono font-semibold text-zinc-500 border-b border-border/50 uppercase tracking-wider bg-card flex items-center justify-between">
+      <div className="px-3 py-2 text-xs font-mono font-semibold text-zinc-500 border-b border-white/[0.04] uppercase tracking-wider flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Activity className="w-3.5 h-3.5" />
           Agent Trajectory

@@ -482,7 +482,7 @@ function PipelineObserver({ projectId, status, pipelineStatus }: {
       />
 
       <div className="flex-1 flex gap-3 min-h-0">
-        <div className="w-72 flex-shrink-0 bg-card border border-border rounded-xl overflow-hidden flex flex-col">
+        <div className="w-72 flex-shrink-0 glass-panel rounded-xl overflow-hidden flex flex-col">
           <TrajectoryDashboard
             pipelineStatus={pipelineStatus}
             events={stream.events}
@@ -494,12 +494,12 @@ function PipelineObserver({ projectId, status, pipelineStatus }: {
         </div>
 
         <div className="flex-1 flex flex-col gap-3 min-w-0">
-          <div className="flex-1 bg-card border border-border rounded-xl overflow-hidden min-h-0">
+          <div className="flex-1 glass-panel rounded-xl overflow-hidden min-h-0">
             <LiveTerminal lines={stream.terminalLines} />
           </div>
 
           {(status === "validating" || stream.verificationGates.length > 0) && (
-            <div className="bg-card border border-border rounded-xl overflow-hidden p-3">
+            <div className="glass-panel rounded-xl overflow-hidden p-3">
               <BuildGate
                 verdict={null}
                 isValidating={status === "validating"}

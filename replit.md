@@ -28,11 +28,14 @@ The IDP is built as a pnpm workspace monorepo, featuring an Express 5 API server
 *   **Real-Time Pipeline Observability (SSE):** Server-Sent Events stream pipeline progress to the frontend, providing `stage:start/complete/fail`, `verification` and `self-healing` events, and logs.
 *   **Frontend (Observable UI):** A React + Vite application with Tailwind CSS, Shadcn UI, and Framer Motion. Features include: **Live Pipeline Visualization** (horizontal bar with 5 agent nodes that light up neon green with pulse animations as the SSE stream reports active agents; key file: `AgentPipelineBar.tsx`), **Agent Trajectory Dashboard**, **Live Terminal**, **Build Verification Gate**, **Sandbox Preview**, architectural spec review, file tree and code viewer, Golden Path compliance checklist, and one-click deployment.
 
-**UI/UX Decisions:**
+**UI/UX — "The Glass Engine" Design System:**
 
-*   **Design:** Dark mode professional theme with a terminal/developer aesthetic.
-*   **Navigation:** Persistent header with clear navigation.
-*   **Information Display:** Real-time polling, syntax-highlighted code viewer, and clear health indicators.
+*   **Design:** Deep space black (#09090b) canvas with frosted glass panels (`backdrop-filter: blur(12px)`). Utilities: `.glass-panel`, `.glass-panel-hover`, `.glass-panel-strong`, `.hud-badge`, `.glow-line`.
+*   **Typography:** Inter for UI, JetBrains Mono for code/logs/terminal/badges.
+*   **Color State Machine:** Brand = Cyan (`--primary`), Success = Emerald (`--success`), Warning = Amber (`--warning`), Fail = Crimson (`--destructive`).
+*   **Global HUD:** Cockpit-style frosted header with glow-line separator. Left: logo + nav. Center: SYS/LLM/SANDBOX telemetry badges. Right: Compute Wallet + auth.
+*   **Navigation:** Persistent header with nav tabs and ring-highlighted active state.
+*   **Information Display:** Real-time polling, syntax-highlighted code viewer, HUD telemetry badges.
 
 **System Design Choices:**
 

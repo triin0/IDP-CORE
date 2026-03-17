@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: 'Inter', sans-serif;
-  --font-mono: 'Fira Code', monospace;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -32,6 +32,9 @@
   --color-success: hsl(var(--success));
   --color-success-foreground: hsl(var(--success-foreground));
 
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
@@ -40,6 +43,8 @@
   --animate-pulse-glow: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-slide-up: slide-up 0.5s ease-out forwards;
   --animate-fade-in: fade-in 0.3s ease-out forwards;
+  --animate-hud-pulse: hud-pulse 3s ease-in-out infinite;
+  --animate-glass-shimmer: glass-shimmer 8s ease-in-out infinite;
 
   @keyframes cursor-blink {
     0%, 100% { opacity: 1; }
@@ -57,43 +62,57 @@
     from { opacity: 0; }
     to { opacity: 1; }
   }
+  @keyframes hud-pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+  @keyframes glass-shimmer {
+    0%, 100% { background-position: 200% center; }
+    50% { background-position: -200% center; }
+  }
 }
 
 :root {
-  /* Dark Terminal Aesthetic */
-  --background: 240 10% 4%; /* #09090b */
-  --foreground: 240 5% 90%; /* #e4e4e7 */
+  --background: 240 10% 3.5%;
+  --foreground: 240 5% 90%;
   
-  --card: 240 10% 6%; /* #0f0f11 */
+  --card: 0 0% 100% / 0.03;
   --card-foreground: 240 5% 90%;
   
   --popover: 240 10% 6%;
   --popover-foreground: 240 5% 90%;
   
-  /* Primary: Electric Cyan/Blue */
-  --primary: 192 90% 53%; /* #22d3ee */
+  --primary: 192 90% 53%;
   --primary-foreground: 240 10% 4%;
   
-  --secondary: 240 10% 12%; /* #1e1e22 */
+  --secondary: 240 6% 10%;
   --secondary-foreground: 240 5% 90%;
   
-  --muted: 240 10% 10%; /* #18181b */
-  --muted-foreground: 240 5% 65%; /* #a1a1aa */
+  --muted: 240 6% 8%;
+  --muted-foreground: 240 5% 55%;
   
-  --accent: 192 90% 15%; /* Dark cyan */
+  --accent: 192 90% 15%;
   --accent-foreground: 192 90% 53%;
   
   --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
 
-  --success: 150 90% 40%;
+  --success: 155 80% 44%;
   --success-foreground: 240 10% 4%;
+
+  --warning: 38 92% 50%;
+  --warning-foreground: 240 10% 4%;
   
-  --border: 240 10% 15%; /* #27272a */
-  --input: 240 10% 15%;
+  --border: 240 6% 14%;
+  --input: 240 6% 14%;
   --ring: 192 90% 53%;
   
-  --radius: 0.5rem;
+  --radius: 0.625rem;
+
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-blur: 12px;
+  --glass-bg-hover: rgba(255, 255, 255, 0.05);
 }
 
 @layer base {
@@ -102,10 +121,12 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
-    background-image: 
-      radial-gradient(circle at 50% 0%, hsl(var(--primary) / 0.05) 0%, transparent 50%),
-      radial-gradient(circle at 100% 100%, hsl(var(--primary) / 0.03) 0%, transparent 50%);
+    @apply font-sans antialiased text-foreground;
+    background-color: #09090b;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, hsl(var(--primary) / 0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 100% 100%, hsl(var(--primary) / 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse 40% 60% at 0% 80%, hsl(270 60% 50% / 0.03) 0%, transparent 50%);
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -116,6 +137,45 @@
 }
 
 @layer utilities {
+  .glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+  }
+
+  .glass-panel-hover {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+  .glass-panel-hover:hover {
+    background: var(--glass-bg-hover);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-panel-strong {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .hud-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-semibold uppercase tracking-wider;
+    background: var(--glass-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-border);
+  }
+
+  .glow-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.3) 50%, transparent 100%);
+  }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
@@ -124,7 +184,6 @@
     scrollbar-width: none;
   }
   
-  /* Custom thin scrollbar for code viewer */
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -133,9 +192,10 @@
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-zinc-800 rounded-full;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    @apply bg-zinc-700;
+    background: rgba(255, 255, 255, 0.14);
   }
 }

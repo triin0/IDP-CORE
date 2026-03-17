@@ -48,7 +48,7 @@ export function LiveTerminal({ lines, maxHeight = "100%" }: LiveTerminalProps) {
 
   return (
     <div className="flex flex-col h-full" style={{ maxHeight }}>
-      <div className="px-3 py-1.5 text-xs font-mono font-semibold text-zinc-500 border-b border-border/50 bg-card flex items-center justify-between">
+      <div className="px-3 py-1.5 text-xs font-mono font-semibold text-zinc-500 border-b border-white/[0.04] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5" />
           <span className="uppercase tracking-wider">Pipeline Output</span>
