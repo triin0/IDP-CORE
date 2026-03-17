@@ -31,7 +31,7 @@ export function buildSystemPrompt(config: GoldenPathConfigRules): string {
 
   const securityRules: string[] = [];
   if (security.requireHelmet) securityRules.push("Use `helmet` for security headers.");
-  if (security.noHardcodedSecrets) securityRules.push("NO hardcoded secrets; use `process.env.VAR_NAME`.");
+  if (security.noHardcodedSecrets) securityRules.push("ABSOLUTELY NO hardcoded secrets, passwords, API keys, or tokens anywhere in source code — not even as examples, defaults, or placeholders. Use `process.env.VAR_NAME` for ALL sensitive values. For example auth, use `process.env.JWT_SECRET`, never `'password123'` or similar.");
   if (security.requireCors) securityRules.push("Implement CORS with a restricted origin (placeholder: `process.env.CLIENT_URL`).");
   if (security.requireRateLimiting) securityRules.push("Rate limiting on API endpoints.");
 
