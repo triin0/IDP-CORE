@@ -254,42 +254,56 @@ export async function refineProject(
 
     const existingRefinements = (project.refinements ?? []) as RefinementRecord[];
 
-    let resolvedStatus: "ready" | "failed_validation";
-    if (!verdict.passed) {
-      resolvedStatus = "failed_validation";
-      console.warn(
-        `[refine:${projectId.slice(0, 8)}] Verification failed after refinement [${verdict.failureCategory}]: ${verdict.recommendedFixes?.join("; ") ?? "unknown"}`,
-      );
-    } else {
-      resolvedStatus = "ready";
-    }
+    if (verdict.passed) {
+      await db
+        .update(projectsTable)
+        .set({
+          status: "ready",
+          files: mergedFiles,
+          goldenPathChecks,
+          verificationVerdict: verdict,
+          refinements: [...existingRefinements, refinement],
+          error: null,
+        })
+        .where(eq(projectsTable.id, projectId));
 
-    await db
-      .update(projectsTable)
-      .set({
-        status: resolvedStatus,
+      console.log(
+        `[refine:${projectId.slice(0, 8)}] Refinement PASSED verification: ${changedPaths.length} files changed, Golden Path ${goldenPathScore}, status=ready`,
+      );
+
+      return {
         files: mergedFiles,
         goldenPathChecks,
+        filesChanged: changedPaths,
+        status: "ready",
         verificationVerdict: verdict,
-        refinements: [...existingRefinements, refinement],
-        error: !verdict.passed
-          ? `Refinement failed verification [${verdict.failureCategory}]: ${verdict.summary.slice(0, 500)}`
-          : null,
-      })
-      .where(eq(projectsTable.id, projectId));
+        refinement,
+      };
+    } else {
+      await db
+        .update(projectsTable)
+        .set({
+          status: "failed_validation",
+          verificationVerdict: verdict,
+          goldenPathChecks,
+          refinements: [...existingRefinements, refinement],
+          error: `Refinement failed verification [${verdict.failureCategory}]: ${verdict.summary.slice(0, 500)}`,
+        })
+        .where(eq(projectsTable.id, projectId));
 
-    console.log(
-      `[refine:${projectId.slice(0, 8)}] Refinement complete: ${changedPaths.length} files changed, Golden Path ${goldenPathScore}, verification=${verdict.passed ? "PASSED" : "FAILED"}, status=${resolvedStatus}`,
-    );
+      console.warn(
+        `[refine:${projectId.slice(0, 8)}] Refinement REJECTED by verification [${verdict.failureCategory}]: files NOT persisted, last known good state preserved`,
+      );
 
-    return {
-      files: mergedFiles,
-      goldenPathChecks,
-      filesChanged: changedPaths,
-      status: resolvedStatus,
-      verificationVerdict: verdict,
-      refinement,
-    };
+      return {
+        files: existingFiles,
+        goldenPathChecks,
+        filesChanged: [],
+        status: "failed_validation",
+        verificationVerdict: verdict,
+        refinement,
+      };
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(
