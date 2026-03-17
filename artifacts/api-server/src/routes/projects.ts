@@ -48,7 +48,12 @@ async function loadOwnedProject(req: Request, res: Response, id: string) {
     return null;
   }
 
-  if (project.userId && req.user && project.userId !== req.user.id) {
+  if (!req.user) {
+    res.status(401).json({ error: "Authentication required" });
+    return null;
+  }
+
+  if (project.userId && project.userId !== req.user.id) {
     res.status(403).json({ error: "Access denied" });
     return null;
   }
@@ -65,7 +70,7 @@ interface GoldenPathCheckRecord {
   critical?: boolean;
 }
 
-router.get("/projects/:id/stream", (req, res) => {
+router.get("/projects/:id/stream", requireAuth, (req, res) => {
   const { id } = req.params;
 
   res.writeHead(200, {
@@ -195,7 +200,7 @@ router.post("/projects", requireAuth, async (req, res) => {
   }
 });
 
-router.get("/projects/:id", async (req, res) => {
+router.get("/projects/:id", requireAuth, async (req, res) => {
   try {
     const { id } = GetProjectParams.parse(req.params);
 
@@ -511,7 +516,7 @@ router.post("/projects/:id/deploy", requireAuth, async (req, res) => {
   }
 });
 
-router.get("/projects/:id/preview", async (req, res) => {
+router.get("/projects/:id/preview", requireAuth, async (req, res) => {
   try {
     const { id } = GetProjectParams.parse(req.params);
 

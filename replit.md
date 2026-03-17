@@ -28,6 +28,9 @@ The IDP is a pnpm workspace monorepo with an Express 5 API server (orchestration
 *   **Iterative Refinement:** Delta-only regeneration using existing files + spec as context. Saves `previousFiles` snapshot before merge for diff viewing. Full verification stage after refinement. History tracked in `refinements` JSONB array. Key file: `refine.ts`.
 *   **Deployment:** CodeSandbox cloud VMs (when `CSB_API_KEY`/`codesandbox_api` set) for live previews at `*.csb.app`. Falls back to static HTML. Key file: `sandbox.ts`.
 *   **Sandbox Lifecycle:** Auto-cleanup every 6 hours (projects > 72h old). Manual via `POST /api/projects/cleanup-sandboxes`. Delete endpoint destroys sandbox VM before DB purge.
+*   **GitHub Export:** `POST /projects/:id/export-to-github` — creates a new GitHub repo, commits the full file tree + `sha256-manifest.json` + `verification-audit.json` + `.github/workflows/verify.yml` (CI pipeline that re-runs SHA-256 and security checks on every PR). Uses Replit Connectors SDK proxy pattern for GitHub OAuth. Key files: `lib/github.ts`, `routes/export.ts`.
+*   **ZIP Export:** `POST /projects/:id/export-zip` — streams a ZIP archive of all project files plus `verification-audit.json` (hashes, golden path results, payload hash comparison) and `sha256-manifest.json`. Uses `archiver` for in-memory ZIP creation. Key file: `routes/export.ts`.
+*   **Project Delete:** `DELETE /projects/:id` — destroys sandbox VM + removes DB record. Confirmation dialog in UI prevents accidental deletion.
 *   **Real-Time SSE:** `PipelineEventBus` emits structured events: `stage:start/complete/fail`, `verification:start/gate/complete`, `self-healing:attempt/success/exhausted`, `build:output`, `pipeline:log/complete/error`. SSE endpoint auto-closes on terminal events. 15-second heartbeat.
 
 **Frontend (Observable UI):**
@@ -51,8 +54,9 @@ The IDP is a pnpm workspace monorepo with an Express 5 API server (orchestration
 
 *   **Monorepo:** pnpm workspaces
 *   **Database:** PostgreSQL + Drizzle ORM (`drizzle-orm`, `drizzle-zod`, `drizzle-kit`)
-*   **API:** Express 5, helmet, cors, express-rate-limit, cookie-parser
+*   **API:** Express 5, helmet, cors, express-rate-limit, cookie-parser, archiver (ZIP export)
 *   **Auth:** openid-client (OIDC/PKCE)
+*   **GitHub:** `@replit/connectors-sdk` (OAuth proxy to GitHub API for repo creation/commit)
 *   **Validation:** Zod (`zod/v4`)
 *   **API Codegen:** Orval (OpenAPI → React Query hooks + Zod schemas)
 *   **AI:** `@google/generative-ai` (Gemini), OpenAI SDK (via Replit AI Integrations)
@@ -67,9 +71,9 @@ The IDP is a pnpm workspace monorepo with an Express 5 API server (orchestration
 ├── artifacts/                    # Deployable applications
 │   ├── api-server/               # Express 5 orchestration backend (port 8080)
 │   │   └── src/
-│   │       ├── routes/           # projects.ts, auth.ts, health.ts, credits.ts
+│   │       ├── routes/           # projects.ts, auth.ts, health.ts, credits.ts, export.ts
 │   │       ├── lib/              # ai-retry, generate, refine, spec-generator, golden-path,
-│   │       │                     # deploy, sandbox, pipeline-events, recovery, credits,
+│   │       │                     # deploy, sandbox, pipeline-events, recovery, credits, github,
 │   │       │                     # build-verification, dependency-audit, hash-integrity, auth
 │   │       └── middlewares/      # authMiddleware.ts
 │   ├── idp-frontend/             # React frontend served at / (port from $PORT)

@@ -4,6 +4,7 @@ import projectsRouter from "./projects";
 import goldenPathRouter from "./golden-path";
 import authRouter from "./auth";
 import creditsRouter from "./credits";
+import exportRouter from "./export";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(authRouter);
 router.use(projectsRouter);
 router.use(goldenPathRouter);
 router.use(creditsRouter);
+router.use(exportRouter);
 
 export default router;

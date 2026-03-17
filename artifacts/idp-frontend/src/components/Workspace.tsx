@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useDeployProject } from "@workspace/api-client-react";
+import { useDeployProject, useDeleteProject } from "@workspace/api-client-react";
 import type { ProjectDetails } from "@workspace/api-client-react";
 import { FileTree } from "./FileTree";
 import { CodeViewer } from "./CodeViewer";
@@ -8,9 +8,10 @@ import { GoldenPath } from "./GoldenPath";
 import { RefinementChat } from "./RefinementChat";
 import { BuildGate } from "./BuildGate";
 import { SandboxPreview } from "./SandboxPreview";
-import { Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2, AlertCircle, Zap, ShieldCheck, Hash, Eye, FileCode } from "lucide-react";
+import { Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2, AlertCircle, Zap, ShieldCheck, Hash, Eye, FileCode, Download, Github, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 
 interface VerificationVerdictData {
   passed: boolean;
@@ -38,12 +39,16 @@ interface WorkspaceProps {
   onReset?: () => void;
 }
 
-function StatusPanel({ project, onDeploy, isDeploying, deployUrl, deployError }: {
+const API_BASE = import.meta.env.VITE_API_URL ?? `${window.location.origin}/api`;
+
+function StatusPanel({ project, onDeploy, isDeploying, deployUrl, deployError, onDelete, isDeleting }: {
   project: ProjectDetails;
   onDeploy: () => void;
   isDeploying: boolean;
   deployUrl: string | null;
   deployError: boolean;
+  onDelete: () => void;
+  isDeleting: boolean;
 }) {
   const liveUrl = deployUrl || project.deployUrl;
   const effectiveStatus =
@@ -154,6 +159,166 @@ function StatusPanel({ project, onDeploy, isDeploying, deployUrl, deployError }:
             </div>
           )}
         </div>
+
+        {(isReady || isDeployed) && (
+          <ProjectActions projectId={project.id} onDelete={onDelete} isDeleting={isDeleting} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProjectActions({ projectId, onDelete, isDeleting }: {
+  projectId: string;
+  onDelete: () => void;
+  isDeleting: boolean;
+}) {
+  const [isExportingZip, setIsExportingZip] = useState(false);
+  const [isExportingGithub, setIsExportingGithub] = useState(false);
+  const [githubResult, setGithubResult] = useState<{ url: string; repository: string } | null>(null);
+  const [githubError, setGithubError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleExportZip = async () => {
+    setIsExportingZip(true);
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/export-zip`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Export failed");
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition");
+      const filename = disposition?.match(/filename="(.+)"/)?.[1] ?? `project-${projectId.slice(0, 8)}.zip`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("ZIP export failed:", err);
+    } finally {
+      setIsExportingZip(false);
+    }
+  };
+
+  const handleExportGithub = async () => {
+    setIsExportingGithub(true);
+    setGithubError(null);
+    setGithubResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/export-to-github`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ private: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setGithubError(data.error || "GitHub export failed");
+        return;
+      }
+      setGithubResult({ url: data.url, repository: data.repository });
+    } catch (err) {
+      setGithubError(err instanceof Error ? err.message : "GitHub export failed");
+    } finally {
+      setIsExportingGithub(false);
+    }
+  };
+
+  return (
+    <div className="border-t border-border/50 p-4 space-y-2">
+      <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider mb-2">Export & Manage</p>
+
+      <button
+        onClick={handleExportZip}
+        disabled={isExportingZip}
+        className="flex items-center w-full px-3 py-2 rounded-lg text-xs font-mono text-zinc-300 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 hover:text-zinc-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isExportingZip ? (
+          <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+        ) : (
+          <Download className="w-3.5 h-3.5 mr-2" />
+        )}
+        {isExportingZip ? "EXPORTING..." : "DOWNLOAD ZIP"}
+        <span className="ml-auto text-[10px] text-zinc-600">+ audit</span>
+      </button>
+
+      <button
+        onClick={handleExportGithub}
+        disabled={isExportingGithub}
+        className="flex items-center w-full px-3 py-2 rounded-lg text-xs font-mono text-zinc-300 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 hover:text-zinc-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isExportingGithub ? (
+          <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+        ) : (
+          <Github className="w-3.5 h-3.5 mr-2" />
+        )}
+        {isExportingGithub ? "PUSHING..." : "EXPORT TO GITHUB"}
+        <span className="ml-auto text-[10px] text-zinc-600">+ CI</span>
+      </button>
+
+      {githubResult && (
+        <div className="p-2 rounded-lg border border-success/20 bg-success/5">
+          <p className="text-[10px] font-mono text-success mb-1">
+            <CheckCircle2 className="w-3 h-3 inline mr-1" />
+            Pushed to {githubResult.repository}
+          </p>
+          <a
+            href={githubResult.url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[10px] font-mono text-primary hover:underline flex items-center gap-1"
+          >
+            Open on GitHub <ExternalLink className="w-2.5 h-2.5" />
+          </a>
+        </div>
+      )}
+
+      {githubError && (
+        <div className="p-2 rounded-lg border border-destructive/20 bg-destructive/5">
+          <p className="text-[10px] font-mono text-destructive">
+            <AlertCircle className="w-3 h-3 inline mr-1" />
+            {githubError}
+          </p>
+        </div>
+      )}
+
+      <div className="pt-2 border-t border-border/30">
+        {showDeleteConfirm ? (
+          <div className="space-y-2">
+            <p className="text-[10px] font-mono text-destructive">
+              This will permanently delete the project, its sandbox, and all files. This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-3 py-1.5 rounded text-xs font-mono text-zinc-400 bg-zinc-800 hover:bg-zinc-700 transition-colors"
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={() => { onDelete(); setShowDeleteConfirm(false); }}
+                disabled={isDeleting}
+                className="flex-1 px-3 py-1.5 rounded text-xs font-mono text-destructive bg-destructive/10 border border-destructive/30 hover:bg-destructive/20 transition-colors disabled:opacity-50"
+              >
+                {isDeleting ? "DELETING..." : "CONFIRM DELETE"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center w-full px-3 py-2 rounded-lg text-xs font-mono text-zinc-500 hover:text-destructive hover:bg-destructive/5 border border-transparent hover:border-destructive/20 transition-all"
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-2" />
+            DELETE PROJECT
+          </button>
+        )}
       </div>
     </div>
   );
@@ -164,6 +329,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
     project.files.length > 0 ? project.files[0].path : null
   );
   const [rightPanel, setRightPanel] = useState<"status" | "preview">("status");
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     if (!activeFile && project.files.length > 0) {
@@ -173,6 +339,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
 
   const queryClient = useQueryClient();
   const deployMut = useDeployProject();
+  const deleteMut = useDeleteProject();
 
   const handleDeploy = () => {
     deployMut.mutate(
@@ -180,6 +347,18 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}`] });
+        },
+      }
+    );
+  };
+
+  const handleDelete = () => {
+    deleteMut.mutate(
+      { id: project.id },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+          navigate("/");
         },
       }
     );
@@ -288,6 +467,8 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
               isDeploying={deployMut.isPending}
               deployUrl={deployMut.data?.deployUrl || null}
               deployError={deployMut.isError}
+              onDelete={handleDelete}
+              isDeleting={deleteMut.isPending}
             />
           ) : (
             <div className="flex flex-col h-full">
