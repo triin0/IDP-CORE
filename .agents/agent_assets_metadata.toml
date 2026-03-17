@@ -12,3 +12,9 @@ id = "zsSSO1RqfBQ4bq3rXbN7p"
 uri = "file://idp-core-full-assessment.md"
 type = "text"
 title = "IDP.CORE — Full Codebase Assessment & Analysis"
+
+[[outputs]]
+id = "3Nyyc5OWY40q_fPKv-v6L"
+uri = "file://IDP_PLATFORM_STATUS.md"
+type = "text"
+title = "IDP.CORE Platform Status Report"
