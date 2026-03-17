@@ -52,6 +52,7 @@ export const ListProjectsResponse = zod.object({
         "deployed",
         "failed",
         "failed_checks",
+        "failed_validation",
       ]),
       fileCount: zod.number(),
       goldenPathScore: zod.string().describe("Pass rate like '9\/9'"),
@@ -96,6 +97,7 @@ export const GetProjectResponse = zod.object({
     "deployed",
     "failed",
     "failed_checks",
+    "failed_validation",
   ]),
   spec: zod
     .object({
@@ -136,7 +138,13 @@ export const GetProjectResponse = zod.object({
     .object({
       stages: zod.array(
         zod.object({
-          role: zod.enum(["architect", "backend", "frontend", "security"]),
+          role: zod.enum([
+            "architect",
+            "backend",
+            "frontend",
+            "security",
+            "verification",
+          ]),
           label: zod.string(),
           status: zod.enum(["pending", "running", "completed", "failed"]),
           startedAt: zod.string().nullish(),
@@ -146,6 +154,40 @@ export const GetProjectResponse = zod.object({
         }),
       ),
       currentAgent: zod.string().nullish(),
+    })
+    .optional(),
+  verificationVerdict: zod
+    .object({
+      passed: zod.boolean(),
+      failureCategory: zod.enum([
+        "golden_path_violation",
+        "dependency_hallucination",
+        "dependency_vulnerability",
+        "build_failure",
+        "hash_integrity",
+        "spec_mismatch",
+        "none",
+      ]),
+      summary: zod.string(),
+      checks: zod.array(
+        zod.object({
+          name: zod.string(),
+          passed: zod.boolean(),
+          description: zod.string(),
+          category: zod.string(),
+        }),
+      ),
+      hashAudit: zod.array(
+        zod.object({
+          path: zod.string(),
+          status: zod.enum(["match", "mismatch", "missing", "unexpected"]),
+          currentHash: zod.string().nullish(),
+          expectedHash: zod.string().nullish(),
+        }),
+      ),
+      buildStderr: zod.string().nullish(),
+      dependencyErrors: zod.array(zod.string()),
+      recommendedFixes: zod.array(zod.string()),
     })
     .optional(),
   deployUrl: zod.string().nullish(),
@@ -240,6 +282,7 @@ export const UpdateSpecResponse = zod.object({
     "deployed",
     "failed",
     "failed_checks",
+    "failed_validation",
   ]),
   spec: zod
     .object({
@@ -280,7 +323,13 @@ export const UpdateSpecResponse = zod.object({
     .object({
       stages: zod.array(
         zod.object({
-          role: zod.enum(["architect", "backend", "frontend", "security"]),
+          role: zod.enum([
+            "architect",
+            "backend",
+            "frontend",
+            "security",
+            "verification",
+          ]),
           label: zod.string(),
           status: zod.enum(["pending", "running", "completed", "failed"]),
           startedAt: zod.string().nullish(),
@@ -290,6 +339,40 @@ export const UpdateSpecResponse = zod.object({
         }),
       ),
       currentAgent: zod.string().nullish(),
+    })
+    .optional(),
+  verificationVerdict: zod
+    .object({
+      passed: zod.boolean(),
+      failureCategory: zod.enum([
+        "golden_path_violation",
+        "dependency_hallucination",
+        "dependency_vulnerability",
+        "build_failure",
+        "hash_integrity",
+        "spec_mismatch",
+        "none",
+      ]),
+      summary: zod.string(),
+      checks: zod.array(
+        zod.object({
+          name: zod.string(),
+          passed: zod.boolean(),
+          description: zod.string(),
+          category: zod.string(),
+        }),
+      ),
+      hashAudit: zod.array(
+        zod.object({
+          path: zod.string(),
+          status: zod.enum(["match", "mismatch", "missing", "unexpected"]),
+          currentHash: zod.string().nullish(),
+          expectedHash: zod.string().nullish(),
+        }),
+      ),
+      buildStderr: zod.string().nullish(),
+      dependencyErrors: zod.array(zod.string()),
+      recommendedFixes: zod.array(zod.string()),
     })
     .optional(),
   deployUrl: zod.string().nullish(),

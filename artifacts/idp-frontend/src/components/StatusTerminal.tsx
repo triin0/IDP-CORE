@@ -27,6 +27,7 @@ const AGENT_ICONS: Record<string, string> = {
   backend: "⚙️",
   frontend: "🎨",
   security: "🔒",
+  verification: "✅",
 };
 
 const AGENT_DESCRIPTIONS: Record<string, string> = {
@@ -34,6 +35,7 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
   backend: "Implementing API routes, middleware, and business logic...",
   frontend: "Building UI components, pages, hooks, and styles...",
   security: "Reviewing code for vulnerabilities and hardening output...",
+  verification: "Auditing file tree, running compliance checks, and verifying build integrity...",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -46,6 +48,7 @@ const STATUS_LABELS: Record<string, string> = {
   deployed: "DEPLOYED",
   failed: "FAILED",
   failed_checks: "CHECKS_FAILED",
+  failed_validation: "VALIDATION_FAILED",
 };
 
 function formatDuration(startedAt?: string | null, completedAt?: string | null): string {

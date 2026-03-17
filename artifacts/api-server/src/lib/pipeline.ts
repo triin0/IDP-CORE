@@ -1,12 +1,44 @@
 import { eq } from "drizzle-orm";
 import { db, projectsTable } from "@workspace/db";
-import { AGENTS, type AgentContext, type AgentOutput, type AgentStageStatus, type AgentRole } from "./agents";
+import { AGENTS, GENERATION_AGENTS, VERIFICATION_AGENT, type AgentContext, type AgentOutput, type AgentStageStatus, type AgentRole } from "./agents";
 import { getActiveConfig, runGoldenPathChecks, getCriticalFailures } from "./golden-path";
 import type { GoldenPathCheck } from "./golden-path";
 import { callWithRetry } from "./ai-retry";
 import { validateAllManifests } from "./dependency-audit";
 import { runBuildVerification } from "./build-verification";
+import { computeHashManifest, compareHashManifests } from "./hash-integrity";
+import type { HashManifest } from "./hash-integrity";
 import type { GoldenPathConfigRules } from "@workspace/db";
+
+export type FailureCategory =
+  | "golden_path_violation"
+  | "dependency_hallucination"
+  | "dependency_vulnerability"
+  | "build_failure"
+  | "hash_integrity"
+  | "spec_mismatch"
+  | "none";
+
+export interface VerificationVerdict {
+  passed: boolean;
+  failureCategory: FailureCategory;
+  summary: string;
+  checks: Array<{
+    name: string;
+    passed: boolean;
+    description: string;
+    category: string;
+  }>;
+  hashAudit: Array<{
+    path: string;
+    status: "match" | "mismatch" | "missing" | "unexpected";
+    currentHash?: string;
+    expectedHash?: string;
+  }>;
+  buildStderr?: string;
+  dependencyErrors: string[];
+  recommendedFixes: string[];
+}
 
 export interface PipelineStatus {
   stages: AgentStageStatus[];
@@ -105,6 +137,248 @@ function reconcileOutputs(outputs: Record<string, AgentOutput>): Array<{ path: s
     .sort((a, b) => a.path.localeCompare(b.path));
 }
 
+function buildExpectedHashManifest(
+  spec: AgentContext["spec"],
+  reconciledFiles: Array<{ path: string; content: string }>,
+): HashManifest {
+  const coreConfigPatterns = ["package.json", "tsconfig.json", ".env.example"];
+  const expectedPaths: string[] = [];
+
+  if (spec?.fileStructure) {
+    for (const filePath of spec.fileStructure) {
+      if (coreConfigPatterns.some(p => filePath === p || filePath.endsWith(`/${p}`))) {
+        expectedPaths.push(filePath);
+      }
+    }
+  }
+
+  if (expectedPaths.length === 0) {
+    for (const pattern of coreConfigPatterns) {
+      const matchingFiles = reconciledFiles.filter(
+        f => f.path === pattern || f.path.endsWith(`/${pattern}`)
+      );
+      for (const f of matchingFiles) {
+        expectedPaths.push(f.path);
+      }
+    }
+  }
+
+  const hashes = expectedPaths.map((path) => ({
+    path,
+    sha256: "",
+  }));
+
+  return { hashes, computedAt: new Date().toISOString() };
+}
+
+function determineFailureCategory(
+  criticalFailures: GoldenPathCheck[],
+  hasHallucinatedDeps: boolean,
+  depAuditFailed: boolean,
+  buildFailed: boolean,
+  hashIntegrityFailed: boolean,
+): FailureCategory {
+  if (hashIntegrityFailed) return "hash_integrity";
+  if (hasHallucinatedDeps) return "dependency_hallucination";
+  if (criticalFailures.length > 0) return "golden_path_violation";
+  if (buildFailed) return "build_failure";
+  if (depAuditFailed) return "dependency_vulnerability";
+  return "none";
+}
+
+async function runVerificationStage(
+  projectId: string,
+  pipeline: PipelineStatus,
+  reconciledFiles: Array<{ path: string; content: string }>,
+  config: GoldenPathConfigRules,
+  spec: AgentContext["spec"],
+  prompt: string,
+  hashManifest: HashManifest,
+): Promise<{ verdict: VerificationVerdict; goldenPathChecks: GoldenPathCheck[] }> {
+  await updatePipelineStage(projectId, pipeline, "verification", {
+    status: "running",
+    startedAt: new Date().toISOString(),
+  });
+
+  const verdictChecks: VerificationVerdict["checks"] = [];
+  let buildStderr: string | undefined;
+  const dependencyErrors: string[] = [];
+
+  console.log(`[pipeline:${projectId.slice(0, 8)}] Running Golden Path checks...`);
+  const goldenPathChecks: GoldenPathCheck[] = runGoldenPathChecks(reconciledFiles, config);
+  for (const check of goldenPathChecks) {
+    verdictChecks.push({
+      name: check.name,
+      passed: check.passed,
+      description: check.description,
+      category: "golden_path",
+    });
+  }
+
+  let depAuditCheck: GoldenPathCheck = {
+    name: "Dependency Audit",
+    passed: true,
+    description: "All dependencies verified against npm registry and OSV vulnerability database",
+  };
+  try {
+    const auditResult = await validateAllManifests(reconciledFiles);
+    if (!auditResult.passed) {
+      console.warn(`[pipeline:${projectId.slice(0, 8)}] Dependency audit flagged issues:\n${auditResult.errors.join("\n")}`);
+      dependencyErrors.push(...auditResult.errors);
+      depAuditCheck = {
+        name: "Dependency Audit",
+        passed: false,
+        description: auditResult.errors.join("; "),
+      };
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[pipeline:${projectId.slice(0, 8)}] Dependency audit error:`, msg);
+    depAuditCheck = { name: "Dependency Audit", passed: false, description: `Audit failed: ${msg}` };
+    dependencyErrors.push(`Audit error: ${msg}`);
+  }
+  goldenPathChecks.push(depAuditCheck);
+  verdictChecks.push({
+    name: depAuditCheck.name,
+    passed: depAuditCheck.passed,
+    description: depAuditCheck.description,
+    category: "dependency_audit",
+  });
+
+  let buildCheck: GoldenPathCheck = {
+    name: "Build Verification",
+    passed: true,
+    description: "Project compiles successfully with npm install && npm run build",
+  };
+  try {
+    console.log(`[pipeline:${projectId.slice(0, 8)}] Running build verification...`);
+    const buildResult = await runBuildVerification(reconciledFiles);
+    buildCheck = {
+      name: "Build Verification",
+      passed: buildResult.passed,
+      description: buildResult.description,
+    };
+    if (!buildResult.passed) {
+      console.warn(`[pipeline:${projectId.slice(0, 8)}] Build verification failed: ${buildResult.description}`);
+      buildStderr = buildResult.stderr || undefined;
+    } else {
+      console.log(`[pipeline:${projectId.slice(0, 8)}] Build verification passed`);
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[pipeline:${projectId.slice(0, 8)}] Build verification error:`, msg);
+    buildCheck = { name: "Build Verification", passed: false, description: `Build verification failed: ${msg}` };
+  }
+  goldenPathChecks.push(buildCheck);
+  verdictChecks.push({
+    name: buildCheck.name,
+    passed: buildCheck.passed,
+    description: buildCheck.description,
+    category: "build",
+  });
+
+  const expectedManifest = buildExpectedHashManifest(spec, reconciledFiles);
+  const hashComparison = compareHashManifests(hashManifest, expectedManifest);
+  const hashAudit = hashComparison.map((entry) => ({
+    path: entry.path,
+    status: entry.status,
+    currentHash: entry.currentHash,
+    expectedHash: entry.expectedHash,
+  }));
+  const hashIntegrityFailed = hashComparison.some(
+    (h) => h.status === "missing"
+  );
+  if (hashIntegrityFailed) {
+    const missingFiles = hashComparison.filter(h => h.status === "missing").map(h => h.path);
+    verdictChecks.push({
+      name: "Hash Integrity",
+      passed: false,
+      description: `Expected core config files missing from output: ${missingFiles.join(", ")}`,
+      category: "hash_integrity",
+    });
+  } else {
+    verdictChecks.push({
+      name: "Hash Integrity",
+      passed: true,
+      description: `All ${hashComparison.length} core config files present and hashed`,
+      category: "hash_integrity",
+    });
+  }
+
+  const verificationContext: AgentContext = {
+    prompt,
+    spec,
+    priorOutputs: {
+      reconciled: {
+        role: "verification" as AgentRole,
+        files: reconciledFiles,
+        notes: "Reconciled final file tree from all generation agents",
+      },
+    },
+  };
+
+  let verificationNotes = "";
+  try {
+    const verificationOutput = await runAgent(VERIFICATION_AGENT, config, verificationContext, projectId);
+    verificationNotes = verificationOutput.notes;
+    console.log(`[pipeline:${projectId.slice(0, 8)}] Verification agent completed`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[pipeline:${projectId.slice(0, 8)}] Verification agent LLM call failed (non-blocking): ${msg}`);
+    verificationNotes = `Verification agent analysis unavailable: ${msg}`;
+  }
+
+  const criticalFailures = getCriticalFailures(goldenPathChecks);
+  const hasHallucinatedDeps = depAuditCheck.description.includes("[Hallucination]");
+  const overallPassed = criticalFailures.length === 0 && !hasHallucinatedDeps && !hashIntegrityFailed;
+
+  const failureCategory = determineFailureCategory(
+    criticalFailures,
+    hasHallucinatedDeps,
+    !depAuditCheck.passed,
+    !buildCheck.passed,
+    hashIntegrityFailed,
+  );
+
+  const passedNames = verdictChecks.filter(c => c.passed).map(c => c.name);
+  const failedNames = verdictChecks.filter(c => !c.passed).map(c => c.name);
+
+  const summary = [
+    verificationNotes,
+    `\n--- Automated Check Results ---`,
+    `PASSED: ${passedNames.length > 0 ? passedNames.join(", ") : "None"}`,
+    `FAILED: ${failedNames.length > 0 ? failedNames.join(", ") : "None"}`,
+    overallPassed ? "VERDICT: All critical checks passed." : `VERDICT: Blocked [${failureCategory}] — ${failedNames.join(", ")}`,
+  ].join("\n");
+
+  const recommendedFixes: string[] = [];
+  for (const check of verdictChecks) {
+    if (!check.passed) {
+      recommendedFixes.push(`Fix "${check.name}": ${check.description}`);
+    }
+  }
+
+  const verdict: VerificationVerdict = {
+    passed: overallPassed,
+    failureCategory,
+    summary,
+    checks: verdictChecks,
+    hashAudit,
+    buildStderr,
+    dependencyErrors,
+    recommendedFixes,
+  };
+
+  await updatePipelineStage(projectId, pipeline, "verification", {
+    status: overallPassed ? "completed" : "failed",
+    completedAt: new Date().toISOString(),
+    notes: overallPassed ? "All checks passed" : `${failedNames.length} check(s) failed`,
+    error: overallPassed ? undefined : `Failed [${failureCategory}]: ${failedNames.join(", ")}`,
+  });
+
+  return { verdict, goldenPathChecks };
+}
+
 export async function runPipeline(
   projectId: string,
   prompt: string,
@@ -125,7 +399,7 @@ export async function runPipeline(
       priorOutputs: {},
     };
 
-    for (const agent of AGENTS) {
+    for (const agent of GENERATION_AGENTS) {
       await updatePipelineStage(projectId, pipeline, agent.role, {
         status: "running",
         startedAt: new Date().toISOString(),
@@ -165,90 +439,38 @@ export async function runPipeline(
       `[pipeline:${projectId.slice(0, 8)}] Reconciled ${reconciledFiles.length} files from ${Object.keys(context.priorOutputs).length} agents`,
     );
 
+    const hashManifest = computeHashManifest(reconciledFiles);
+    console.log(
+      `[pipeline:${projectId.slice(0, 8)}] Computed SHA-256 hashes for ${hashManifest.hashes.length} core config files`,
+    );
+
     await db
       .update(projectsTable)
       .set({ status: "validating", pipelineStatus: pipeline })
       .where(eq(projectsTable.id, projectId));
 
-    console.log(`[pipeline:${projectId.slice(0, 8)}] Running Golden Path checks...`);
+    const { verdict, goldenPathChecks } = await runVerificationStage(
+      projectId,
+      pipeline,
+      reconciledFiles,
+      config,
+      spec,
+      prompt,
+      hashManifest,
+    );
 
-    const goldenPathChecks: GoldenPathCheck[] = runGoldenPathChecks(reconciledFiles, config);
-
-    let depAuditCheck: GoldenPathCheck = {
-      name: "Dependency Audit",
-      passed: true,
-      description: "All dependencies verified against npm registry and OSV vulnerability database",
-    };
-    try {
-      const auditResult = await validateAllManifests(reconciledFiles);
-      if (!auditResult.passed) {
-        console.warn(`[pipeline:${projectId.slice(0, 8)}] Dependency audit flagged issues:\n${auditResult.errors.join("\n")}`);
-        const hasHallucinatedDeps = auditResult.errors.some(e => e.includes("[Hallucination]"));
-        if (hasHallucinatedDeps) {
-          throw new Error(`Dependency audit blocked generation: ${auditResult.errors.join("; ")}`);
-        }
-        depAuditCheck = {
-          name: "Dependency Audit",
-          passed: false,
-          description: auditResult.errors.join("; "),
-        };
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.message.startsWith("Dependency audit blocked")) {
-        throw err;
-      }
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[pipeline:${projectId.slice(0, 8)}] Dependency audit error:`, msg);
-      depAuditCheck = { name: "Dependency Audit", passed: false, description: `Audit failed: ${msg}` };
-    }
-    goldenPathChecks.push(depAuditCheck);
-
-    let buildCheck: GoldenPathCheck = {
-      name: "Build Verification",
-      passed: true,
-      description: "Project compiles successfully with npm install && npm run build",
-    };
-    try {
-      console.log(`[pipeline:${projectId.slice(0, 8)}] Running build verification...`);
-      const buildResult = await runBuildVerification(reconciledFiles);
-      buildCheck = {
-        name: "Build Verification",
-        passed: buildResult.passed,
-        description: buildResult.description,
-      };
-      if (!buildResult.passed) {
-        console.warn(`[pipeline:${projectId.slice(0, 8)}] Build verification failed: ${buildResult.description}`);
-        if (buildResult.stderr) {
-          console.warn(`[pipeline:${projectId.slice(0, 8)}] Build stderr: ${buildResult.stderr.slice(0, 500)}`);
-        }
-      } else {
-        console.log(`[pipeline:${projectId.slice(0, 8)}] Build verification passed`);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[pipeline:${projectId.slice(0, 8)}] Build verification error:`, msg);
-      buildCheck = { name: "Build Verification", passed: false, description: `Build verification failed: ${msg}` };
-    }
-    goldenPathChecks.push(buildCheck);
-
-    const criticalFailures = getCriticalFailures(goldenPathChecks);
-    const hasHallucinatedDeps = depAuditCheck.description.includes("[Hallucination]");
-
-    if (criticalFailures.length > 0 || hasHallucinatedDeps) {
-      const failureNames = criticalFailures.map((c) => c.name);
-      if (hasHallucinatedDeps) {
-        failureNames.push("Dependency Audit (hallucinated packages)");
-      }
-      const errorMsg = `Critical check failures blocked project: ${failureNames.join(", ")}`;
+    if (!verdict.passed) {
+      const errorMsg = `Verification agent blocked project: ${verdict.recommendedFixes.slice(0, 3).join("; ")}`;
       console.error(`[pipeline:${projectId.slice(0, 8)}] ${errorMsg}`);
 
       await db
         .update(projectsTable)
         .set({
-          status: "failed_checks",
+          status: "failed_validation",
           files: reconciledFiles,
           goldenPathChecks,
           pipelineStatus: pipeline,
+          verificationVerdict: verdict,
           error: errorMsg,
         })
         .where(eq(projectsTable.id, projectId));
@@ -262,6 +484,7 @@ export async function runPipeline(
         files: reconciledFiles,
         goldenPathChecks,
         pipelineStatus: pipeline,
+        verificationVerdict: verdict,
       })
       .where(eq(projectsTable.id, projectId));
   } catch (err: unknown) {

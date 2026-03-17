@@ -27,6 +27,7 @@ export const CreateProjectResponseStatus = {
   deployed: "deployed",
   failed: "failed",
   failed_checks: "failed_checks",
+  failed_validation: "failed_validation",
 } as const;
 
 export interface CreateProjectResponse {
@@ -74,6 +75,7 @@ export const PipelineStageStatusRole = {
   backend: "backend",
   frontend: "frontend",
   security: "security",
+  verification: "verification",
 } as const;
 
 export type PipelineStageStatusStatus =
@@ -114,7 +116,56 @@ export const ProjectDetailsStatus = {
   deployed: "deployed",
   failed: "failed",
   failed_checks: "failed_checks",
+  failed_validation: "failed_validation",
 } as const;
+
+export type VerificationVerdictFailureCategory =
+  (typeof VerificationVerdictFailureCategory)[keyof typeof VerificationVerdictFailureCategory];
+
+export const VerificationVerdictFailureCategory = {
+  golden_path_violation: "golden_path_violation",
+  dependency_hallucination: "dependency_hallucination",
+  dependency_vulnerability: "dependency_vulnerability",
+  build_failure: "build_failure",
+  hash_integrity: "hash_integrity",
+  spec_mismatch: "spec_mismatch",
+  none: "none",
+} as const;
+
+export interface VerificationVerdictCheck {
+  name: string;
+  passed: boolean;
+  description: string;
+  category: string;
+}
+
+export type VerificationHashAuditStatus =
+  (typeof VerificationHashAuditStatus)[keyof typeof VerificationHashAuditStatus];
+
+export const VerificationHashAuditStatus = {
+  match: "match",
+  mismatch: "mismatch",
+  missing: "missing",
+  unexpected: "unexpected",
+} as const;
+
+export interface VerificationHashAudit {
+  path: string;
+  status: VerificationHashAuditStatus;
+  currentHash?: string | null;
+  expectedHash?: string | null;
+}
+
+export interface VerificationVerdict {
+  passed: boolean;
+  failureCategory: VerificationVerdictFailureCategory;
+  summary: string;
+  checks: VerificationVerdictCheck[];
+  hashAudit: VerificationHashAudit[];
+  buildStderr?: string | null;
+  dependencyErrors: string[];
+  recommendedFixes: string[];
+}
 
 export interface ProjectRefinement {
   prompt: string;
@@ -133,6 +184,7 @@ export interface ProjectDetails {
   files: ProjectFile[];
   goldenPathChecks: GoldenPathCheck[];
   pipelineStatus?: PipelineStatus;
+  verificationVerdict?: VerificationVerdict;
   deployUrl?: string | null;
   sandboxId?: string | null;
   createdAt: string;
@@ -179,6 +231,7 @@ export const ProjectSummaryStatus = {
   deployed: "deployed",
   failed: "failed",
   failed_checks: "failed_checks",
+  failed_validation: "failed_validation",
 } as const;
 
 export interface ProjectSummary {

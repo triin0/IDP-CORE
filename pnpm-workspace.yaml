@@ -32,6 +32,7 @@ catalog:
 minimumReleaseAge: 1440
 
 onlyBuiltDependencies:
+  - '@pnpm/exe'
   - '@swc/core'
   - esbuild
   - msw

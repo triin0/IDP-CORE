@@ -6,9 +6,84 @@ import { FileTree } from "./FileTree";
 import { CodeViewer } from "./CodeViewer";
 import { GoldenPath } from "./GoldenPath";
 import { RefinementChat } from "./RefinementChat";
-import { Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2, AlertCircle, Zap } from "lucide-react";
+import { Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2, AlertCircle, Zap, ShieldCheck, Hash } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+
+interface VerificationVerdictData {
+  passed: boolean;
+  failureCategory: string;
+  summary: string;
+  checks: Array<{
+    name: string;
+    passed: boolean;
+    description: string;
+    category: string;
+  }>;
+  hashAudit: Array<{
+    path: string;
+    status: string;
+    currentHash?: string;
+    expectedHash?: string;
+  }>;
+  buildStderr?: string;
+  dependencyErrors: string[];
+  recommendedFixes: string[];
+}
+
+function VerificationReport({ project }: { project: ProjectDetails }) {
+  const verdict = (project as unknown as { verificationVerdict?: VerificationVerdictData }).verificationVerdict;
+  if (!verdict) return null;
+
+  const passedCount = verdict.checks.filter(c => c.passed).length;
+  const totalCount = verdict.checks.length;
+
+  return (
+    <details className="group mt-2">
+      <summary className="flex items-center gap-2 text-xs font-mono cursor-pointer hover:text-zinc-300 transition-colors">
+        <ShieldCheck className={`w-3.5 h-3.5 ${verdict.passed ? "text-green-400" : "text-red-400"}`} />
+        <span className={verdict.passed ? "text-green-400" : "text-red-400"}>
+          Verification Report ({passedCount}/{totalCount} passed)
+        </span>
+      </summary>
+      <div className="mt-2 space-y-2 text-xs font-mono">
+        {verdict.summary && (
+          <div className="p-2 rounded bg-zinc-900/50 border border-zinc-800 text-zinc-400 whitespace-pre-wrap max-h-32 overflow-y-auto">
+            {verdict.summary}
+          </div>
+        )}
+
+        {verdict.hashAudit.length > 0 && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-zinc-500">
+              <Hash className="w-3 h-3" />
+              <span>Hash Audit</span>
+            </div>
+            {verdict.hashAudit.map((h, i) => (
+              <div key={i} className={`flex items-center gap-1 pl-4 ${
+                h.status === "match" ? "text-green-500/70" :
+                h.status === "missing" ? "text-red-400/70" :
+                "text-zinc-500"
+              }`}>
+                <span>{h.status === "match" ? "✓" : h.status === "missing" ? "✗" : "?"}</span>
+                <span>{h.path} ({h.status})</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {verdict.checks.filter(c => !c.passed).length > 0 && (
+          <div className="space-y-1">
+            <div className="text-red-400/70">Failed checks:</div>
+            {verdict.checks.filter(c => !c.passed).map((c, i) => (
+              <div key={i} className="pl-4 text-red-400/60">✗ {c.name}: {c.description}</div>
+            ))}
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
 
 interface WorkspaceProps {
   project: ProjectDetails;
@@ -80,6 +155,8 @@ function StatusPanel({ project, onDeploy, isDeploying, deployUrl, deployError }:
         {project.goldenPathChecks && project.goldenPathChecks.length > 0 && (
           <GoldenPath checks={project.goldenPathChecks} />
         )}
+
+        <VerificationReport project={project} />
 
         <div className="pt-2">
           {liveUrl ? (

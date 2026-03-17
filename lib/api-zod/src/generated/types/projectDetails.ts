@@ -11,6 +11,7 @@ import type { ProjectDetailsStatus } from "./projectDetailsStatus";
 import type { ProjectFile } from "./projectFile";
 import type { ProjectRefinement } from "./projectRefinement";
 import type { ProjectSpec } from "./projectSpec";
+import type { VerificationVerdict } from "./verificationVerdict";
 
 export interface ProjectDetails {
   id: string;
@@ -20,6 +21,7 @@ export interface ProjectDetails {
   files: ProjectFile[];
   goldenPathChecks: GoldenPathCheck[];
   pipelineStatus?: PipelineStatus;
+  verificationVerdict?: VerificationVerdict;
   deployUrl?: string | null;
   sandboxId?: string | null;
   createdAt: Date;

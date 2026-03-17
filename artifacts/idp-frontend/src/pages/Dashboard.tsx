@@ -15,6 +15,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   deployed: { label: "DEPLOYED", color: "text-primary bg-primary/10 border-primary/20", icon: Rocket },
   failed: { label: "FAILED", color: "text-destructive bg-destructive/10 border-destructive/20", icon: XCircle },
   failed_checks: { label: "CHECKS FAILED", color: "text-red-400 bg-red-400/10 border-red-400/20", icon: AlertTriangle },
+  failed_validation: { label: "VALIDATION FAILED", color: "text-red-400 bg-red-400/10 border-red-400/20", icon: AlertTriangle },
 };
 
 export function Dashboard() {

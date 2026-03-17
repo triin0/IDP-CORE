@@ -19,4 +19,5 @@ export const CreateProjectResponseStatus = {
   deployed: "deployed",
   failed: "failed",
   failed_checks: "failed_checks",
+  failed_validation: "failed_validation",
 } as const;

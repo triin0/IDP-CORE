@@ -133,6 +133,7 @@ router.get("/projects/:id", async (req, res) => {
       files: project.files ?? [],
       goldenPathChecks: project.goldenPathChecks ?? [],
       pipelineStatus: project.pipelineStatus ?? undefined,
+      verificationVerdict: project.verificationVerdict ?? undefined,
       deployUrl: project.deployUrl,
       sandboxId: project.sandboxId,
       refinements: project.refinements ?? [],
@@ -226,9 +227,9 @@ router.post("/projects/:id/regenerate-spec", async (req, res) => {
       return;
     }
 
-    if (project.status !== "planned" && project.status !== "failed" && project.status !== "failed_checks") {
+    if (project.status !== "planned" && project.status !== "failed" && project.status !== "failed_checks" && project.status !== "failed_validation") {
       res.status(400).json({
-        error: `Cannot regenerate spec. Project status is '${project.status}', expected 'planned', 'failed', or 'failed_checks'.`,
+        error: `Cannot regenerate spec. Project status is '${project.status}', expected 'planned', 'failed', 'failed_checks', or 'failed_validation'.`,
       });
       return;
     }

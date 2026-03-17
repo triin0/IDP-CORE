@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 export const projectsTable = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   prompt: text("prompt").notNull(),
-  status: text("status", { enum: ["pending", "planning", "planned", "generating", "validating", "ready", "deployed", "failed", "failed_checks"] }).notNull().default("pending"),
+  status: text("status", { enum: ["pending", "planning", "planned", "generating", "validating", "ready", "deployed", "failed", "failed_checks", "failed_validation"] }).notNull().default("pending"),
   spec: jsonb("spec").$type<{
     overview: string;
     fileStructure: string[];
@@ -27,6 +27,26 @@ export const projectsTable = pgTable("projects", {
       error?: string;
     }>;
     currentAgent?: string;
+  }>(),
+  verificationVerdict: jsonb("verification_verdict").$type<{
+    passed: boolean;
+    failureCategory: "golden_path_violation" | "dependency_hallucination" | "dependency_vulnerability" | "build_failure" | "hash_integrity" | "spec_mismatch" | "none";
+    summary: string;
+    checks: Array<{
+      name: string;
+      passed: boolean;
+      description: string;
+      category: string;
+    }>;
+    hashAudit: Array<{
+      path: string;
+      status: "match" | "mismatch" | "missing" | "unexpected";
+      currentHash?: string;
+      expectedHash?: string;
+    }>;
+    buildStderr?: string;
+    dependencyErrors: string[];
+    recommendedFixes: string[];
   }>(),
   deployUrl: text("deploy_url"),
   sandboxId: text("sandbox_id"),

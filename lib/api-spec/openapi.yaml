@@ -442,7 +442,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, planning, planned, generating, validating, ready, deployed, failed, failed_checks]
+          enum: [pending, planning, planned, generating, validating, ready, deployed, failed, failed_checks, failed_validation]
       required:
         - id
         - status
@@ -533,7 +533,7 @@ components:
       properties:
         role:
           type: string
-          enum: [architect, backend, frontend, security]
+          enum: [architect, backend, frontend, security, verification]
         label:
           type: string
         status:
@@ -576,7 +576,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, planning, planned, generating, validating, ready, deployed, failed, failed_checks]
+          enum: [pending, planning, planned, generating, validating, ready, deployed, failed, failed_checks, failed_validation]
         spec:
           $ref: "#/components/schemas/ProjectSpec"
         files:
@@ -589,6 +589,8 @@ components:
             $ref: "#/components/schemas/GoldenPathCheck"
         pipelineStatus:
           $ref: "#/components/schemas/PipelineStatus"
+        verificationVerdict:
+          $ref: "#/components/schemas/VerificationVerdict"
         deployUrl:
           type: string
           nullable: true
@@ -649,7 +651,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, planning, planned, generating, validating, ready, deployed, failed, failed_checks]
+          enum: [pending, planning, planned, generating, validating, ready, deployed, failed, failed_checks, failed_validation]
         fileCount:
           type: integer
         goldenPathScore:
@@ -963,6 +965,76 @@ components:
         - filesChanged
         - goldenPathChecks
         - refinement
+    VerificationVerdictCheck:
+      type: object
+      properties:
+        name:
+          type: string
+        passed:
+          type: boolean
+        description:
+          type: string
+        category:
+          type: string
+      required:
+        - name
+        - passed
+        - description
+        - category
+    VerificationHashAudit:
+      type: object
+      properties:
+        path:
+          type: string
+        status:
+          type: string
+          enum: [match, mismatch, missing, unexpected]
+        currentHash:
+          type: string
+          nullable: true
+        expectedHash:
+          type: string
+          nullable: true
+      required:
+        - path
+        - status
+    VerificationVerdict:
+      type: object
+      properties:
+        passed:
+          type: boolean
+        failureCategory:
+          type: string
+          enum: [golden_path_violation, dependency_hallucination, dependency_vulnerability, build_failure, hash_integrity, spec_mismatch, none]
+        summary:
+          type: string
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/VerificationVerdictCheck"
+        hashAudit:
+          type: array
+          items:
+            $ref: "#/components/schemas/VerificationHashAudit"
+        buildStderr:
+          type: string
+          nullable: true
+        dependencyErrors:
+          type: array
+          items:
+            type: string
+        recommendedFixes:
+          type: array
+          items:
+            type: string
+      required:
+        - passed
+        - failureCategory
+        - summary
+        - checks
+        - hashAudit
+        - dependencyErrors
+        - recommendedFixes
     ErrorResponse:
       type: object
       properties:

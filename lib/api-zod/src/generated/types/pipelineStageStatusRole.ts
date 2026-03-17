@@ -14,4 +14,5 @@ export const PipelineStageStatusRole = {
   backend: "backend",
   frontend: "frontend",
   security: "security",
+  verification: "verification",
 } as const;
