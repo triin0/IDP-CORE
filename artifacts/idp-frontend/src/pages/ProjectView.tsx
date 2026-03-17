@@ -3,9 +3,13 @@ import { useRegenerateSpec } from "@workspace/api-client-react";
 import { useParams, useLocation } from "wouter";
 import { Workspace } from "@/components/Workspace";
 import { SpecReview } from "@/components/SpecReview";
-import { StatusTerminal } from "@/components/StatusTerminal";
-import { AlertCircle, Loader2, WifiOff, ShieldAlert, XCircle, AlertTriangle, RefreshCw, CheckCircle2, Hash, FileWarning } from "lucide-react";
+import { TrajectoryDashboard } from "@/components/TrajectoryDashboard";
+import { LiveTerminal } from "@/components/LiveTerminal";
+import { BuildGate } from "@/components/BuildGate";
+import { usePipelineStream } from "@/hooks/usePipelineStream";
+import { AlertCircle, Loader2, WifiOff, ShieldAlert, XCircle, AlertTriangle, RefreshCw, CheckCircle2, Hash, FileWarning, Bot } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 
 function isApiError(err: unknown): err is { name: string; status: number } {
   return err !== null && typeof err === "object" && "name" in err && (err as { name: string }).name === "ApiError" && "status" in err;
@@ -241,7 +245,7 @@ function VerificationFailurePanel({
             <div>
               <h2 className="text-lg font-mono font-bold text-red-400">VERIFICATION_FAILED</h2>
               <p className="text-xs font-mono text-red-400/70 mt-0.5">
-                The Verification & Audit Agent blocked this project
+                The Verification & Audit Agent blocked this project after 3 self-healing attempts
                 {verdict?.failureCategory && verdict.failureCategory !== "none" && (
                   <span className="ml-2 px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 uppercase text-[10px]">
                     {verdict.failureCategory.replace(/_/g, " ")}
@@ -256,6 +260,14 @@ function VerificationFailurePanel({
               <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20 text-sm font-mono text-red-300">
                 {error}
               </div>
+            )}
+
+            {verdict && (
+              <BuildGate
+                verdict={verdict}
+                isValidating={false}
+                status="failed_validation"
+              />
             )}
 
             {verdict?.summary && (
@@ -319,29 +331,16 @@ function VerificationFailurePanel({
               </div>
             )}
 
-            {verdict?.dependencyErrors && verdict.dependencyErrors.length > 0 && (
+            {verdict?.recommendedFixes && verdict.recommendedFixes.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-xs font-mono font-semibold text-amber-400 uppercase tracking-wider">
-                  Dependency Issues ({verdict.dependencyErrors.length})
+                <h3 className="text-xs font-mono font-semibold text-zinc-400 uppercase tracking-wider">
+                  Recommended Fixes
                 </h3>
-                <div className="space-y-1">
-                  {verdict.dependencyErrors.map((err, i) => (
-                    <div key={i} className="p-2 rounded-lg bg-amber-500/5 border border-amber-500/20 text-xs font-mono text-amber-300">
-                      {err}
-                    </div>
+                <ul className="text-xs text-zinc-500 font-mono space-y-1 list-disc list-inside">
+                  {verdict.recommendedFixes.map((fix, i) => (
+                    <li key={i}>{fix}</li>
                   ))}
-                </div>
-              </div>
-            )}
-
-            {verdict?.buildStderr && (
-              <div className="space-y-2">
-                <h3 className="text-xs font-mono font-semibold text-red-400 uppercase tracking-wider">
-                  Build Output
-                </h3>
-                <pre className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-400 max-h-40 overflow-y-auto whitespace-pre-wrap">
-                  {verdict.buildStderr}
-                </pre>
+                </ul>
               </div>
             )}
 
@@ -365,19 +364,6 @@ function VerificationFailurePanel({
               </details>
             )}
 
-            {verdict?.recommendedFixes && verdict.recommendedFixes.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-xs font-mono font-semibold text-zinc-400 uppercase tracking-wider">
-                  Recommended Fixes
-                </h3>
-                <ul className="text-xs text-zinc-500 font-mono space-y-1 list-disc list-inside">
-                  {verdict.recommendedFixes.map((fix, i) => (
-                    <li key={i}>{fix}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
             <div className="pt-4 border-t border-zinc-800 space-y-3">
               <div className="flex gap-3">
                 <button
@@ -397,6 +383,89 @@ function VerificationFailurePanel({
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function PipelineObserver({ projectId, status, pipelineStatus }: {
+  projectId: string;
+  status: string;
+  pipelineStatus?: { stages: Array<{ role: string; label: string; status: "pending" | "running" | "completed" | "failed"; startedAt?: string | null; completedAt?: string | null; fileCount?: number | null; error?: string | null }>; currentAgent?: string | null };
+}) {
+  const isActive = status === "generating" || status === "validating";
+  const stream = usePipelineStream(projectId, isActive);
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!isActive) return;
+    const interval = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, [isActive]);
+
+  const completedStages = pipelineStatus?.stages.filter(s => s.status === "completed").length ?? 0;
+  const totalStages = pipelineStatus?.stages.length ?? 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex-1 flex flex-col max-w-[1400px] mx-auto w-full p-4"
+    >
+      <div className="flex items-center justify-between mb-3 px-1">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary/10 rounded-lg ring-1 ring-primary/30">
+            <Bot className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-100 font-mono flex items-center gap-2">
+              {status === "validating" ? "VERIFICATION_GATE" : "CODE_GENERATION"}
+              {stream.isConnected && (
+                <span className="flex items-center gap-1 text-[10px] text-green-400 font-normal">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                  LIVE
+                </span>
+              )}
+            </h2>
+            <p className="text-xs text-zinc-500 font-mono">
+              {completedStages}/{totalStages} agents complete · {elapsed}s elapsed
+              {stream.selfHealingAttempts > 0 && (
+                <span className="ml-2 text-orange-400">
+                  · Self-healing: attempt {stream.selfHealingAttempts}/3
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex gap-3 min-h-0">
+        <div className="w-72 flex-shrink-0 bg-card border border-border rounded-xl overflow-hidden flex flex-col">
+          <TrajectoryDashboard
+            pipelineStatus={pipelineStatus}
+            events={stream.events}
+            selfHealingAttempts={stream.selfHealingAttempts}
+            verificationGates={stream.verificationGates}
+            currentStage={stream.currentStage}
+            isConnected={stream.isConnected}
+          />
+        </div>
+
+        <div className="flex-1 flex flex-col gap-3 min-w-0">
+          <div className="flex-1 bg-card border border-border rounded-xl overflow-hidden min-h-0">
+            <LiveTerminal lines={stream.terminalLines} />
+          </div>
+
+          {(status === "validating" || stream.verificationGates.length > 0) && (
+            <div className="bg-card border border-border rounded-xl overflow-hidden p-3">
+              <BuildGate
+                verdict={null}
+                isValidating={status === "validating"}
+                status={status}
+              />
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
@@ -469,12 +538,11 @@ export function ProjectView() {
 
   if (project.status === "generating" || project.status === "validating") {
     return (
-      <div className="flex-1 flex items-center justify-center py-8">
-        <StatusTerminal
-          status={project.status}
-          pipelineStatus={project.pipelineStatus ?? undefined}
-        />
-      </div>
+      <PipelineObserver
+        projectId={project.id}
+        status={project.status}
+        pipelineStatus={project.pipelineStatus as PipelineObserverProps["pipelineStatus"]}
+      />
     );
   }
 
@@ -517,3 +585,5 @@ export function ProjectView() {
     </div>
   );
 }
+
+type PipelineObserverProps = Parameters<typeof PipelineObserver>[0];

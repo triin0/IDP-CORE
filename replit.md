@@ -23,7 +23,8 @@ The IDP is built as a pnpm workspace monorepo. It features an Express 5 API serv
 *   **Build Verification:** After code generation, writes files to a temp directory and runs `npm install && npm run build` with path traversal protection. Key file: `build-verification.ts`.
 *   **Deployment:** Generated projects deploy to live CodeSandbox cloud VMs (when `CSB_API_KEY` or `codesandbox_api` is set) for interactive previews at `*.csb.app` URLs. Falls back to static HTML preview if sandbox creation fails. Key file: `artifacts/api-server/src/lib/sandbox.ts`. DB fields: `sandboxId`, `deployUrl` on projects table.
 *   **Sandbox Lifecycle Management:** Automatic cleanup of stale CodeSandbox VMs runs every 6 hours, deleting sandboxes for projects older than 72 hours and resetting their status to `ready`. Also available via `POST /api/projects/cleanup-sandboxes`. The `DELETE /api/projects/:id` endpoint destroys the associated sandbox VM before purging the project from the database.
-*   **Frontend (MVP UI):** A React + Vite application using Tailwind CSS, Shadcn UI, and Framer Motion. It provides a terminal-styled prompt input, an architectural spec review interface with editing capabilities, real-time generation status, a results view with file tree and code viewer, Golden Path compliance checklist, quality gate failure display with critical/non-critical separation, and one-click deployment. A dedicated settings page allows for custom Golden Path configuration.
+*   **Real-Time Pipeline Observability (SSE):** Server-Sent Events stream pipeline progress to the frontend via `GET /api/projects/:id/stream`. The `PipelineEventBus` (in `pipeline-events.ts`) emits structured events at every pipeline stage: `stage:start/complete/fail`, `verification:start/complete`, `self-healing:attempt/success/exhausted`, `pipeline:log/complete/error`. The SSE endpoint auto-closes after terminal events (`pipeline:complete` or `pipeline:error`) with a 15-second heartbeat. All failure paths (including outer catch) emit `pipeline:error` for deterministic SSE closure.
+*   **Frontend (Observable UI):** A React + Vite application using Tailwind CSS, Shadcn UI, and Framer Motion. Features include: **Agent Trajectory Dashboard** (per-agent stage cards with live status, self-healing indicators), **Live Terminal** (colorized SSE output with auto-scroll and scroll-lock), **Build Verification Gate** (5-gate visual checklist: Golden Path, Dependency Audit, Build Verification, SHA-256 Hash Integrity, Security Review), **Sandbox Preview** (iframe with expand/refresh/open controls), terminal-styled prompt input, architectural spec review, file tree and code viewer, Golden Path compliance checklist, and one-click deployment. The `PipelineObserver` component (3-column layout) is shown during `generating`/`validating` states; `Workspace` is shown for `ready`/`deployed`/`failed`. Status badges use `effectiveStatus` logic to prevent false DEPLOYED labels (requires valid `deployUrl`). A dedicated settings page allows for custom Golden Path configuration.
 
 **UI/UX Decisions:**
 
@@ -111,6 +112,7 @@ Express 5 orchestration server with:
 - `src/lib/refine.ts` — Iterative refinement (delta-only regeneration, file merging, path sanitization, full verification stage, history tracking)
 - `src/lib/ai-retry.ts` — Dual-provider AI wrapper (OpenAI/Gemini) with retry logic
 - `src/lib/hash-integrity.ts` — SHA-256 hash manifest computation and comparison for core config files
+- `src/lib/pipeline-events.ts` — SSE event bus (PipelineEventBus with emitPipeline/onPipeline/offPipeline)
 - `src/lib/recovery.ts` — Orphan project recovery on server startup
 - `src/lib/build-verification.ts` — Build verification (npm install + npm run build in temp dir)
 - `src/lib/dependency-audit.ts` — npm dependency audit (existence, age, downloads, vulnerabilities)
@@ -123,6 +125,9 @@ React + Vite frontend served at `/`:
 - Dark professional theme with terminal aesthetic
 - Framer Motion for animations
 - Lucide React for icons
+- Key components: `TrajectoryDashboard.tsx`, `BuildGate.tsx`, `LiveTerminal.tsx`, `SandboxPreview.tsx`
+- Key hooks: `usePipelineStream.ts` (SSE consumer with colorized event parsing)
+- Key pages: `ProjectView.tsx` (routes to PipelineObserver or Workspace based on status)
 
 ### `lib/db` (`@workspace/db`)
 

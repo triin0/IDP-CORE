@@ -4,72 +4,6 @@ settings:
   autoInstallPeers: false
   excludeLinksFromLockfile: false
 
-catalogs:
-  default:
-    '@replit/vite-plugin-cartographer':
-      specifier: ^0.5.0
-      version: 0.5.0
-    '@replit/vite-plugin-dev-banner':
-      specifier: ^0.1.1
-      version: 0.1.2
-    '@replit/vite-plugin-runtime-error-modal':
-      specifier: ^0.0.6
-      version: 0.0.6
-    '@tailwindcss/vite':
-      specifier: ^4.1.14
-      version: 4.2.1
-    '@tanstack/react-query':
-      specifier: ^5.90.21
-      version: 5.90.21
-    '@types/node':
-      specifier: ^25.3.3
-      version: 25.3.5
-    '@types/react':
-      specifier: ^19.2.0
-      version: 19.2.14
-    '@types/react-dom':
-      specifier: ^19.2.0
-      version: 19.2.3
-    '@vitejs/plugin-react':
-      specifier: ^5.0.4
-      version: 5.1.4
-    class-variance-authority:
-      specifier: ^0.7.1
-      version: 0.7.1
-    clsx:
-      specifier: 2.1.1
-      version: 2.1.1
-    drizzle-orm:
-      specifier: ^0.45.1
-      version: 0.45.1
-    framer-motion:
-      specifier: 12.35.1
-      version: 12.35.1
-    lucide-react:
-      specifier: 0.545.0
-      version: 0.545.0
-    react:
-      specifier: 19.1.0
-      version: 19.1.0
-    react-dom:
-      specifier: 19.1.0
-      version: 19.1.0
-    tailwind-merge:
-      specifier: 3.5.0
-      version: 3.5.0
-    tailwindcss:
-      specifier: ^4.1.14
-      version: 4.2.1
-    tsx:
-      specifier: ^4.21.0
-      version: 4.21.0
-    vite:
-      specifier: ^7.3.0
-      version: 7.3.1
-    zod:
-      specifier: ^3.25.76
-      version: 3.25.76
-
 overrides:
   esbuild>@esbuild/darwin-arm64: '-'
   esbuild>@esbuild/darwin-x64: '-'
@@ -169,6 +103,12 @@ importers:
       pnpm:
         specifier: 8.15.5
         version: 8.15.5
+
+  .local/share/pnpm/.tools/pnpm/9.1.0_tmp_7103:
+    dependencies:
+      pnpm:
+        specifier: 9.1.0
+        version: 9.1.0
 
   artifacts/api-server:
     dependencies:
@@ -3435,6 +3375,11 @@ packages:
   pnpm@8.15.5:
     resolution: {integrity: sha512-sFGjLH5pWDO4SSbTspuMylclS1ifBknYmcbp0O22cLkex+KkNFm65zdZu1zmGcMmbxFr+THOItHvF1mn5Fqpbw==}
     engines: {node: '>=16.14'}
+    hasBin: true
+
+  pnpm@9.1.0:
+    resolution: {integrity: sha512-Z/WHmRapKT5c8FnCOFPVcb6vT3U8cH9AyyK+1fsVeMaq07bEEHzLO6CzW+AD62IaFkcayDbIe+tT+dVLtGEnJA==}
+    engines: {node: '>=18.12'}
     hasBin: true
 
   possible-typed-array-names@1.1.0:
@@ -7153,6 +7098,8 @@ snapshots:
   png-js@0.1.1: {}
 
   pnpm@8.15.5: {}
+
+  pnpm@9.1.0: {}
 
   possible-typed-array-names@1.1.0: {}
 

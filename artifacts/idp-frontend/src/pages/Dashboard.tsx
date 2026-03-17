@@ -74,7 +74,11 @@ export function Dashboard() {
       {data && data.projects.length > 0 && (
         <div className="grid gap-4">
           {data.projects.map((project, index) => {
-            const config = statusConfig[project.status] || statusConfig.pending;
+            const effectiveStatus =
+              project.status === "deployed" && !project.deployUrl
+                ? "ready"
+                : project.status;
+            const config = statusConfig[effectiveStatus] || statusConfig.pending;
             const StatusIcon = config.icon;
             const timeAgo = formatDistanceToNow(new Date(project.createdAt), { addSuffix: true });
 
@@ -91,7 +95,7 @@ export function Dashboard() {
                   <div className="flex-1 min-w-0 mr-4">
                     <div className="flex items-center gap-3 mb-2">
                       <span className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border", config.color)}>
-                        <StatusIcon className={cn("w-3 h-3 inline mr-1", (project.status === "generating" || project.status === "planning" || project.status === "validating") && "animate-spin")} />
+                        <StatusIcon className={cn("w-3 h-3 inline mr-1", (effectiveStatus === "generating" || effectiveStatus === "planning" || effectiveStatus === "validating") && "animate-spin")} />
                         {config.label}
                       </span>
                       <span className="text-[10px] font-mono text-zinc-600 uppercase">

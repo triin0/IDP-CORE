@@ -18,6 +18,7 @@ import { generateProjectSpec } from "../lib/spec-generator";
 import { deployProject, generatePreviewHtml } from "../lib/deploy";
 import { refineProject } from "../lib/refine";
 import { deleteSandbox, cleanupStaleSandboxes } from "../lib/sandbox";
+import { pipelineEvents, type PipelineEvent } from "../lib/pipeline-events";
 
 const router: IRouter = Router();
 
@@ -27,6 +28,42 @@ interface GoldenPathCheckRecord {
   description: string;
   critical?: boolean;
 }
+
+router.get("/projects/:id/stream", (req, res) => {
+  const { id } = req.params;
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+
+  res.write(`data: ${JSON.stringify({ type: "connected", projectId: id, timestamp: new Date().toISOString() })}\n\n`);
+
+  const heartbeat = setInterval(() => {
+    res.write(`: heartbeat\n\n`);
+  }, 15000);
+
+  const listener = (event: PipelineEvent) => {
+    if (event.projectId !== id) return;
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
+
+    if (event.type === "pipeline:complete" || event.type === "pipeline:error") {
+      setTimeout(() => {
+        clearInterval(heartbeat);
+        res.end();
+      }, 500);
+    }
+  };
+
+  pipelineEvents.onPipeline(listener);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    pipelineEvents.offPipeline(listener);
+  });
+});
 
 interface FileRecord {
   path: string;

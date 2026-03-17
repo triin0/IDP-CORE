@@ -9,6 +9,7 @@ import { runBuildVerification } from "./build-verification";
 import { computeHashManifest, compareHashManifests } from "./hash-integrity";
 import type { HashManifest } from "./hash-integrity";
 import type { GoldenPathConfigRules } from "@workspace/db";
+import { emitPipelineEvent } from "./pipeline-events";
 
 export type FailureCategory =
   | "golden_path_violation"
@@ -515,6 +516,8 @@ export async function executeWithSelfHealing(
       .set({ status: "validating", pipelineStatus: pipeline })
       .where(eq(projectsTable.id, projectId));
 
+    emitPipelineEvent(projectId, "verification:start", { attempt });
+
     const { verdict, goldenPathChecks } = await runVerificationStage(
       projectId,
       pipeline,
@@ -525,8 +528,18 @@ export async function executeWithSelfHealing(
       hashManifest,
     );
 
+    emitPipelineEvent(projectId, "verification:complete", {
+      attempt,
+      passed: verdict.passed,
+      failureCategory: verdict.failureCategory,
+      summary: verdict.summary,
+      buildPassed: !verdict.buildStderr,
+      dependencyErrors: verdict.dependencyErrors.length,
+    });
+
     if (verdict.passed) {
       if (attempt > 0) {
+        emitPipelineEvent(projectId, "self-healing:success", { attempt });
         console.log(`[self-heal:${projectId.slice(0, 8)}] Self-healing SUCCEEDED on attempt ${attempt}`);
       }
       return { status: "ready", files: currentFiles, verdict, goldenPathChecks };
@@ -534,9 +547,21 @@ export async function executeWithSelfHealing(
 
     attempt++;
     if (attempt > MAX_RECOVERY_LOOPS) {
+      emitPipelineEvent(projectId, "self-healing:exhausted", {
+        maxAttempts: MAX_RECOVERY_LOOPS,
+        failureCategory: verdict.failureCategory,
+      });
       console.warn(`[self-heal:${projectId.slice(0, 8)}] Exhausted ${MAX_RECOVERY_LOOPS} recovery attempts — enforcing failure`);
       return { status: "failed_validation", files: originalFiles, verdict, goldenPathChecks };
     }
+
+    emitPipelineEvent(projectId, "self-healing:attempt", {
+      attempt,
+      maxAttempts: MAX_RECOVERY_LOOPS,
+      failureCategory: verdict.failureCategory,
+      errors: verdict.dependencyErrors.slice(0, 5),
+      buildStderr: verdict.buildStderr?.slice(0, 500),
+    });
 
     console.warn(`[self-heal:${projectId.slice(0, 8)}] Recovery attempt ${attempt}/${MAX_RECOVERY_LOOPS} for [${verdict.failureCategory}]`);
 
@@ -545,6 +570,10 @@ export async function executeWithSelfHealing(
       currentFiles = applyDelta(currentFiles, delta);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      emitPipelineEvent(projectId, "self-healing:exhausted", {
+        reason: "fixer_agent_error",
+        error: msg,
+      });
       console.error(`[self-heal:${projectId.slice(0, 8)}] Fixer Agent failed: ${msg} — enforcing failure`);
       return { status: "failed_validation", files: originalFiles, verdict, goldenPathChecks };
     }
@@ -583,6 +612,11 @@ export async function runPipeline(
         startedAt: new Date().toISOString(),
       });
 
+      emitPipelineEvent(projectId, "stage:start", {
+        role: agent.role,
+        label: agent.label,
+      });
+
       try {
         const output = await runAgent(agent, config, context, projectId);
         context.priorOutputs[agent.role] = output;
@@ -595,6 +629,13 @@ export async function runPipeline(
           notes: output.notes || undefined,
         });
 
+        emitPipelineEvent(projectId, "stage:complete", {
+          role: agent.role,
+          label: agent.label,
+          fileCount: output.files.length,
+          filePaths: output.files.map((f) => f.path),
+        });
+
         console.log(
           `[pipeline:${projectId.slice(0, 8)}] ${agent.label} completed: ${output.files.length} files`,
         );
@@ -604,6 +645,12 @@ export async function runPipeline(
         await updatePipelineStage(projectId, pipeline, agent.role, {
           status: "failed",
           completedAt: new Date().toISOString(),
+          error: message,
+        });
+
+        emitPipelineEvent(projectId, "stage:fail", {
+          role: agent.role,
+          label: agent.label,
           error: message,
         });
 
@@ -626,9 +673,18 @@ export async function runPipeline(
       prompt,
     );
 
+    emitPipelineEvent(projectId, "pipeline:log", {
+      message: `Reconciled ${reconciledFiles.length} files from ${Object.keys(context.priorOutputs).length} agents`,
+    });
+
     if (result.status === "failed_validation") {
       const errorMsg = `Verification blocked after ${MAX_RECOVERY_LOOPS} self-healing attempts: ${result.verdict.recommendedFixes.slice(0, 3).join("; ")}`;
       console.error(`[pipeline:${projectId.slice(0, 8)}] ${errorMsg}`);
+
+      emitPipelineEvent(projectId, "pipeline:error", {
+        error: errorMsg,
+        failureCategory: result.verdict.failureCategory,
+      });
 
       await db
         .update(projectsTable)
@@ -644,6 +700,11 @@ export async function runPipeline(
       return;
     }
 
+    emitPipelineEvent(projectId, "pipeline:complete", {
+      fileCount: result.files.length,
+      status: "ready",
+    });
+
     await db
       .update(projectsTable)
       .set({
@@ -657,6 +718,9 @@ export async function runPipeline(
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown pipeline error";
     console.error(`Pipeline failed for project ${projectId}:`, message);
+    emitPipelineEvent(projectId, "pipeline:error", {
+      error: message,
+    });
     await db
       .update(projectsTable)
       .set({
