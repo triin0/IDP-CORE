@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db, projectsTable } from "@workspace/db";
 import { getActiveConfig, buildSystemPrompt, runGoldenPathChecks } from "./golden-path";
 import { callWithRetry } from "./ai-retry";
+import { validateAllManifests } from "./dependency-audit";
 
 export async function generateProjectCode(
   projectId: string,
@@ -63,6 +64,29 @@ export async function generateProjectCode(
     }
 
     const goldenPathChecks = runGoldenPathChecks(parsed.files, config);
+
+    let depAuditCheck = { name: "Dependency Audit", passed: true, description: "All dependencies verified against npm registry and OSV vulnerability database" };
+    try {
+      const auditResult = await validateAllManifests(parsed.files);
+      if (!auditResult.passed) {
+        console.warn(`[code-gen:${projectId.slice(0, 8)}] Dependency audit flagged issues:\n${auditResult.errors.join("\n")}`);
+        depAuditCheck = {
+          name: "Dependency Audit",
+          passed: false,
+          description: auditResult.errors.join("; "),
+        };
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[code-gen:${projectId.slice(0, 8)}] Dependency audit error:`, msg);
+      depAuditCheck = { name: "Dependency Audit", passed: false, description: `Audit failed: ${msg}` };
+    }
+    goldenPathChecks.push(depAuditCheck);
+
+    const hasHallucinatedDeps = depAuditCheck.description.includes("[Hallucination]");
+    if (hasHallucinatedDeps) {
+      throw new Error(`Dependency audit blocked generation: ${depAuditCheck.description}`);
+    }
 
     await db
       .update(projectsTable)

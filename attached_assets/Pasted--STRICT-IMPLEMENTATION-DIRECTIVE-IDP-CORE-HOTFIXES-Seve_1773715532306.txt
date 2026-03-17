@@ -1,0 +1,110 @@
+**STRICT IMPLEMENTATION DIRECTIVE: IDP.CORE HOTFIXES**
+
+**Severity:** HIGH
+**Objective:** Immediately patch silent data corruption caused by token exhaustion and implement Check #10 (Dependency Audit) to neutralize supply chain vulnerabilities. 
+
+Execute the following implementations exactly as specified.
+
+---
+
+### DIRECTIVE 1: Enforce Hard-Stop on Token Exhaustion
+
+**Target File:** `artifacts/api-server/src/lib/ai-retry.ts`
+**Location:** Lines 121-125
+
+**Context:** The system currently logs a warning when the AI hits its token limit (`finish_reason === "length"`) but allows the orchestrator to proceed with truncated, invalid JSON. This poisons the database state. 
+
+**Instruction:** Replace the existing `console.warn` fall-through logic with a hard `throw`. You must halt the pipeline immediately so the upstream `catch` block can cleanly transition the database status to `failed`.
+
+**Implementation:**
+```typescript
+if (completion.choices[0].finish_reason === "length") {
+  const errorMsg = "TOKEN_EXHAUSTION: AI returned incomplete content due to length limits. Prompt complexity exceeds context window.";
+  
+  console.error(`[AI Generation] ${errorMsg}`);
+  
+  // STRICT REQUIREMENT: Do not attempt to parse or recover partial JSON.
+  throw new Error(errorMsg);
+}
+```
+
+---
+
+### DIRECTIVE 2: Implement Golden Path Check #10 (Dependency Guard)
+
+**Target File:** `artifacts/api-server/src/lib/golden-path/dependency-audit.ts` (Create this file)
+**Integration Point:** This must be injected into the Golden Path validation engine before any code is approved for the `ready` state.
+
+**Context:** The engine must asynchronously validate every AI-generated dependency against the NPM registry and the Open Source Vulnerabilities (OSV) database to prevent "slopsquatting" and hallucinated packages.
+
+**Instruction:**
+Implement the exact asynchronous validation logic below. The function must parse the generated `package.json`, extract all standard and dev dependencies, and run concurrent checks. It must flag packages that do not exist, are less than 48 hours old, or possess known CVEs.
+
+**Implementation:**
+```typescript
+export async function validateDependencies(packageJsonString: string): Promise<{ passed: boolean; errors: string[] }> {
+  const errors: string[] = [];
+  
+  let pkg;
+  try {
+    pkg = JSON.parse(packageJsonString);
+  } catch (e) {
+    return { passed: false, errors: ["Golden Path #10: Invalid package.json format generated."] };
+  }
+
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  if (Object.keys(deps).length === 0) return { passed: true, errors: [] };
+
+  // STRICT REQUIREMENT: Execute network calls concurrently to preserve engine velocity.
+  await Promise.all(Object.entries(deps).map(async ([name, version]) => {
+    const cleanVersion = (version as string).replace(/[\^~><=]/g, '').trim();
+
+    try {
+      // 1. Slopsquatting & Hallucination Guard
+      const npmRes = await fetch(`https://registry.npmjs.org/${name}`);
+      
+      if (npmRes.status === 404) {
+        errors.push(`[Hallucination] Package '${name}' does not exist on npm.`);
+        return; 
+      }
+
+      const npmData = await npmRes.json();
+      const createdStr = npmData.time?.created;
+      
+      if (createdStr) {
+        const ageInHours = (Date.now() - new Date(createdStr).getTime()) / (1000 * 60 * 60);
+        if (ageInHours < 48) {
+          errors.push(`[Slopsquatting] Package '${name}' is suspiciously new (< 48 hours old).`);
+        }
+      }
+
+      // 2. Vulnerability Guard (OSV API)
+      const osvRes = await fetch("https://api.osv.dev/v1/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          version: cleanVersion,
+          package: { name: name, ecosystem: "npm" }
+        })
+      });
+
+      if (osvRes.ok) {
+        const osvData = await osvRes.json();
+        if (osvData.vulns && osvData.vulns.length > 0) {
+          errors.push(`[CVE] Package '${name}@${cleanVersion}' has known vulnerabilities in the OSV database.`);
+        }
+      }
+    } catch (err) {
+      console.error(`[Dependency Audit] Failed to validate package ${name}:`, err);
+      // Failsafe: Log network errors but do not crash the engine loop.
+    }
+  }));
+
+  return {
+    passed: errors.length === 0,
+    errors
+  };
+}
+```
+
+Would you like the strict implementation directive for wiring this specific audit output into the `ai-retry.ts` regeneration loop?

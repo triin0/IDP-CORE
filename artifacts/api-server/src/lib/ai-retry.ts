@@ -119,9 +119,9 @@ export async function callWithRetry(
       }
 
       if (finishReason === "length" || finishReason === "MAX_TOKENS") {
-        console.warn(
-          `[${label}] Response may be truncated (finish_reason=${finishReason}). Attempting to use partial content.`,
-        );
+        const errorMsg = `TOKEN_EXHAUSTION: AI returned incomplete content due to length limits (finish_reason=${finishReason}). Prompt complexity exceeds context window.`;
+        console.error(`[${label}] ${errorMsg}`);
+        throw new Error(errorMsg);
       }
 
       return content;

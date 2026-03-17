@@ -77,7 +77,20 @@ The Golden Path system prompt enforces enterprise-grade standards on all AI-gene
 - **Error Handling**: Global middleware, structured responses, no stack trace leaks
 - **TypeScript**: Strict mode, explicit return types, no `any`
 
-Nine automated compliance checks run after generation: Folder Structure, Security Headers, Input Validation, Environment Config, No Hardcoded Secrets, Error Handling, TypeScript, Rate Limiting, Database Schema.
+Ten automated compliance checks run after generation: Folder Structure, Security Headers, Input Validation, Environment Config, No Hardcoded Secrets, Error Handling, TypeScript, Rate Limiting, Database Schema, Dependency Audit.
+
+### Dependency Audit (Golden Path Check #10)
+
+Asynchronous supply chain security check that validates every AI-generated npm dependency:
+- **Hallucination guard**: Verifies each package exists on the npm registry (catches AI-fabricated package names / slopsquatting)
+- **Slopsquatting guard**: Flags packages created less than 48 hours ago as suspicious
+- **Vulnerability guard**: Queries the OSV (Open Source Vulnerabilities) database for known CVEs
+- Runs concurrently for all dependencies to preserve pipeline velocity
+- Key file: `artifacts/api-server/src/lib/dependency-audit.ts`
+
+### Token Exhaustion Protection
+
+The AI retry layer (`ai-retry.ts`) enforces a hard stop when the LLM hits its token limit (`finish_reason === "length"` or `MAX_TOKENS`). Instead of attempting to parse truncated/invalid JSON, the pipeline throws immediately and transitions the project to `failed` status with a clear error message.
 
 ### Deployment
 
