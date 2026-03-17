@@ -6,8 +6,9 @@ import { HealthIndicator } from "@/components/HealthIndicator";
 import { Dashboard } from "@/pages/Dashboard";
 import { Home } from "@/pages/Home";
 import { ProjectView } from "@/pages/ProjectView";
+import { Settings } from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
-import { Terminal, Plus, LayoutGrid } from "lucide-react";
+import { Terminal, Plus, LayoutGrid, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,18 @@ function NavHeader() {
               <Plus className="w-3.5 h-3.5 mr-1.5" />
               NEW
             </Link>
+            <Link
+              href="/settings"
+              className={cn(
+                "flex items-center px-3 py-1.5 rounded-md text-xs font-mono transition-colors",
+                location === "/settings"
+                  ? "bg-primary/10 text-primary"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
+              )}
+            >
+              <Settings2 className="w-3.5 h-3.5 mr-1.5" />
+              SETTINGS
+            </Link>
           </nav>
         </div>
         <HealthIndicator />
@@ -65,6 +78,7 @@ function AppRouter() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/new" component={Home} />
+      <Route path="/settings" component={Settings} />
       <Route path="/project/:id" component={ProjectView} />
       <Route component={NotFound} />
     </Switch>

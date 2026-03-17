@@ -118,7 +118,17 @@ Key frontend components:
 
 Routes: `/` (Dashboard — project registry), `/new` (Prompt input), `/project/:id` (spec review when status=planned; 3-panel workspace when status=ready/deployed: left file explorer, center code viewer, right status panel with Golden Path + deploy)
 
-Navigation: Persistent header with IDP.CORE logo (links to /), PROJECTS tab (links to /), NEW tab (links to /new), and health indicators. Active tab is highlighted.
+Navigation: Persistent header with IDP.CORE logo (links to /), PROJECTS tab (links to /), NEW tab (links to /new), SETTINGS tab (links to /settings), and health indicators. Active tab is highlighted.
+
+### Golden Path Configuration
+
+Custom Golden Path configuration system allowing users to define their own enterprise standards:
+
+- **Database**: `golden_path_configs` table stores named configurations with full rules schema
+- **API**: Full CRUD at `/api/golden-path-configs` — list, create, update, delete, activate, reset-to-default
+- **Config-driven generation**: `golden-path.ts` reads active config (or falls back to built-in defaults) and builds system prompt + checks dynamically
+- **Settings UI**: `/settings` page with visual editor (tech stack, folder structure, security toggles, code quality, database, error handling, compliance checks) and raw JSON editor toggle
+- **Key files**: `routes/golden-path.ts` (API), `lib/golden-path.ts` (engine), `lib/golden-path-defaults.ts` (defaults), `lib/db/src/schema/golden-path-configs.ts` (DB schema), `pages/Settings.tsx` (UI)
 
 ### Custom Skill
 
@@ -136,6 +146,14 @@ Navigation: Persistent header with IDP.CORE logo (links to /), PROJECTS tab (lin
 - `deploy_url` (text, nullable)
 - `error` (text, nullable)
 - `created_at` (timestamp)
+
+### `golden_path_configs` table
+- `id` (UUID, PK) — auto-generated
+- `name` (varchar, not null) — config display name
+- `description` (text, nullable)
+- `rules` (JSONB, not null) — full GoldenPathConfigRules object (techStack, folderStructure, security, codeQuality, database, errorHandling, checks[])
+- `is_active` (boolean, default false) — only one active config at a time
+- `created_at` / `updated_at` (timestamps)
 
 ## TypeScript & Composite Projects
 

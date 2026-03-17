@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: projects
     description: Project orchestration operations
+  - name: golden-path
+    description: Golden Path configuration operations
 paths:
   /healthz:
     get:
@@ -224,6 +226,157 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /golden-path-configs:
+    get:
+      operationId: listGoldenPathConfigs
+      tags: [golden-path]
+      summary: List all Golden Path configurations
+      description: Returns all saved Golden Path configurations plus the default rules.
+      responses:
+        "200":
+          description: Config list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoldenPathConfigListResponse"
+    post:
+      operationId: createGoldenPathConfig
+      tags: [golden-path]
+      summary: Create a new Golden Path configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGoldenPathConfigBody"
+      responses:
+        "201":
+          description: Config created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoldenPathConfigResponse"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /golden-path-configs/active:
+    get:
+      operationId: getActiveGoldenPathConfig
+      tags: [golden-path]
+      summary: Get the currently active Golden Path configuration
+      description: Returns the active config, or the built-in default if none is active.
+      responses:
+        "200":
+          description: Active config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoldenPathConfigResponse"
+  /golden-path-configs/reset-to-default:
+    post:
+      operationId: resetGoldenPathToDefault
+      tags: [golden-path]
+      summary: Reset to built-in default configuration
+      description: Deactivates all custom configs and reverts to the built-in default.
+      responses:
+        "200":
+          description: Reset to default
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoldenPathConfigResponse"
+  /golden-path-configs/{id}:
+    put:
+      operationId: updateGoldenPathConfig
+      tags: [golden-path]
+      summary: Update a Golden Path configuration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGoldenPathConfigBody"
+      responses:
+        "200":
+          description: Config updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoldenPathConfigResponse"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Config not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteGoldenPathConfig
+      tags: [golden-path]
+      summary: Delete a Golden Path configuration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Config deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required:
+                  - success
+        "404":
+          description: Config not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /golden-path-configs/{id}/activate:
+    post:
+      operationId: activateGoldenPathConfig
+      tags: [golden-path]
+      summary: Activate a Golden Path configuration
+      description: Sets this config as the active one, deactivating any previously active config.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Config activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoldenPathConfigResponse"
+        "404":
+          description: Config not found
           content:
             application/json:
               schema:
@@ -482,6 +635,188 @@ components:
           type: array
           items:
             type: string
+    GoldenPathRuleCheck:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [file_pattern, content_match, content_not_match]
+        pattern:
+          type: string
+      required:
+        - type
+        - pattern
+    GoldenPathRule:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        promptInstruction:
+          type: string
+        check:
+          $ref: "#/components/schemas/GoldenPathRuleCheck"
+      required:
+        - name
+        - description
+        - promptInstruction
+        - check
+    TechStack:
+      type: object
+      properties:
+        backend:
+          type: string
+        frontend:
+          type: string
+        language:
+          type: string
+        orm:
+          type: string
+        validation:
+          type: string
+      required: [backend, frontend, language, orm, validation]
+    FolderStructure:
+      type: object
+      properties:
+        backend:
+          type: array
+          items:
+            type: string
+        frontend:
+          type: array
+          items:
+            type: string
+        shared:
+          type: array
+          items:
+            type: string
+        root:
+          type: array
+          items:
+            type: string
+      required: [backend, frontend, shared, root]
+    SecurityConfig:
+      type: object
+      properties:
+        requireHelmet:
+          type: boolean
+        requireCors:
+          type: boolean
+        requireRateLimiting:
+          type: boolean
+        noHardcodedSecrets:
+          type: boolean
+      required: [requireHelmet, requireCors, requireRateLimiting, noHardcodedSecrets]
+    CodeQualityConfig:
+      type: object
+      properties:
+        strictTypeScript:
+          type: boolean
+        noAnyTypes:
+          type: boolean
+        explicitReturnTypes:
+          type: boolean
+        esmImports:
+          type: boolean
+      required: [strictTypeScript, noAnyTypes, explicitReturnTypes, esmImports]
+    DatabaseConfig:
+      type: object
+      properties:
+        requireSchema:
+          type: boolean
+        requireConnectionPooling:
+          type: boolean
+        requireParameterizedQueries:
+          type: boolean
+      required: [requireSchema, requireConnectionPooling, requireParameterizedQueries]
+    ErrorHandlingConfig:
+      type: object
+      properties:
+        requireGlobalHandler:
+          type: boolean
+        structuredResponses:
+          type: boolean
+        noStackTraceLeaks:
+          type: boolean
+      required: [requireGlobalHandler, structuredResponses, noStackTraceLeaks]
+    GoldenPathConfigRules:
+      type: object
+      properties:
+        techStack:
+          $ref: "#/components/schemas/TechStack"
+        folderStructure:
+          $ref: "#/components/schemas/FolderStructure"
+        security:
+          $ref: "#/components/schemas/SecurityConfig"
+        codeQuality:
+          $ref: "#/components/schemas/CodeQualityConfig"
+        database:
+          $ref: "#/components/schemas/DatabaseConfig"
+        errorHandling:
+          $ref: "#/components/schemas/ErrorHandlingConfig"
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoldenPathRule"
+      required: [techStack, folderStructure, security, codeQuality, database, errorHandling, checks]
+    GoldenPathConfigResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          nullable: true
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        rules:
+          $ref: "#/components/schemas/GoldenPathConfigRules"
+        isActive:
+          type: boolean
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [name, rules, isActive, isDefault]
+    GoldenPathConfigListResponse:
+      type: object
+      properties:
+        configs:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoldenPathConfigResponse"
+        defaultRules:
+          $ref: "#/components/schemas/GoldenPathConfigRules"
+      required: [configs, defaultRules]
+    CreateGoldenPathConfigBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        rules:
+          $ref: "#/components/schemas/GoldenPathConfigRules"
+        isActive:
+          type: boolean
+      required: [name, rules]
+    UpdateGoldenPathConfigBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        rules:
+          $ref: "#/components/schemas/GoldenPathConfigRules"
+        isActive:
+          type: boolean
     ErrorResponse:
       type: object
       properties:

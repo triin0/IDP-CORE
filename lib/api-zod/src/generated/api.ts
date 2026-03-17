@@ -254,3 +254,528 @@ export const DeployProjectResponse = zod.object({
   status: zod.enum(["deployed"]),
   deployUrl: zod.string(),
 });
+
+/**
+ * Returns all saved Golden Path configurations plus the default rules.
+ * @summary List all Golden Path configurations
+ */
+export const ListGoldenPathConfigsResponse = zod.object({
+  configs: zod.array(
+    zod.object({
+      id: zod.string().nullish(),
+      name: zod.string(),
+      description: zod.string().nullish(),
+      rules: zod.object({
+        techStack: zod.object({
+          backend: zod.string(),
+          frontend: zod.string(),
+          language: zod.string(),
+          orm: zod.string(),
+          validation: zod.string(),
+        }),
+        folderStructure: zod.object({
+          backend: zod.array(zod.string()),
+          frontend: zod.array(zod.string()),
+          shared: zod.array(zod.string()),
+          root: zod.array(zod.string()),
+        }),
+        security: zod.object({
+          requireHelmet: zod.boolean(),
+          requireCors: zod.boolean(),
+          requireRateLimiting: zod.boolean(),
+          noHardcodedSecrets: zod.boolean(),
+        }),
+        codeQuality: zod.object({
+          strictTypeScript: zod.boolean(),
+          noAnyTypes: zod.boolean(),
+          explicitReturnTypes: zod.boolean(),
+          esmImports: zod.boolean(),
+        }),
+        database: zod.object({
+          requireSchema: zod.boolean(),
+          requireConnectionPooling: zod.boolean(),
+          requireParameterizedQueries: zod.boolean(),
+        }),
+        errorHandling: zod.object({
+          requireGlobalHandler: zod.boolean(),
+          structuredResponses: zod.boolean(),
+          noStackTraceLeaks: zod.boolean(),
+        }),
+        checks: zod.array(
+          zod.object({
+            name: zod.string(),
+            description: zod.string(),
+            promptInstruction: zod.string(),
+            check: zod.object({
+              type: zod.enum([
+                "file_pattern",
+                "content_match",
+                "content_not_match",
+              ]),
+              pattern: zod.string(),
+            }),
+          }),
+        ),
+      }),
+      isActive: zod.boolean(),
+      isDefault: zod.boolean(),
+      createdAt: zod.date().optional(),
+      updatedAt: zod.date().optional(),
+    }),
+  ),
+  defaultRules: zod.object({
+    techStack: zod.object({
+      backend: zod.string(),
+      frontend: zod.string(),
+      language: zod.string(),
+      orm: zod.string(),
+      validation: zod.string(),
+    }),
+    folderStructure: zod.object({
+      backend: zod.array(zod.string()),
+      frontend: zod.array(zod.string()),
+      shared: zod.array(zod.string()),
+      root: zod.array(zod.string()),
+    }),
+    security: zod.object({
+      requireHelmet: zod.boolean(),
+      requireCors: zod.boolean(),
+      requireRateLimiting: zod.boolean(),
+      noHardcodedSecrets: zod.boolean(),
+    }),
+    codeQuality: zod.object({
+      strictTypeScript: zod.boolean(),
+      noAnyTypes: zod.boolean(),
+      explicitReturnTypes: zod.boolean(),
+      esmImports: zod.boolean(),
+    }),
+    database: zod.object({
+      requireSchema: zod.boolean(),
+      requireConnectionPooling: zod.boolean(),
+      requireParameterizedQueries: zod.boolean(),
+    }),
+    errorHandling: zod.object({
+      requireGlobalHandler: zod.boolean(),
+      structuredResponses: zod.boolean(),
+      noStackTraceLeaks: zod.boolean(),
+    }),
+    checks: zod.array(
+      zod.object({
+        name: zod.string(),
+        description: zod.string(),
+        promptInstruction: zod.string(),
+        check: zod.object({
+          type: zod.enum([
+            "file_pattern",
+            "content_match",
+            "content_not_match",
+          ]),
+          pattern: zod.string(),
+        }),
+      }),
+    ),
+  }),
+});
+
+/**
+ * @summary Create a new Golden Path configuration
+ */
+export const CreateGoldenPathConfigBody = zod.object({
+  name: zod.string(),
+  description: zod.string().optional(),
+  rules: zod.object({
+    techStack: zod.object({
+      backend: zod.string(),
+      frontend: zod.string(),
+      language: zod.string(),
+      orm: zod.string(),
+      validation: zod.string(),
+    }),
+    folderStructure: zod.object({
+      backend: zod.array(zod.string()),
+      frontend: zod.array(zod.string()),
+      shared: zod.array(zod.string()),
+      root: zod.array(zod.string()),
+    }),
+    security: zod.object({
+      requireHelmet: zod.boolean(),
+      requireCors: zod.boolean(),
+      requireRateLimiting: zod.boolean(),
+      noHardcodedSecrets: zod.boolean(),
+    }),
+    codeQuality: zod.object({
+      strictTypeScript: zod.boolean(),
+      noAnyTypes: zod.boolean(),
+      explicitReturnTypes: zod.boolean(),
+      esmImports: zod.boolean(),
+    }),
+    database: zod.object({
+      requireSchema: zod.boolean(),
+      requireConnectionPooling: zod.boolean(),
+      requireParameterizedQueries: zod.boolean(),
+    }),
+    errorHandling: zod.object({
+      requireGlobalHandler: zod.boolean(),
+      structuredResponses: zod.boolean(),
+      noStackTraceLeaks: zod.boolean(),
+    }),
+    checks: zod.array(
+      zod.object({
+        name: zod.string(),
+        description: zod.string(),
+        promptInstruction: zod.string(),
+        check: zod.object({
+          type: zod.enum([
+            "file_pattern",
+            "content_match",
+            "content_not_match",
+          ]),
+          pattern: zod.string(),
+        }),
+      }),
+    ),
+  }),
+  isActive: zod.boolean().optional(),
+});
+
+/**
+ * Returns the active config, or the built-in default if none is active.
+ * @summary Get the currently active Golden Path configuration
+ */
+export const GetActiveGoldenPathConfigResponse = zod.object({
+  id: zod.string().nullish(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  rules: zod.object({
+    techStack: zod.object({
+      backend: zod.string(),
+      frontend: zod.string(),
+      language: zod.string(),
+      orm: zod.string(),
+      validation: zod.string(),
+    }),
+    folderStructure: zod.object({
+      backend: zod.array(zod.string()),
+      frontend: zod.array(zod.string()),
+      shared: zod.array(zod.string()),
+      root: zod.array(zod.string()),
+    }),
+    security: zod.object({
+      requireHelmet: zod.boolean(),
+      requireCors: zod.boolean(),
+      requireRateLimiting: zod.boolean(),
+      noHardcodedSecrets: zod.boolean(),
+    }),
+    codeQuality: zod.object({
+      strictTypeScript: zod.boolean(),
+      noAnyTypes: zod.boolean(),
+      explicitReturnTypes: zod.boolean(),
+      esmImports: zod.boolean(),
+    }),
+    database: zod.object({
+      requireSchema: zod.boolean(),
+      requireConnectionPooling: zod.boolean(),
+      requireParameterizedQueries: zod.boolean(),
+    }),
+    errorHandling: zod.object({
+      requireGlobalHandler: zod.boolean(),
+      structuredResponses: zod.boolean(),
+      noStackTraceLeaks: zod.boolean(),
+    }),
+    checks: zod.array(
+      zod.object({
+        name: zod.string(),
+        description: zod.string(),
+        promptInstruction: zod.string(),
+        check: zod.object({
+          type: zod.enum([
+            "file_pattern",
+            "content_match",
+            "content_not_match",
+          ]),
+          pattern: zod.string(),
+        }),
+      }),
+    ),
+  }),
+  isActive: zod.boolean(),
+  isDefault: zod.boolean(),
+  createdAt: zod.date().optional(),
+  updatedAt: zod.date().optional(),
+});
+
+/**
+ * Deactivates all custom configs and reverts to the built-in default.
+ * @summary Reset to built-in default configuration
+ */
+export const ResetGoldenPathToDefaultResponse = zod.object({
+  id: zod.string().nullish(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  rules: zod.object({
+    techStack: zod.object({
+      backend: zod.string(),
+      frontend: zod.string(),
+      language: zod.string(),
+      orm: zod.string(),
+      validation: zod.string(),
+    }),
+    folderStructure: zod.object({
+      backend: zod.array(zod.string()),
+      frontend: zod.array(zod.string()),
+      shared: zod.array(zod.string()),
+      root: zod.array(zod.string()),
+    }),
+    security: zod.object({
+      requireHelmet: zod.boolean(),
+      requireCors: zod.boolean(),
+      requireRateLimiting: zod.boolean(),
+      noHardcodedSecrets: zod.boolean(),
+    }),
+    codeQuality: zod.object({
+      strictTypeScript: zod.boolean(),
+      noAnyTypes: zod.boolean(),
+      explicitReturnTypes: zod.boolean(),
+      esmImports: zod.boolean(),
+    }),
+    database: zod.object({
+      requireSchema: zod.boolean(),
+      requireConnectionPooling: zod.boolean(),
+      requireParameterizedQueries: zod.boolean(),
+    }),
+    errorHandling: zod.object({
+      requireGlobalHandler: zod.boolean(),
+      structuredResponses: zod.boolean(),
+      noStackTraceLeaks: zod.boolean(),
+    }),
+    checks: zod.array(
+      zod.object({
+        name: zod.string(),
+        description: zod.string(),
+        promptInstruction: zod.string(),
+        check: zod.object({
+          type: zod.enum([
+            "file_pattern",
+            "content_match",
+            "content_not_match",
+          ]),
+          pattern: zod.string(),
+        }),
+      }),
+    ),
+  }),
+  isActive: zod.boolean(),
+  isDefault: zod.boolean(),
+  createdAt: zod.date().optional(),
+  updatedAt: zod.date().optional(),
+});
+
+/**
+ * @summary Update a Golden Path configuration
+ */
+export const UpdateGoldenPathConfigParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateGoldenPathConfigBody = zod.object({
+  name: zod.string().optional(),
+  description: zod.string().optional(),
+  rules: zod
+    .object({
+      techStack: zod.object({
+        backend: zod.string(),
+        frontend: zod.string(),
+        language: zod.string(),
+        orm: zod.string(),
+        validation: zod.string(),
+      }),
+      folderStructure: zod.object({
+        backend: zod.array(zod.string()),
+        frontend: zod.array(zod.string()),
+        shared: zod.array(zod.string()),
+        root: zod.array(zod.string()),
+      }),
+      security: zod.object({
+        requireHelmet: zod.boolean(),
+        requireCors: zod.boolean(),
+        requireRateLimiting: zod.boolean(),
+        noHardcodedSecrets: zod.boolean(),
+      }),
+      codeQuality: zod.object({
+        strictTypeScript: zod.boolean(),
+        noAnyTypes: zod.boolean(),
+        explicitReturnTypes: zod.boolean(),
+        esmImports: zod.boolean(),
+      }),
+      database: zod.object({
+        requireSchema: zod.boolean(),
+        requireConnectionPooling: zod.boolean(),
+        requireParameterizedQueries: zod.boolean(),
+      }),
+      errorHandling: zod.object({
+        requireGlobalHandler: zod.boolean(),
+        structuredResponses: zod.boolean(),
+        noStackTraceLeaks: zod.boolean(),
+      }),
+      checks: zod.array(
+        zod.object({
+          name: zod.string(),
+          description: zod.string(),
+          promptInstruction: zod.string(),
+          check: zod.object({
+            type: zod.enum([
+              "file_pattern",
+              "content_match",
+              "content_not_match",
+            ]),
+            pattern: zod.string(),
+          }),
+        }),
+      ),
+    })
+    .optional(),
+  isActive: zod.boolean().optional(),
+});
+
+export const UpdateGoldenPathConfigResponse = zod.object({
+  id: zod.string().nullish(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  rules: zod.object({
+    techStack: zod.object({
+      backend: zod.string(),
+      frontend: zod.string(),
+      language: zod.string(),
+      orm: zod.string(),
+      validation: zod.string(),
+    }),
+    folderStructure: zod.object({
+      backend: zod.array(zod.string()),
+      frontend: zod.array(zod.string()),
+      shared: zod.array(zod.string()),
+      root: zod.array(zod.string()),
+    }),
+    security: zod.object({
+      requireHelmet: zod.boolean(),
+      requireCors: zod.boolean(),
+      requireRateLimiting: zod.boolean(),
+      noHardcodedSecrets: zod.boolean(),
+    }),
+    codeQuality: zod.object({
+      strictTypeScript: zod.boolean(),
+      noAnyTypes: zod.boolean(),
+      explicitReturnTypes: zod.boolean(),
+      esmImports: zod.boolean(),
+    }),
+    database: zod.object({
+      requireSchema: zod.boolean(),
+      requireConnectionPooling: zod.boolean(),
+      requireParameterizedQueries: zod.boolean(),
+    }),
+    errorHandling: zod.object({
+      requireGlobalHandler: zod.boolean(),
+      structuredResponses: zod.boolean(),
+      noStackTraceLeaks: zod.boolean(),
+    }),
+    checks: zod.array(
+      zod.object({
+        name: zod.string(),
+        description: zod.string(),
+        promptInstruction: zod.string(),
+        check: zod.object({
+          type: zod.enum([
+            "file_pattern",
+            "content_match",
+            "content_not_match",
+          ]),
+          pattern: zod.string(),
+        }),
+      }),
+    ),
+  }),
+  isActive: zod.boolean(),
+  isDefault: zod.boolean(),
+  createdAt: zod.date().optional(),
+  updatedAt: zod.date().optional(),
+});
+
+/**
+ * @summary Delete a Golden Path configuration
+ */
+export const DeleteGoldenPathConfigParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DeleteGoldenPathConfigResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * Sets this config as the active one, deactivating any previously active config.
+ * @summary Activate a Golden Path configuration
+ */
+export const ActivateGoldenPathConfigParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ActivateGoldenPathConfigResponse = zod.object({
+  id: zod.string().nullish(),
+  name: zod.string(),
+  description: zod.string().nullish(),
+  rules: zod.object({
+    techStack: zod.object({
+      backend: zod.string(),
+      frontend: zod.string(),
+      language: zod.string(),
+      orm: zod.string(),
+      validation: zod.string(),
+    }),
+    folderStructure: zod.object({
+      backend: zod.array(zod.string()),
+      frontend: zod.array(zod.string()),
+      shared: zod.array(zod.string()),
+      root: zod.array(zod.string()),
+    }),
+    security: zod.object({
+      requireHelmet: zod.boolean(),
+      requireCors: zod.boolean(),
+      requireRateLimiting: zod.boolean(),
+      noHardcodedSecrets: zod.boolean(),
+    }),
+    codeQuality: zod.object({
+      strictTypeScript: zod.boolean(),
+      noAnyTypes: zod.boolean(),
+      explicitReturnTypes: zod.boolean(),
+      esmImports: zod.boolean(),
+    }),
+    database: zod.object({
+      requireSchema: zod.boolean(),
+      requireConnectionPooling: zod.boolean(),
+      requireParameterizedQueries: zod.boolean(),
+    }),
+    errorHandling: zod.object({
+      requireGlobalHandler: zod.boolean(),
+      structuredResponses: zod.boolean(),
+      noStackTraceLeaks: zod.boolean(),
+    }),
+    checks: zod.array(
+      zod.object({
+        name: zod.string(),
+        description: zod.string(),
+        promptInstruction: zod.string(),
+        check: zod.object({
+          type: zod.enum([
+            "file_pattern",
+            "content_match",
+            "content_not_match",
+          ]),
+          pattern: zod.string(),
+        }),
+      }),
+    ),
+  }),
+  isActive: zod.boolean(),
+  isDefault: zod.boolean(),
+  createdAt: zod.date().optional(),
+  updatedAt: zod.date().optional(),
+});

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, projectsTable } from "@workspace/db";
-import { GOLDEN_PATH_SYSTEM_PROMPT, runGoldenPathChecks } from "./golden-path";
+import { getActiveConfig, buildSystemPrompt, runGoldenPathChecks } from "./golden-path";
 import { callWithRetry } from "./ai-retry";
 
 export async function generateProjectCode(
@@ -21,6 +21,9 @@ export async function generateProjectCode(
       .set({ status: "generating" })
       .where(eq(projectsTable.id, projectId));
 
+    const config = await getActiveConfig();
+    const systemPrompt = buildSystemPrompt(config);
+
     let userContent = `Build the following application:\n\n${prompt}\n\n`;
 
     if (spec) {
@@ -40,7 +43,7 @@ export async function generateProjectCode(
         model: "gpt-5.2",
         max_completion_tokens: 32768,
         messages: [
-          { role: "system", content: GOLDEN_PATH_SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
         ],
         response_format: { type: "json_object" },
@@ -59,7 +62,7 @@ export async function generateProjectCode(
       throw new Error("AI response missing 'files' array");
     }
 
-    const goldenPathChecks = runGoldenPathChecks(parsed.files);
+    const goldenPathChecks = runGoldenPathChecks(parsed.files, config);
 
     await db
       .update(projectsTable)

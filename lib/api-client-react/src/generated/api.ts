@@ -18,15 +18,20 @@ import type {
 
 import type {
   ApproveSpecResponse,
+  CreateGoldenPathConfigBody,
   CreateProjectBody,
   CreateProjectResponse,
+  DeleteGoldenPathConfig200,
   DeployProjectResponse,
   ErrorResponse,
+  GoldenPathConfigListResponse,
+  GoldenPathConfigResponse,
   HealthStatus,
   ListProjectsParams,
   ProjectDetails,
   ProjectListResponse,
   RegenerateSpecResponse,
+  UpdateGoldenPathConfigBody,
   UpdateSpecBody,
 } from "./api.schemas";
 
@@ -726,4 +731,601 @@ export const useDeployProject = <
   TContext
 > => {
   return useMutation(getDeployProjectMutationOptions(options));
+};
+
+/**
+ * Returns all saved Golden Path configurations plus the default rules.
+ * @summary List all Golden Path configurations
+ */
+export const getListGoldenPathConfigsUrl = () => {
+  return `/api/golden-path-configs`;
+};
+
+export const listGoldenPathConfigs = async (
+  options?: RequestInit,
+): Promise<GoldenPathConfigListResponse> => {
+  return customFetch<GoldenPathConfigListResponse>(
+    getListGoldenPathConfigsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListGoldenPathConfigsQueryKey = () => {
+  return [`/api/golden-path-configs`] as const;
+};
+
+export const getListGoldenPathConfigsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGoldenPathConfigs>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listGoldenPathConfigs>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListGoldenPathConfigsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listGoldenPathConfigs>>
+  > = ({ signal }) => listGoldenPathConfigs({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGoldenPathConfigs>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListGoldenPathConfigsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listGoldenPathConfigs>>
+>;
+export type ListGoldenPathConfigsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all Golden Path configurations
+ */
+
+export function useListGoldenPathConfigs<
+  TData = Awaited<ReturnType<typeof listGoldenPathConfigs>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listGoldenPathConfigs>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListGoldenPathConfigsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new Golden Path configuration
+ */
+export const getCreateGoldenPathConfigUrl = () => {
+  return `/api/golden-path-configs`;
+};
+
+export const createGoldenPathConfig = async (
+  createGoldenPathConfigBody: CreateGoldenPathConfigBody,
+  options?: RequestInit,
+): Promise<GoldenPathConfigResponse> => {
+  return customFetch<GoldenPathConfigResponse>(getCreateGoldenPathConfigUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createGoldenPathConfigBody),
+  });
+};
+
+export const getCreateGoldenPathConfigMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGoldenPathConfig>>,
+    TError,
+    { data: BodyType<CreateGoldenPathConfigBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createGoldenPathConfig>>,
+  TError,
+  { data: BodyType<CreateGoldenPathConfigBody> },
+  TContext
+> => {
+  const mutationKey = ["createGoldenPathConfig"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createGoldenPathConfig>>,
+    { data: BodyType<CreateGoldenPathConfigBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createGoldenPathConfig(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateGoldenPathConfigMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createGoldenPathConfig>>
+>;
+export type CreateGoldenPathConfigMutationBody =
+  BodyType<CreateGoldenPathConfigBody>;
+export type CreateGoldenPathConfigMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create a new Golden Path configuration
+ */
+export const useCreateGoldenPathConfig = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGoldenPathConfig>>,
+    TError,
+    { data: BodyType<CreateGoldenPathConfigBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createGoldenPathConfig>>,
+  TError,
+  { data: BodyType<CreateGoldenPathConfigBody> },
+  TContext
+> => {
+  return useMutation(getCreateGoldenPathConfigMutationOptions(options));
+};
+
+/**
+ * Returns the active config, or the built-in default if none is active.
+ * @summary Get the currently active Golden Path configuration
+ */
+export const getGetActiveGoldenPathConfigUrl = () => {
+  return `/api/golden-path-configs/active`;
+};
+
+export const getActiveGoldenPathConfig = async (
+  options?: RequestInit,
+): Promise<GoldenPathConfigResponse> => {
+  return customFetch<GoldenPathConfigResponse>(
+    getGetActiveGoldenPathConfigUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetActiveGoldenPathConfigQueryKey = () => {
+  return [`/api/golden-path-configs/active`] as const;
+};
+
+export const getGetActiveGoldenPathConfigQueryOptions = <
+  TData = Awaited<ReturnType<typeof getActiveGoldenPathConfig>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getActiveGoldenPathConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetActiveGoldenPathConfigQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getActiveGoldenPathConfig>>
+  > = ({ signal }) => getActiveGoldenPathConfig({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getActiveGoldenPathConfig>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetActiveGoldenPathConfigQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getActiveGoldenPathConfig>>
+>;
+export type GetActiveGoldenPathConfigQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get the currently active Golden Path configuration
+ */
+
+export function useGetActiveGoldenPathConfig<
+  TData = Awaited<ReturnType<typeof getActiveGoldenPathConfig>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getActiveGoldenPathConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetActiveGoldenPathConfigQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Deactivates all custom configs and reverts to the built-in default.
+ * @summary Reset to built-in default configuration
+ */
+export const getResetGoldenPathToDefaultUrl = () => {
+  return `/api/golden-path-configs/reset-to-default`;
+};
+
+export const resetGoldenPathToDefault = async (
+  options?: RequestInit,
+): Promise<GoldenPathConfigResponse> => {
+  return customFetch<GoldenPathConfigResponse>(
+    getResetGoldenPathToDefaultUrl(),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getResetGoldenPathToDefaultMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetGoldenPathToDefault>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resetGoldenPathToDefault>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["resetGoldenPathToDefault"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resetGoldenPathToDefault>>,
+    void
+  > = () => {
+    return resetGoldenPathToDefault(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResetGoldenPathToDefaultMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resetGoldenPathToDefault>>
+>;
+
+export type ResetGoldenPathToDefaultMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Reset to built-in default configuration
+ */
+export const useResetGoldenPathToDefault = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetGoldenPathToDefault>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resetGoldenPathToDefault>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getResetGoldenPathToDefaultMutationOptions(options));
+};
+
+/**
+ * @summary Update a Golden Path configuration
+ */
+export const getUpdateGoldenPathConfigUrl = (id: string) => {
+  return `/api/golden-path-configs/${id}`;
+};
+
+export const updateGoldenPathConfig = async (
+  id: string,
+  updateGoldenPathConfigBody: UpdateGoldenPathConfigBody,
+  options?: RequestInit,
+): Promise<GoldenPathConfigResponse> => {
+  return customFetch<GoldenPathConfigResponse>(
+    getUpdateGoldenPathConfigUrl(id),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateGoldenPathConfigBody),
+    },
+  );
+};
+
+export const getUpdateGoldenPathConfigMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateGoldenPathConfig>>,
+    TError,
+    { id: string; data: BodyType<UpdateGoldenPathConfigBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateGoldenPathConfig>>,
+  TError,
+  { id: string; data: BodyType<UpdateGoldenPathConfigBody> },
+  TContext
+> => {
+  const mutationKey = ["updateGoldenPathConfig"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateGoldenPathConfig>>,
+    { id: string; data: BodyType<UpdateGoldenPathConfigBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateGoldenPathConfig(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateGoldenPathConfigMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateGoldenPathConfig>>
+>;
+export type UpdateGoldenPathConfigMutationBody =
+  BodyType<UpdateGoldenPathConfigBody>;
+export type UpdateGoldenPathConfigMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update a Golden Path configuration
+ */
+export const useUpdateGoldenPathConfig = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateGoldenPathConfig>>,
+    TError,
+    { id: string; data: BodyType<UpdateGoldenPathConfigBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateGoldenPathConfig>>,
+  TError,
+  { id: string; data: BodyType<UpdateGoldenPathConfigBody> },
+  TContext
+> => {
+  return useMutation(getUpdateGoldenPathConfigMutationOptions(options));
+};
+
+/**
+ * @summary Delete a Golden Path configuration
+ */
+export const getDeleteGoldenPathConfigUrl = (id: string) => {
+  return `/api/golden-path-configs/${id}`;
+};
+
+export const deleteGoldenPathConfig = async (
+  id: string,
+  options?: RequestInit,
+): Promise<DeleteGoldenPathConfig200> => {
+  return customFetch<DeleteGoldenPathConfig200>(
+    getDeleteGoldenPathConfigUrl(id),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getDeleteGoldenPathConfigMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteGoldenPathConfig>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteGoldenPathConfig>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteGoldenPathConfig"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteGoldenPathConfig>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteGoldenPathConfig(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteGoldenPathConfigMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteGoldenPathConfig>>
+>;
+
+export type DeleteGoldenPathConfigMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a Golden Path configuration
+ */
+export const useDeleteGoldenPathConfig = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteGoldenPathConfig>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteGoldenPathConfig>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteGoldenPathConfigMutationOptions(options));
+};
+
+/**
+ * Sets this config as the active one, deactivating any previously active config.
+ * @summary Activate a Golden Path configuration
+ */
+export const getActivateGoldenPathConfigUrl = (id: string) => {
+  return `/api/golden-path-configs/${id}/activate`;
+};
+
+export const activateGoldenPathConfig = async (
+  id: string,
+  options?: RequestInit,
+): Promise<GoldenPathConfigResponse> => {
+  return customFetch<GoldenPathConfigResponse>(
+    getActivateGoldenPathConfigUrl(id),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getActivateGoldenPathConfigMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof activateGoldenPathConfig>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof activateGoldenPathConfig>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["activateGoldenPathConfig"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof activateGoldenPathConfig>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return activateGoldenPathConfig(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ActivateGoldenPathConfigMutationResult = NonNullable<
+  Awaited<ReturnType<typeof activateGoldenPathConfig>>
+>;
+
+export type ActivateGoldenPathConfigMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Activate a Golden Path configuration
+ */
+export const useActivateGoldenPathConfig = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof activateGoldenPathConfig>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof activateGoldenPathConfig>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getActivateGoldenPathConfigMutationOptions(options));
 };

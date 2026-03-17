@@ -166,6 +166,108 @@ export interface UpdateSpecBody {
   architecturalDecisions?: string[];
 }
 
+export type GoldenPathRuleCheckType =
+  (typeof GoldenPathRuleCheckType)[keyof typeof GoldenPathRuleCheckType];
+
+export const GoldenPathRuleCheckType = {
+  file_pattern: "file_pattern",
+  content_match: "content_match",
+  content_not_match: "content_not_match",
+} as const;
+
+export interface GoldenPathRuleCheck {
+  type: GoldenPathRuleCheckType;
+  pattern: string;
+}
+
+export interface GoldenPathRule {
+  name: string;
+  description: string;
+  promptInstruction: string;
+  check: GoldenPathRuleCheck;
+}
+
+export interface TechStack {
+  backend: string;
+  frontend: string;
+  language: string;
+  orm: string;
+  validation: string;
+}
+
+export interface FolderStructure {
+  backend: string[];
+  frontend: string[];
+  shared: string[];
+  root: string[];
+}
+
+export interface SecurityConfig {
+  requireHelmet: boolean;
+  requireCors: boolean;
+  requireRateLimiting: boolean;
+  noHardcodedSecrets: boolean;
+}
+
+export interface CodeQualityConfig {
+  strictTypeScript: boolean;
+  noAnyTypes: boolean;
+  explicitReturnTypes: boolean;
+  esmImports: boolean;
+}
+
+export interface DatabaseConfig {
+  requireSchema: boolean;
+  requireConnectionPooling: boolean;
+  requireParameterizedQueries: boolean;
+}
+
+export interface ErrorHandlingConfig {
+  requireGlobalHandler: boolean;
+  structuredResponses: boolean;
+  noStackTraceLeaks: boolean;
+}
+
+export interface GoldenPathConfigRules {
+  techStack: TechStack;
+  folderStructure: FolderStructure;
+  security: SecurityConfig;
+  codeQuality: CodeQualityConfig;
+  database: DatabaseConfig;
+  errorHandling: ErrorHandlingConfig;
+  checks: GoldenPathRule[];
+}
+
+export interface GoldenPathConfigResponse {
+  id?: string | null;
+  name: string;
+  description?: string | null;
+  rules: GoldenPathConfigRules;
+  isActive: boolean;
+  isDefault: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GoldenPathConfigListResponse {
+  configs: GoldenPathConfigResponse[];
+  defaultRules: GoldenPathConfigRules;
+}
+
+export interface CreateGoldenPathConfigBody {
+  name: string;
+  description?: string;
+  rules: GoldenPathConfigRules;
+  isActive?: boolean;
+}
+
+export interface UpdateGoldenPathConfigBody {
+  name?: string;
+  description?: string;
+  rules?: GoldenPathConfigRules;
+  isActive?: boolean;
+}
+
 export interface ErrorResponse {
   error: string;
 }
@@ -180,4 +282,8 @@ export type ListProjectsParams = {
    * @minimum 0
    */
   offset?: number;
+};
+
+export type DeleteGoldenPathConfig200 = {
+  success: boolean;
 };
