@@ -137,6 +137,8 @@ export async function runPipeline(
           status: "completed",
           completedAt: new Date().toISOString(),
           fileCount: output.files.length,
+          filePaths: output.files.map((f) => f.path),
+          notes: output.notes || undefined,
         });
 
         console.log(

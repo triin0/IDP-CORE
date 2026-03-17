@@ -35,6 +35,8 @@ export interface AgentStageStatus {
   startedAt?: string;
   completedAt?: string;
   fileCount?: number;
+  filePaths?: string[];
+  notes?: string;
   error?: string;
 }
 
