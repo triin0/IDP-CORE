@@ -63,6 +63,41 @@ export interface ProjectSpec {
   architecturalDecisions: string[];
 }
 
+export type PipelineStageStatusRole =
+  (typeof PipelineStageStatusRole)[keyof typeof PipelineStageStatusRole];
+
+export const PipelineStageStatusRole = {
+  architect: "architect",
+  backend: "backend",
+  frontend: "frontend",
+  security: "security",
+} as const;
+
+export type PipelineStageStatusStatus =
+  (typeof PipelineStageStatusStatus)[keyof typeof PipelineStageStatusStatus];
+
+export const PipelineStageStatusStatus = {
+  pending: "pending",
+  running: "running",
+  completed: "completed",
+  failed: "failed",
+} as const;
+
+export interface PipelineStageStatus {
+  role: PipelineStageStatusRole;
+  label: string;
+  status: PipelineStageStatusStatus;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  fileCount?: number | null;
+  error?: string | null;
+}
+
+export interface PipelineStatus {
+  stages: PipelineStageStatus[];
+  currentAgent?: string | null;
+}
+
 export type ProjectDetailsStatus =
   (typeof ProjectDetailsStatus)[keyof typeof ProjectDetailsStatus];
 
@@ -83,6 +118,7 @@ export interface ProjectDetails {
   spec?: ProjectSpec;
   files: ProjectFile[];
   goldenPathChecks: GoldenPathCheck[];
+  pipelineStatus?: PipelineStatus;
   deployUrl?: string | null;
   createdAt: string;
   error?: string | null;

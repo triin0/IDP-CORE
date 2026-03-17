@@ -54,12 +54,24 @@ The API server is the platform's "conductor". Key endpoints:
 - `POST /api/projects/:id/deploy` — Deploy generated code to a live preview URL.
 - `GET /api/healthz` — Health check with LLM connectivity probe (cached 60s). Returns active provider (openai/gemini).
 
+### Multi-Agent Pipeline
+
+Code generation uses a 4-agent sequential pipeline (`pipeline.ts`):
+1. **Architect** — Designs project skeleton, schemas, configuration (16384 tokens)
+2. **Backend Developer** — Implements API routes, middleware, business logic (32768 tokens)
+3. **Frontend Developer** — Builds UI components, pages, hooks, styles (32768 tokens)
+4. **Security Reviewer** — Reviews all code for vulnerabilities, outputs hardened replacements (16384 tokens)
+
+Each agent receives prior agents' outputs as context. A reconciler merges all outputs with security agent winning conflicts for same-path files. Per-stage progress is tracked in a `pipelineStatus` JSONB field on the projects table and exposed via the API.
+
+Key files: `agents.ts` (agent definitions + role-specific system prompts), `pipeline.ts` (sequential orchestrator + reconciler), `generate.ts` (delegates to pipeline).
+
 ### AI Provider Layer
 
 Dual-provider support via `ai-retry.ts`:
 - **Auto-detection**: If `GEMINI_API_KEY` env var is set, uses Gemini Pro. Otherwise falls back to OpenAI via Replit AI Integrations.
 - **Retry logic**: 3-attempt retry with exponential backoff (2s, 4s). Logs `finish_reason` and `content_length` per attempt.
-- **Token limits**: Spec generation: 8192 tokens. Code generation: 32768 tokens.
+- **Token limits**: Spec: 8192, Architect: 16384, Backend/Frontend: 32768, Security: 16384.
 - **Models**: OpenAI uses `gpt-5.2`, Gemini uses `gemini-2.5-pro`.
 
 ### Orphan Recovery
@@ -121,7 +133,7 @@ Key frontend components:
 - `src/pages/Home.tsx` — New project prompt page
 - `src/components/PromptForm.tsx` — Terminal-styled prompt input
 - `src/components/SpecReview.tsx` — Architectural spec review screen with inline editing + APPROVE/REGENERATE buttons
-- `src/components/StatusTerminal.tsx` — Generation progress display
+- `src/components/StatusTerminal.tsx` — Multi-agent pipeline progress display (shows 4 agents with role icons, status, file counts, durations)
 - `src/components/Workspace.tsx` — Results layout (file tree + code viewer + checks)
 - `src/components/FileTree.tsx` — Navigable file tree
 - `src/components/CodeViewer.tsx` — Syntax-highlighted code display (react-syntax-highlighter/Prism + oneDark theme, line numbers, language detection, line count)
@@ -159,6 +171,7 @@ Custom Golden Path configuration system allowing users to define their own enter
 - `files` (JSONB) — array of `{ path, content }` objects
 - `golden_path_checks` (JSONB) — array of `{ name, passed, description }`
 - `deploy_url` (text, nullable)
+- `pipeline_status` (JSONB, nullable) — per-agent pipeline progress `{ stages: [{ role, label, status, startedAt?, completedAt?, fileCount?, error? }], currentAgent? }`
 - `error` (text, nullable)
 - `created_at` (timestamp)
 
@@ -191,7 +204,9 @@ Express 5 orchestration server with:
 - `src/routes/health.ts` — Health check with cached LLM probe (dual provider support)
 - `src/lib/golden-path.ts` — Golden Path system prompt + compliance checker
 - `src/lib/spec-generator.ts` — AI architectural spec generation (planning phase)
-- `src/lib/generate.ts` — AI code generation (uses approved spec as context)
+- `src/lib/agents.ts` — 4 specialized agent definitions (Architect, Backend, Frontend, Security) with role-specific system prompts
+- `src/lib/pipeline.ts` — Sequential multi-agent orchestrator + file reconciler
+- `src/lib/generate.ts` — AI code generation (delegates to multi-agent pipeline)
 - `src/lib/deploy.ts` — File deployment to disk
 - `src/lib/ai-retry.ts` — Dual-provider AI wrapper (OpenAI/Gemini) with retry logic
 - `src/lib/recovery.ts` — Orphan project recovery on server startup

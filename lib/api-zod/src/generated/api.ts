@@ -127,6 +127,22 @@ export const GetProjectResponse = zod.object({
       description: zod.string(),
     }),
   ),
+  pipelineStatus: zod
+    .object({
+      stages: zod.array(
+        zod.object({
+          role: zod.enum(["architect", "backend", "frontend", "security"]),
+          label: zod.string(),
+          status: zod.enum(["pending", "running", "completed", "failed"]),
+          startedAt: zod.string().nullish(),
+          completedAt: zod.string().nullish(),
+          fileCount: zod.number().nullish(),
+          error: zod.string().nullish(),
+        }),
+      ),
+      currentAgent: zod.string().nullish(),
+    })
+    .optional(),
   deployUrl: zod.string().nullish(),
   createdAt: zod.date(),
   error: zod.string().nullish(),
@@ -236,6 +252,22 @@ export const UpdateSpecResponse = zod.object({
       description: zod.string(),
     }),
   ),
+  pipelineStatus: zod
+    .object({
+      stages: zod.array(
+        zod.object({
+          role: zod.enum(["architect", "backend", "frontend", "security"]),
+          label: zod.string(),
+          status: zod.enum(["pending", "running", "completed", "failed"]),
+          startedAt: zod.string().nullish(),
+          completedAt: zod.string().nullish(),
+          fileCount: zod.number().nullish(),
+          error: zod.string().nullish(),
+        }),
+      ),
+      currentAgent: zod.string().nullish(),
+    })
+    .optional(),
   deployUrl: zod.string().nullish(),
   createdAt: zod.date(),
   error: zod.string().nullish(),

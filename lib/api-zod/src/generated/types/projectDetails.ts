@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GoldenPathCheck } from "./goldenPathCheck";
+import type { PipelineStatus } from "./pipelineStatus";
 import type { ProjectDetailsStatus } from "./projectDetailsStatus";
 import type { ProjectFile } from "./projectFile";
 import type { ProjectSpec } from "./projectSpec";
@@ -17,6 +18,7 @@ export interface ProjectDetails {
   spec?: ProjectSpec;
   files: ProjectFile[];
   goldenPathChecks: GoldenPathCheck[];
+  pipelineStatus?: PipelineStatus;
   deployUrl?: string | null;
   createdAt: Date;
   error?: string | null;

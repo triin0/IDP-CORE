@@ -2,6 +2,7 @@ import { useGetProject } from "@workspace/api-client-react";
 import { useParams, useLocation } from "wouter";
 import { Workspace } from "@/components/Workspace";
 import { SpecReview } from "@/components/SpecReview";
+import { StatusTerminal } from "@/components/StatusTerminal";
 import { AlertCircle, Loader2, WifiOff } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -87,6 +88,17 @@ export function ProjectView() {
 
   if (project.status === "pending" || project.status === "planning") {
     return <PlanningSpinner />;
+  }
+
+  if (project.status === "generating") {
+    return (
+      <div className="flex-1 flex items-center justify-center py-8">
+        <StatusTerminal
+          status={project.status}
+          pipelineStatus={project.pipelineStatus ?? undefined}
+        />
+      </div>
+    );
   }
 
   if (project.status === "planned" && project.spec) {

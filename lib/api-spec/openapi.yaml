@@ -489,6 +489,45 @@ components:
         - databaseTables
         - middleware
         - architecturalDecisions
+    PipelineStageStatus:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [architect, backend, frontend, security]
+        label:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        startedAt:
+          type: string
+          nullable: true
+        completedAt:
+          type: string
+          nullable: true
+        fileCount:
+          type: integer
+          nullable: true
+        error:
+          type: string
+          nullable: true
+      required:
+        - role
+        - label
+        - status
+    PipelineStatus:
+      type: object
+      properties:
+        stages:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineStageStatus"
+        currentAgent:
+          type: string
+          nullable: true
+      required:
+        - stages
     ProjectDetails:
       type: object
       properties:
@@ -509,6 +548,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GoldenPathCheck"
+        pipelineStatus:
+          $ref: "#/components/schemas/PipelineStatus"
         deployUrl:
           type: string
           nullable: true

@@ -128,6 +128,7 @@ router.get("/projects/:id", async (req, res) => {
       spec: project.spec ?? undefined,
       files: project.files ?? [],
       goldenPathChecks: project.goldenPathChecks ?? [],
+      pipelineStatus: project.pipelineStatus ?? undefined,
       deployUrl: project.deployUrl,
       createdAt: project.createdAt.toISOString(),
       error: project.error,

@@ -16,6 +16,18 @@ export const projectsTable = pgTable("projects", {
   }>(),
   files: jsonb("files").$type<Array<{ path: string; content: string }>>().default([]),
   goldenPathChecks: jsonb("golden_path_checks").$type<Array<{ name: string; passed: boolean; description: string }>>().default([]),
+  pipelineStatus: jsonb("pipeline_status").$type<{
+    stages: Array<{
+      role: string;
+      label: string;
+      status: "pending" | "running" | "completed" | "failed";
+      startedAt?: string;
+      completedAt?: string;
+      fileCount?: number;
+      error?: string;
+    }>;
+    currentAgent?: string;
+  }>(),
   deployUrl: text("deploy_url"),
   error: text("error"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
