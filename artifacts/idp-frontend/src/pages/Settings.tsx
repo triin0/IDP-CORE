@@ -298,13 +298,13 @@ export function Settings() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (activeData && !editingRules) {
+    if (activeData) {
       setEditingRules(activeData.rules as ConfigRules);
       setConfigName(activeData.name ?? "Default");
       setConfigDescription((activeData as { description?: string }).description ?? "");
       setEditingId((activeData as { id?: string }).id ?? null);
     }
-  }, [activeData, editingRules]);
+  }, [activeData]);
 
   const toggleSection = (key: string) => {
     setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
