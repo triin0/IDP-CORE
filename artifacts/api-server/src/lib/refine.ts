@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db, projectsTable, type Project } from "@workspace/db";
 import { callWithRetry } from "./ai-retry";
-import { getActiveConfig, runGoldenPathChecks, buildSystemPrompt } from "./golden-path";
+import { getActiveConfig, runGoldenPathChecks, getCriticalFailures, buildSystemPrompt } from "./golden-path";
 import type { GoldenPathCheck } from "./golden-path";
 import { validateAllManifests } from "./dependency-audit";
 
@@ -230,23 +230,37 @@ export async function refineProject(
     }>);
 
     const previousStatus = project.status;
+    const criticalFailures = getCriticalFailures(goldenPathChecks);
+    const hasHallucinatedDeps = goldenPathChecks.some(
+      (c) => c.name === "Dependency Audit" && !c.passed,
+    );
+
+    let resolvedStatus: "ready" | "deployed" | "failed_checks";
+    if (criticalFailures.length > 0 || hasHallucinatedDeps) {
+      resolvedStatus = "failed_checks";
+      console.warn(
+        `[refine:${projectId.slice(0, 8)}] Critical check failures after refinement: ${criticalFailures.map((c) => c.name).join(", ")}${hasHallucinatedDeps ? " + Dependency Audit" : ""}`,
+      );
+    } else {
+      resolvedStatus = previousStatus === "deployed" ? "deployed" : "ready";
+    }
 
     await db
       .update(projectsTable)
       .set({
-        status: previousStatus === "deployed" ? "deployed" : "ready",
+        status: resolvedStatus,
         files: mergedFiles,
         goldenPathChecks,
         refinements: [...existingRefinements, refinement],
-        error: null,
+        error: criticalFailures.length > 0
+          ? `Refinement failed critical checks: ${criticalFailures.map((c) => c.name).join(", ")}`
+          : null,
       })
       .where(eq(projectsTable.id, projectId));
 
     console.log(
-      `[refine:${projectId.slice(0, 8)}] Refinement complete: ${changedPaths.length} files changed, Golden Path ${goldenPathScore}`,
+      `[refine:${projectId.slice(0, 8)}] Refinement complete: ${changedPaths.length} files changed, Golden Path ${goldenPathScore}, status=${resolvedStatus}`,
     );
-
-    const resolvedStatus = previousStatus === "deployed" ? "deployed" : "ready";
 
     return {
       files: mergedFiles,
