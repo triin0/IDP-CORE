@@ -1,4 +1,4 @@
-# IDP.CORE Platform Status Report
+# IDP.CORE Platform Stuatus Report
 **Date:** March 17, 2026
 **Version:** MVP 1.0
 

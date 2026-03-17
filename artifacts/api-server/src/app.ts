@@ -1,5 +1,7 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -12,7 +14,28 @@ const currentDir =
 
 const app: Express = express();
 
-app.use(cors());
+app.use(helmet());
+
+const corsOrigin = process.env["FRONTEND_URL"]
+  || (process.env["REPLIT_DEV_DOMAIN"] ? `https://${process.env["REPLIT_DEV_DOMAIN"]}` : null)
+  || "http://localhost:21820";
+
+app.use(cors({
+  origin: corsOrigin,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  credentials: true,
+}));
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: "Too many requests from this IP, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use("/api/projects", apiLimiter);
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 

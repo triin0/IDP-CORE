@@ -3,10 +3,8 @@ import { db, projectsTable, type Project } from "@workspace/db";
 import { callWithRetry } from "./ai-retry";
 import { getActiveConfig, buildSystemPrompt } from "./golden-path";
 import type { GoldenPathCheck } from "./golden-path";
-import { computeHashManifest } from "./hash-integrity";
 import {
-  runVerificationStage,
-  buildExpectedHashManifest,
+  executeWithSelfHealing,
   initPipelineStatus,
   type VerificationVerdict,
 } from "./pipeline";
@@ -195,13 +193,8 @@ export async function refineProject(
     );
 
     console.log(
-      `[refine:${projectId.slice(0, 8)}] Running full verification stage...`,
+      `[refine:${projectId.slice(0, 8)}] Running verification with self-healing...`,
     );
-
-    await db
-      .update(projectsTable)
-      .set({ status: "validating" })
-      .where(eq(projectsTable.id, projectId));
 
     const spec = project.spec as {
       overview: string;
@@ -212,17 +205,18 @@ export async function refineProject(
       architecturalDecisions: string[];
     } | undefined;
 
-    const hashManifest = computeHashManifest(mergedFiles);
     const pipeline = initPipelineStatus();
-    const { verdict, goldenPathChecks } = await runVerificationStage(
+    const healingResult = await executeWithSelfHealing(
       projectId,
       pipeline,
       mergedFiles,
       config,
       spec,
       project.prompt,
-      hashManifest,
     );
+
+    const { verdict, goldenPathChecks } = healingResult;
+    const healedFiles = healingResult.files;
 
     const passed = goldenPathChecks.filter((c) => c.passed).length;
     const total = goldenPathChecks.length;
@@ -259,7 +253,7 @@ export async function refineProject(
         .update(projectsTable)
         .set({
           status: "ready",
-          files: mergedFiles,
+          files: healedFiles,
           goldenPathChecks,
           verificationVerdict: verdict,
           refinements: [...existingRefinements, refinement],
@@ -272,7 +266,7 @@ export async function refineProject(
       );
 
       return {
-        files: mergedFiles,
+        files: healedFiles,
         goldenPathChecks,
         filesChanged: changedPaths,
         status: "ready",

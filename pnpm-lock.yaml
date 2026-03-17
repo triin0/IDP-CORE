@@ -4,6 +4,72 @@ settings:
   autoInstallPeers: false
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@replit/vite-plugin-cartographer':
+      specifier: ^0.5.0
+      version: 0.5.0
+    '@replit/vite-plugin-dev-banner':
+      specifier: ^0.1.1
+      version: 0.1.2
+    '@replit/vite-plugin-runtime-error-modal':
+      specifier: ^0.0.6
+      version: 0.0.6
+    '@tailwindcss/vite':
+      specifier: ^4.1.14
+      version: 4.2.1
+    '@tanstack/react-query':
+      specifier: ^5.90.21
+      version: 5.90.21
+    '@types/node':
+      specifier: ^25.3.3
+      version: 25.3.5
+    '@types/react':
+      specifier: ^19.2.0
+      version: 19.2.14
+    '@types/react-dom':
+      specifier: ^19.2.0
+      version: 19.2.3
+    '@vitejs/plugin-react':
+      specifier: ^5.0.4
+      version: 5.1.4
+    class-variance-authority:
+      specifier: ^0.7.1
+      version: 0.7.1
+    clsx:
+      specifier: 2.1.1
+      version: 2.1.1
+    drizzle-orm:
+      specifier: ^0.45.1
+      version: 0.45.1
+    framer-motion:
+      specifier: 12.35.1
+      version: 12.35.1
+    lucide-react:
+      specifier: 0.545.0
+      version: 0.545.0
+    react:
+      specifier: 19.1.0
+      version: 19.1.0
+    react-dom:
+      specifier: 19.1.0
+      version: 19.1.0
+    tailwind-merge:
+      specifier: 3.5.0
+      version: 3.5.0
+    tailwindcss:
+      specifier: ^4.1.14
+      version: 4.2.1
+    tsx:
+      specifier: ^4.21.0
+      version: 4.21.0
+    vite:
+      specifier: ^7.3.0
+      version: 7.3.1
+    zod:
+      specifier: ^3.25.76
+      version: 3.25.76
+
 overrides:
   esbuild>@esbuild/darwin-arm64: '-'
   esbuild>@esbuild/darwin-x64: '-'
@@ -133,6 +199,12 @@ importers:
       express:
         specifier: ^5
         version: 5.2.1
+      express-rate-limit:
+        specifier: ^8.3.1
+        version: 8.3.1(express@5.2.1)
+      helmet:
+        specifier: ^8.1.0
+        version: 8.1.0
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -2659,6 +2731,12 @@ packages:
     resolution: {integrity: sha512-9Be3ZoN4LmYR90tUoVu2te2BsbzHfhJyfEiAVfz7N5/zv+jduIfLrV2xdQXOHbaD6KgpGdO9PRPM1Y4Q9QkPkA==}
     engines: {node: ^18.19.0 || >=20.5.0}
 
+  express-rate-limit@8.3.1:
+    resolution: {integrity: sha512-D1dKN+cmyPWuvB+G2SREQDzPY1agpBIcTa9sJxOPMCNeH3gwzhqJRDWCXW3gg0y//+LQ/8j52JbMROWyrKdMdw==}
+    engines: {node: '>= 16'}
+    peerDependencies:
+      express: '>= 4.11'
+
   express@5.2.1:
     resolution: {integrity: sha512-hIS4idWWai69NezIdRt2xFVofaF4j+6INOpJlVOLDO8zXGpUVEVzIYk12UUi2JzjEzWL3IOAxcTubgz9Po0yXw==}
     engines: {node: '>= 18'}
@@ -2841,6 +2919,10 @@ packages:
   hastscript@9.0.1:
     resolution: {integrity: sha512-g7df9rMFX/SPi34tyGCyUBREQoKkapwdY/T04Qn9TDWfHhAYt4/I0gMVirzK5wEzeUqIjEB+LXC/ypb7Aqno5w==}
 
+  helmet@8.1.0:
+    resolution: {integrity: sha512-jOiHyAZsmnr8LqoPGmCjYAaiuWwjAPLgY8ZX2XrmHawt99/u1y6RgrZMTeoPfpUbV96HOalYgz1qzkRbw54Pmg==}
+    engines: {node: '>=18.0.0'}
+
   here@0.0.2:
     resolution: {integrity: sha512-U7VYImCTcPoY27TSmzoiFsmWLEqQFaYNdpsPb9K0dXJhE6kufUqycaz51oR09CW85dDU9iWyy7At8M+p7hb3NQ==}
 
@@ -2891,6 +2973,10 @@ packages:
   intersection-observer@0.10.0:
     resolution: {integrity: sha512-fn4bQ0Xq8FTej09YC/jqKZwtijpvARlRp6wxL5WTA6yPe2YWSJ5RJh7Nm79rK2qB0wr6iDQzH60XGq5V/7u8YQ==}
     deprecated: The Intersection Observer polyfill is no longer needed and can safely be removed. Intersection Observer has been Baseline since 2019.
+
+  ip-address@10.1.0:
+    resolution: {integrity: sha512-XXADHxXmvT9+CRxhXg56LJovE+bmWnEWB78LB83VZTprKTmaC5QfruXocxzTZ2Kl0DNwKuBdlIhjL8LeY8Sf8Q==}
+    engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
     resolution: {integrity: sha512-0KI/607xoxSToH7GjN1FfSbLoU0+btTicjsQSWQlh/hZykN8KpmMf7uYwPW3R+akZ6R/w18ZlXSHBYXiYUPO3g==}
@@ -6372,6 +6458,11 @@ snapshots:
       strip-final-newline: 4.0.0
       yoctocolors: 2.1.2
 
+  express-rate-limit@8.3.1(express@5.2.1):
+    dependencies:
+      express: 5.2.1
+      ip-address: 10.1.0
+
   express@5.2.1:
     dependencies:
       accepts: 2.0.0
@@ -6582,6 +6673,8 @@ snapshots:
       property-information: 7.1.0
       space-separated-tokens: 2.0.2
 
+  helmet@8.1.0: {}
+
   here@0.0.2: {}
 
   highlight.js@10.7.3: {}
@@ -6626,6 +6719,8 @@ snapshots:
   internmap@2.0.3: {}
 
   intersection-observer@0.10.0: {}
+
+  ip-address@10.1.0: {}
 
   ipaddr.js@1.9.1: {}
 

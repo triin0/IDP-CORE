@@ -1,5 +1,5 @@
 import { CodeSandbox } from "@codesandbox/sdk";
-import { eq } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import { db, projectsTable, type Project } from "@workspace/db";
 
 let sdkInstance: CodeSandbox | null = null;
@@ -149,4 +149,60 @@ export async function shutdownSandbox(sandboxId: string): Promise<void> {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn(`[sandbox] Failed to shutdown sandbox ${sandboxId}: ${msg}`);
   }
+}
+
+export async function deleteSandbox(sandboxId: string): Promise<boolean> {
+  if (!isSandboxConfigured()) return true;
+  try {
+    const sdk = getSDK();
+    await sdk.sandboxes.shutdown(sandboxId);
+    console.log(`[sandbox] Deleted sandbox: ${sandboxId}`);
+    return true;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[sandbox] Failed to delete sandbox ${sandboxId}: ${msg}`);
+    return false;
+  }
+}
+
+export async function cleanupStaleSandboxes(maxAgeHours: number = 72): Promise<number> {
+  if (!isSandboxConfigured()) return 0;
+
+  const { isNotNull } = await import("drizzle-orm");
+  const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
+
+  const staleProjects = await db
+    .select({ id: projectsTable.id, sandboxId: projectsTable.sandboxId })
+    .from(projectsTable)
+    .where(
+      and(
+        lt(projectsTable.createdAt, cutoff),
+        eq(projectsTable.status, "deployed"),
+        isNotNull(projectsTable.sandboxId),
+      ),
+    );
+
+  let cleaned = 0;
+  for (const project of staleProjects) {
+    if (!project.sandboxId) continue;
+
+    const deleted = await deleteSandbox(project.sandboxId);
+    if (deleted) {
+      await db
+        .update(projectsTable)
+        .set({
+          status: "ready",
+          sandboxId: null,
+          deployUrl: null,
+        })
+        .where(eq(projectsTable.id, project.id));
+      cleaned++;
+      console.log(`[sandbox-cleanup] Cleaned stale sandbox for project ${project.id.slice(0, 8)}`);
+    } else {
+      console.warn(`[sandbox-cleanup] Skipped DB cleanup for project ${project.id.slice(0, 8)} — sandbox deletion failed`);
+    }
+  }
+
+  console.log(`[sandbox-cleanup] Cleaned ${cleaned} stale sandboxes (cutoff: ${cutoff.toISOString()})`);
+  return cleaned;
 }

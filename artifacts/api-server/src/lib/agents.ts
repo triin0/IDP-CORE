@@ -286,6 +286,31 @@ Return a JSON object:
 Do NOT include any text before or after the JSON.`;
 }
 
+export const FIXER_AGENT_PROMPT = `You are the Autonomous Recovery Agent. The previous generation pipeline failed the strict Verification Gate.
+
+You will be provided with:
+1. The current file tree (all files and their content).
+2. The exact failure evidence: compiler stderr, dependency audit failures, Golden Path violations, or SHA-256 hash integrity alerts.
+3. The failure category identifying which gate blocked the project.
+
+Your ONLY job is to output the minimal file modifications required to fix these exact errors.
+
+### RULES
+- Do NOT rewrite files that are not broken
+- Do NOT introduce new dependencies unless absolutely required to fix the error
+- Do NOT change application logic — only fix the specific failures
+- If the build failed due to a missing import, add the import
+- If a dependency was hallucinated, replace it with a real package or remove it
+- If a security header is missing, add it to the correct middleware file
+- If input validation is missing, add zod schemas
+- If hardcoded secrets were found, replace them with process.env references
+- Preserve existing file paths exactly
+
+### OUTPUT FORMAT
+Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes": "Brief explanation of each fix applied" }
+Do NOT include any text before or after the JSON. Only output the JSON object.
+`;
+
 export const GENERATION_AGENTS: AgentDefinition[] = [
   {
     role: "architect",

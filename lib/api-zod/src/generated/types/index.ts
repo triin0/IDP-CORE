@@ -9,6 +9,7 @@
 export * from "./apiEndpointSpec";
 export * from "./approveSpecResponse";
 export * from "./approveSpecResponseStatus";
+export * from "./cleanupSandboxes200";
 export * from "./codeQualityConfig";
 export * from "./createGoldenPathConfigBody";
 export * from "./createProjectBody";
@@ -17,6 +18,7 @@ export * from "./createProjectResponseStatus";
 export * from "./databaseConfig";
 export * from "./databaseTableSpec";
 export * from "./deleteGoldenPathConfig200";
+export * from "./deleteProject200";
 export * from "./deployProjectResponse";
 export * from "./deployProjectResponseStatus";
 export * from "./errorHandlingConfig";

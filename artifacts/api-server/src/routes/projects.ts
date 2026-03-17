@@ -17,6 +17,7 @@ import { generateProjectCode } from "../lib/generate";
 import { generateProjectSpec } from "../lib/spec-generator";
 import { deployProject, generatePreviewHtml } from "../lib/deploy";
 import { refineProject } from "../lib/refine";
+import { deleteSandbox, cleanupStaleSandboxes } from "../lib/sandbox";
 
 const router: IRouter = Router();
 
@@ -80,6 +81,17 @@ router.get("/projects", async (req, res) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to list projects";
     console.error("Failed to list projects:", message);
+    res.status(500).json({ error: message });
+  }
+});
+
+router.post("/projects/cleanup-sandboxes", async (_req, res) => {
+  try {
+    const cleaned = await cleanupStaleSandboxes(72);
+    res.json({ cleaned, message: `Cleaned ${cleaned} stale sandbox(es) older than 72 hours` });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Cleanup failed";
+    console.error("Failed to cleanup sandboxes:", message);
     res.status(500).json({ error: message });
   }
 });
@@ -447,6 +459,46 @@ router.get("/projects/:id/preview", async (req, res) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Preview failed";
     console.error("Failed to generate preview:", message);
+    res.status(500).json({ error: message });
+  }
+});
+
+router.delete("/projects/:id", async (req, res) => {
+  try {
+    const { id } = GetProjectParams.parse(req.params);
+
+    if (!UUID_REGEX.test(id)) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const [project] = await db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.id, id));
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    if (project.sandboxId) {
+      const sandboxDeleted = await deleteSandbox(project.sandboxId);
+      if (!sandboxDeleted) {
+        console.warn(`[projects] Sandbox deletion failed for ${id.slice(0, 8)}, proceeding with DB deletion`);
+      }
+    }
+
+    await db
+      .delete(projectsTable)
+      .where(eq(projectsTable.id, id));
+
+    console.log(`[projects] Deleted project ${id.slice(0, 8)} (sandbox: ${project.sandboxId || "none"})`);
+
+    res.json({ id, deleted: true });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to delete project";
+    console.error("Failed to delete project:", message);
     res.status(500).json({ error: message });
   }
 });

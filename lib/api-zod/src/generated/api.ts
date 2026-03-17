@@ -77,6 +77,15 @@ export const CreateProjectBody = zod.object({
 });
 
 /**
+ * Deletes CodeSandbox VMs for projects older than 72 hours and resets their status to ready.
+ * @summary Cleanup stale sandboxes
+ */
+export const CleanupSandboxesResponse = zod.object({
+  cleaned: zod.number(),
+  message: zod.string(),
+});
+
+/**
  * Returns project status, spec, generated file tree, and deploy URL. Poll-friendly.
  * @summary Get project status and files
  */
@@ -209,6 +218,19 @@ export const GetProjectResponse = zod.object({
     )
     .optional(),
   error: zod.string().nullish(),
+});
+
+/**
+ * Permanently deletes a project and its associated CodeSandbox VM if one exists.
+ * @summary Delete a project
+ */
+export const DeleteProjectParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DeleteProjectResponse = zod.object({
+  id: zod.string(),
+  deleted: zod.boolean(),
 });
 
 /**

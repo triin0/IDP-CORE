@@ -18,10 +18,12 @@ import type {
 
 import type {
   ApproveSpecResponse,
+  CleanupSandboxes200,
   CreateGoldenPathConfigBody,
   CreateProjectBody,
   CreateProjectResponse,
   DeleteGoldenPathConfig200,
+  DeleteProject200,
   DeployProjectResponse,
   ErrorResponse,
   GoldenPathConfigListResponse,
@@ -305,6 +307,88 @@ export const useCreateProject = <
 };
 
 /**
+ * Deletes CodeSandbox VMs for projects older than 72 hours and resets their status to ready.
+ * @summary Cleanup stale sandboxes
+ */
+export const getCleanupSandboxesUrl = () => {
+  return `/api/projects/cleanup-sandboxes`;
+};
+
+export const cleanupSandboxes = async (
+  options?: RequestInit,
+): Promise<CleanupSandboxes200> => {
+  return customFetch<CleanupSandboxes200>(getCleanupSandboxesUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCleanupSandboxesMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cleanupSandboxes>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cleanupSandboxes>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["cleanupSandboxes"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cleanupSandboxes>>,
+    void
+  > = () => {
+    return cleanupSandboxes(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CleanupSandboxesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cleanupSandboxes>>
+>;
+
+export type CleanupSandboxesMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Cleanup stale sandboxes
+ */
+export const useCleanupSandboxes = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cleanupSandboxes>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cleanupSandboxes>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getCleanupSandboxesMutationOptions(options));
+};
+
+/**
  * Returns project status, spec, generated file tree, and deploy URL. Poll-friendly.
  * @summary Get project status and files
  */
@@ -391,6 +475,91 @@ export function useGetProject<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Permanently deletes a project and its associated CodeSandbox VM if one exists.
+ * @summary Delete a project
+ */
+export const getDeleteProjectUrl = (id: string) => {
+  return `/api/projects/${id}`;
+};
+
+export const deleteProject = async (
+  id: string,
+  options?: RequestInit,
+): Promise<DeleteProject200> => {
+  return customFetch<DeleteProject200>(getDeleteProjectUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteProjectMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProject>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteProject>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteProject"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteProject>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteProject(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteProjectMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteProject>>
+>;
+
+export type DeleteProjectMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a project
+ */
+export const useDeleteProject = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProject>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteProject>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteProjectMutationOptions(options));
+};
 
 /**
  * Transitions project from planned to generating status and kicks off code generation using the approved spec.

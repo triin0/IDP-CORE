@@ -407,6 +407,16 @@ export type ListProjectsParams = {
   offset?: number;
 };
 
+export type CleanupSandboxes200 = {
+  cleaned: number;
+  message: string;
+};
+
+export type DeleteProject200 = {
+  id: string;
+  deleted: boolean;
+};
+
 export type DeleteGoldenPathConfig200 = {
   success: boolean;
 };

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db, projectsTable } from "@workspace/db";
-import { AGENTS, GENERATION_AGENTS, VERIFICATION_AGENT, type AgentContext, type AgentOutput, type AgentStageStatus, type AgentRole } from "./agents";
+import { AGENTS, GENERATION_AGENTS, VERIFICATION_AGENT, FIXER_AGENT_PROMPT, type AgentContext, type AgentOutput, type AgentStageStatus, type AgentRole } from "./agents";
 import { getActiveConfig, runGoldenPathChecks, getCriticalFailures } from "./golden-path";
 import type { GoldenPathCheck } from "./golden-path";
 import { callWithRetry } from "./ai-retry";
@@ -384,6 +384,179 @@ export async function runVerificationStage(
   return { verdict, goldenPathChecks };
 }
 
+const MAX_RECOVERY_LOOPS = 3;
+
+async function runFixerAgent(
+  projectId: string,
+  currentFiles: Array<{ path: string; content: string }>,
+  verdict: VerificationVerdict,
+): Promise<Array<{ path: string; content: string }>> {
+  const evidenceParts: string[] = [];
+
+  if (verdict.buildStderr) {
+    evidenceParts.push(`### BUILD STDERR\n${verdict.buildStderr}`);
+  }
+
+  if (verdict.dependencyErrors.length > 0) {
+    evidenceParts.push(`### DEPENDENCY ERRORS\n${verdict.dependencyErrors.join("\n")}`);
+  }
+
+  const failedChecks = verdict.checks.filter(c => !c.passed);
+  if (failedChecks.length > 0) {
+    evidenceParts.push(`### FAILED CHECKS\n${failedChecks.map(c => `- ${c.name}: ${c.description}`).join("\n")}`);
+  }
+
+  if (verdict.recommendedFixes.length > 0) {
+    evidenceParts.push(`### RECOMMENDED FIXES\n${verdict.recommendedFixes.join("\n")}`);
+  }
+
+  const hashFailures = verdict.hashAudit.filter(h => h.status !== "match");
+  if (hashFailures.length > 0) {
+    evidenceParts.push(`### HASH INTEGRITY FAILURES\n${hashFailures.map(h => `- ${h.path}: ${h.status}`).join("\n")}`);
+  }
+
+  const fileTree = currentFiles
+    .map(f => `### ${f.path}\n\`\`\`\n${f.content}\n\`\`\``)
+    .join("\n\n");
+
+  const payload = `### FAILURE CATEGORY\n${verdict.failureCategory}\n\n${evidenceParts.join("\n\n")}\n\n### CURRENT FILE TREE\n${fileTree}`;
+
+  const rawContent = await callWithRetry(
+    {
+      model: "gpt-5.2",
+      max_completion_tokens: 32768,
+      messages: [
+        { role: "system", content: FIXER_AGENT_PROMPT },
+        { role: "user", content: payload },
+      ],
+      response_format: { type: "json_object" },
+    },
+    `fixer:${projectId.slice(0, 8)}`,
+  );
+
+  let parsed: { files: Array<{ path: string; content: string }>; notes?: string };
+  try {
+    parsed = JSON.parse(rawContent) as typeof parsed;
+  } catch {
+    throw new Error("Fixer Agent returned invalid JSON");
+  }
+
+  if (!parsed.files || !Array.isArray(parsed.files) || parsed.files.length === 0) {
+    throw new Error("Fixer Agent returned no file fixes");
+  }
+
+  const sanitizedFiles: Array<{ path: string; content: string }> = [];
+  for (const f of parsed.files) {
+    if (!f.path || typeof f.path !== "string" || !f.content || typeof f.content !== "string") continue;
+    const normalized = f.path.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+/g, "/");
+    if (
+      normalized.includes("..") ||
+      normalized.startsWith("/") ||
+      /^[a-zA-Z]:/.test(normalized) ||
+      normalized.includes("\0") ||
+      normalized.startsWith(".git/") ||
+      normalized === ".git" ||
+      normalized.length === 0 ||
+      normalized === "."
+    ) {
+      console.warn(`[fixer:${projectId.slice(0, 8)}] Rejected unsafe path: "${f.path}"`);
+      continue;
+    }
+    sanitizedFiles.push({ path: normalized, content: f.content });
+  }
+
+  if (sanitizedFiles.length === 0) {
+    throw new Error("Fixer Agent returned no valid file fixes after path sanitization");
+  }
+
+  console.log(`[fixer:${projectId.slice(0, 8)}] Fixer proposed ${sanitizedFiles.length} file changes: ${parsed.notes || "no notes"}`);
+
+  return sanitizedFiles;
+}
+
+function applyDelta(
+  currentFiles: Array<{ path: string; content: string }>,
+  delta: Array<{ path: string; content: string }>,
+): Array<{ path: string; content: string }> {
+  const merged = [...currentFiles];
+  for (const d of delta) {
+    const idx = merged.findIndex(f => f.path === d.path);
+    if (idx >= 0) {
+      merged[idx] = d;
+    } else {
+      merged.push(d);
+    }
+  }
+  return merged;
+}
+
+export async function executeWithSelfHealing(
+  projectId: string,
+  pipeline: PipelineStatus,
+  reconciledFiles: Array<{ path: string; content: string }>,
+  config: GoldenPathConfigRules,
+  spec: AgentContext["spec"],
+  prompt: string,
+): Promise<{
+  status: "ready" | "failed_validation";
+  files: Array<{ path: string; content: string }>;
+  verdict: VerificationVerdict;
+  goldenPathChecks: GoldenPathCheck[];
+}> {
+  let attempt = 0;
+  let currentFiles = reconciledFiles;
+  const originalFiles = reconciledFiles;
+
+  while (attempt <= MAX_RECOVERY_LOOPS) {
+    const hashManifest = computeHashManifest(currentFiles);
+
+    await db
+      .update(projectsTable)
+      .set({ status: "validating", pipelineStatus: pipeline })
+      .where(eq(projectsTable.id, projectId));
+
+    const { verdict, goldenPathChecks } = await runVerificationStage(
+      projectId,
+      pipeline,
+      currentFiles,
+      config,
+      spec,
+      prompt,
+      hashManifest,
+    );
+
+    if (verdict.passed) {
+      if (attempt > 0) {
+        console.log(`[self-heal:${projectId.slice(0, 8)}] Self-healing SUCCEEDED on attempt ${attempt}`);
+      }
+      return { status: "ready", files: currentFiles, verdict, goldenPathChecks };
+    }
+
+    attempt++;
+    if (attempt > MAX_RECOVERY_LOOPS) {
+      console.warn(`[self-heal:${projectId.slice(0, 8)}] Exhausted ${MAX_RECOVERY_LOOPS} recovery attempts — enforcing failure`);
+      return { status: "failed_validation", files: originalFiles, verdict, goldenPathChecks };
+    }
+
+    console.warn(`[self-heal:${projectId.slice(0, 8)}] Recovery attempt ${attempt}/${MAX_RECOVERY_LOOPS} for [${verdict.failureCategory}]`);
+
+    try {
+      const delta = await runFixerAgent(projectId, currentFiles, verdict);
+      currentFiles = applyDelta(currentFiles, delta);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[self-heal:${projectId.slice(0, 8)}] Fixer Agent failed: ${msg} — enforcing failure`);
+      return { status: "failed_validation", files: originalFiles, verdict, goldenPathChecks };
+    }
+  }
+
+  const hashManifest = computeHashManifest(currentFiles);
+  const { verdict, goldenPathChecks } = await runVerificationStage(
+    projectId, pipeline, currentFiles, config, spec, prompt, hashManifest,
+  );
+  return { status: verdict.passed ? "ready" : "failed_validation", files: verdict.passed ? currentFiles : originalFiles, verdict, goldenPathChecks };
+}
+
 export async function runPipeline(
   projectId: string,
   prompt: string,
@@ -444,38 +617,27 @@ export async function runPipeline(
       `[pipeline:${projectId.slice(0, 8)}] Reconciled ${reconciledFiles.length} files from ${Object.keys(context.priorOutputs).length} agents`,
     );
 
-    const hashManifest = computeHashManifest(reconciledFiles);
-    console.log(
-      `[pipeline:${projectId.slice(0, 8)}] Computed SHA-256 hashes for ${hashManifest.hashes.length} core config files`,
-    );
-
-    await db
-      .update(projectsTable)
-      .set({ status: "validating", pipelineStatus: pipeline })
-      .where(eq(projectsTable.id, projectId));
-
-    const { verdict, goldenPathChecks } = await runVerificationStage(
+    const result = await executeWithSelfHealing(
       projectId,
       pipeline,
       reconciledFiles,
       config,
       spec,
       prompt,
-      hashManifest,
     );
 
-    if (!verdict.passed) {
-      const errorMsg = `Verification agent blocked project: ${verdict.recommendedFixes.slice(0, 3).join("; ")}`;
+    if (result.status === "failed_validation") {
+      const errorMsg = `Verification blocked after ${MAX_RECOVERY_LOOPS} self-healing attempts: ${result.verdict.recommendedFixes.slice(0, 3).join("; ")}`;
       console.error(`[pipeline:${projectId.slice(0, 8)}] ${errorMsg}`);
 
       await db
         .update(projectsTable)
         .set({
           status: "failed_validation",
-          files: reconciledFiles,
-          goldenPathChecks,
+          files: result.files,
+          goldenPathChecks: result.goldenPathChecks,
           pipelineStatus: pipeline,
-          verificationVerdict: verdict,
+          verificationVerdict: result.verdict,
           error: errorMsg,
         })
         .where(eq(projectsTable.id, projectId));
@@ -486,10 +648,10 @@ export async function runPipeline(
       .update(projectsTable)
       .set({
         status: "ready",
-        files: reconciledFiles,
-        goldenPathChecks,
+        files: result.files,
+        goldenPathChecks: result.goldenPathChecks,
         pipelineStatus: pipeline,
-        verificationVerdict: verdict,
+        verificationVerdict: result.verdict,
       })
       .where(eq(projectsTable.id, projectId));
   } catch (err: unknown) {

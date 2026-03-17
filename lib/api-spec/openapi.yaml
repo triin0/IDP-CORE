@@ -75,6 +75,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CreateProjectResponse"
+  /projects/cleanup-sandboxes:
+    post:
+      operationId: cleanupSandboxes
+      tags: [projects]
+      summary: Cleanup stale sandboxes
+      description: Deletes CodeSandbox VMs for projects older than 72 hours and resets their status to ready.
+      responses:
+        "200":
+          description: Cleanup result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cleaned, message]
+                properties:
+                  cleaned:
+                    type: integer
+                  message:
+                    type: string
+        "500":
+          description: Cleanup failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /projects/{id}:
     get:
       operationId: getProject
@@ -94,6 +119,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectDetails"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project
+      description: Permanently deletes a project and its associated CodeSandbox VM if one exists.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Project deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, deleted]
+                properties:
+                  id:
+                    type: string
+                  deleted:
+                    type: boolean
         "404":
           description: Project not found
           content:
