@@ -26,7 +26,7 @@ The IDP is built as a pnpm workspace monorepo, featuring an Express 5 API server
 *   **Deployment:** Generated projects deploy to live CodeSandbox cloud VMs for interactive previews, with a fallback to static HTML.
 *   **Sandbox Lifecycle Management:** Automatically cleans up stale CodeSandbox VMs and manages sandbox deletion upon project removal.
 *   **Real-Time Pipeline Observability (SSE):** Server-Sent Events stream pipeline progress to the frontend, providing `stage:start/complete/fail`, `verification` and `self-healing` events, and logs.
-*   **Frontend (Observable UI):** A React + Vite application with Tailwind CSS, Shadcn UI, and Framer Motion. Features include an **Agent Trajectory Dashboard**, **Live Terminal**, **Build Verification Gate**, **Sandbox Preview**, architectural spec review, file tree and code viewer, and a Golden Path compliance checklist.
+*   **Frontend (Observable UI):** A React + Vite application with Tailwind CSS, Shadcn UI, and Framer Motion. Features include: **Live Pipeline Visualization** (horizontal bar with 5 agent nodes that light up neon green with pulse animations as the SSE stream reports active agents; key file: `AgentPipelineBar.tsx`), **Agent Trajectory Dashboard**, **Live Terminal**, **Build Verification Gate**, **Sandbox Preview**, architectural spec review, file tree and code viewer, Golden Path compliance checklist, and one-click deployment.
 
 **UI/UX Decisions:**
 

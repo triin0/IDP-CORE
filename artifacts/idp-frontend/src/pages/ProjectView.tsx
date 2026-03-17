@@ -4,6 +4,7 @@ import { useParams, useLocation } from "wouter";
 import { Workspace } from "@/components/Workspace";
 import { SpecReview } from "@/components/SpecReview";
 import { TrajectoryDashboard } from "@/components/TrajectoryDashboard";
+import { AgentPipelineBar } from "@/components/AgentPipelineBar";
 import { LiveTerminal } from "@/components/LiveTerminal";
 import { BuildGate } from "@/components/BuildGate";
 import { usePipelineStream } from "@/hooks/usePipelineStream";
@@ -472,6 +473,13 @@ function PipelineObserver({ projectId, status, pipelineStatus }: {
           </div>
         </div>
       </div>
+
+      <AgentPipelineBar
+        stages={pipelineStatus?.stages ?? []}
+        currentStage={stream.currentStage}
+        selfHealingAttempts={stream.selfHealingAttempts}
+        isConnected={stream.isConnected}
+      />
 
       <div className="flex-1 flex gap-3 min-h-0">
         <div className="w-72 flex-shrink-0 bg-card border border-border rounded-xl overflow-hidden flex flex-col">
