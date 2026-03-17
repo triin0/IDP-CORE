@@ -144,6 +144,7 @@ export const GetProjectResponse = zod.object({
     })
     .optional(),
   deployUrl: zod.string().nullish(),
+  sandboxId: zod.string().nullish(),
   createdAt: zod.date(),
   error: zod.string().nullish(),
 });
@@ -269,6 +270,7 @@ export const UpdateSpecResponse = zod.object({
     })
     .optional(),
   deployUrl: zod.string().nullish(),
+  sandboxId: zod.string().nullish(),
   createdAt: zod.date(),
   error: zod.string().nullish(),
 });
@@ -285,6 +287,7 @@ export const DeployProjectResponse = zod.object({
   id: zod.string(),
   status: zod.enum(["deployed"]),
   deployUrl: zod.string(),
+  sandboxId: zod.string().nullish(),
 });
 
 /**

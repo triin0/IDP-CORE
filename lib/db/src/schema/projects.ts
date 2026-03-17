@@ -29,6 +29,7 @@ export const projectsTable = pgTable("projects", {
     currentAgent?: string;
   }>(),
   deployUrl: text("deploy_url"),
+  sandboxId: text("sandbox_id"),
   error: text("error"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

@@ -5,7 +5,7 @@ import type { ProjectDetails } from "@workspace/api-client-react";
 import { FileTree } from "./FileTree";
 import { CodeViewer } from "./CodeViewer";
 import { GoldenPath } from "./GoldenPath";
-import { Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
+import { Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2, AlertCircle, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -82,14 +82,26 @@ function StatusPanel({ project, onDeploy, isDeploying, deployUrl, deployError }:
 
         <div className="pt-2">
           {liveUrl ? (
-            <a
-              href={liveUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center justify-center w-full px-4 py-2.5 rounded-lg font-mono text-sm font-medium bg-success/10 text-success border border-success/30 hover:bg-success/20 transition-all shadow-[0_0_15px_rgba(74,222,128,0.15)]"
-            >
-              LIVE PREVIEW <ExternalLink className="w-4 h-4 ml-2" />
-            </a>
+            <div className="space-y-2">
+              <a
+                href={liveUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center w-full px-4 py-2.5 rounded-lg font-mono text-sm font-medium bg-success/10 text-success border border-success/30 hover:bg-success/20 transition-all shadow-[0_0_15px_rgba(74,222,128,0.15)]"
+              >
+                {liveUrl.includes("csb.app") ? (
+                  <><Zap className="w-4 h-4 mr-2" /> LIVE SANDBOX</>
+                ) : (
+                  <>LIVE PREVIEW</>
+                )}
+                <ExternalLink className="w-4 h-4 ml-2" />
+              </a>
+              {liveUrl.includes("csb.app") && (
+                <p className="text-[10px] font-mono text-zinc-600 text-center">
+                  Running on CodeSandbox cloud VM
+                </p>
+              )}
+            </div>
           ) : isReady ? (
             <button
               onClick={onDeploy}
@@ -102,9 +114,9 @@ function StatusPanel({ project, onDeploy, isDeploying, deployUrl, deployError }:
               )}
             >
               {isDeploying ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> DEPLOYING...</>
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> DEPLOYING TO SANDBOX...</>
               ) : (
-                <><Rocket className="w-4 h-4 mr-2" /> DEPLOY TO LIVE URL</>
+                <><Rocket className="w-4 h-4 mr-2" /> DEPLOY TO LIVE SANDBOX</>
               )}
             </button>
           ) : null}

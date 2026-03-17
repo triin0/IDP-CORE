@@ -130,6 +130,7 @@ router.get("/projects/:id", async (req, res) => {
       goldenPathChecks: project.goldenPathChecks ?? [],
       pipelineStatus: project.pipelineStatus ?? undefined,
       deployUrl: project.deployUrl,
+      sandboxId: project.sandboxId,
       createdAt: project.createdAt.toISOString(),
       error: project.error,
     });
@@ -341,7 +342,12 @@ router.post("/projects/:id/deploy", async (req, res) => {
 
     const result = await deployProject(project);
 
-    res.json(result);
+    res.json({
+      id: result.id,
+      status: result.status,
+      deployUrl: result.deployUrl,
+      sandboxId: result.sandboxId,
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Deployment failed";
     console.error("Failed to deploy project:", message);

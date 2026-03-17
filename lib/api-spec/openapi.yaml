@@ -553,6 +553,9 @@ components:
         deployUrl:
           type: string
           nullable: true
+        sandboxId:
+          type: string
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -587,6 +590,9 @@ components:
           enum: [deployed]
         deployUrl:
           type: string
+        sandboxId:
+          type: string
+          nullable: true
       required:
         - id
         - status

@@ -20,6 +20,7 @@ export interface ProjectDetails {
   goldenPathChecks: GoldenPathCheck[];
   pipelineStatus?: PipelineStatus;
   deployUrl?: string | null;
+  sandboxId?: string | null;
   createdAt: Date;
   error?: string | null;
 }

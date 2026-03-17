@@ -6,7 +6,7 @@ import {
   SandpackFileExplorer,
   SandpackCodeEditor,
 } from "@codesandbox/sandpack-react";
-import { Loader2, Terminal, AlertCircle, Eye, Code2, Maximize2 } from "lucide-react";
+import { Loader2, Terminal, AlertCircle, Eye, Code2, Maximize2, ExternalLink, Zap } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 
@@ -243,6 +243,14 @@ export function Preview() {
     [files, project?.prompt]
   );
 
+  const deployUrl = project?.deployUrl;
+  const hasLiveSandbox = !!(deployUrl && deployUrl.includes("csb.app")) || !!project?.sandboxId;
+  const sandboxPreviewUrl = deployUrl?.includes("csb.app")
+    ? deployUrl
+    : project?.sandboxId
+    ? `https://${project.sandboxId}-3000.csb.app`
+    : null;
+
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
@@ -342,12 +350,30 @@ export function Preview() {
             </button>
           </div>
 
+          {hasLiveSandbox && (
+            <span className="flex items-center gap-1 px-2 py-1 text-[10px] font-mono font-semibold rounded bg-green-500/15 text-green-400 border border-green-500/30">
+              <Zap className="w-3 h-3" />
+              LIVE
+            </span>
+          )}
           <span className="px-2 py-1 text-[10px] font-mono font-semibold rounded bg-primary/15 text-primary border border-primary/30">
             DEPLOYED
           </span>
           <span className="px-2 py-1 text-[10px] font-mono font-semibold rounded bg-green-500/15 text-green-400 border border-green-500/30">
             {passedCount}/{checks.length} CHECKS
           </span>
+
+          {sandboxPreviewUrl && (
+            <a
+              href={sandboxPreviewUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 px-2 py-1 text-[10px] font-mono font-semibold rounded bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              OPEN
+            </a>
+          )}
         </div>
       </header>
 
@@ -388,12 +414,21 @@ export function Preview() {
         )}
         {(viewMode === "preview" || viewMode === "split") && (
           <div className={cn("min-h-0 border-l border-zinc-800", viewMode === "split" ? "w-1/2" : "w-full")}>
-            <iframe
-              srcDoc={staticHtml}
-              className="w-full h-full border-0"
-              title="App Preview"
-              sandbox=""
-            />
+            {hasLiveSandbox && sandboxPreviewUrl ? (
+              <iframe
+                src={sandboxPreviewUrl}
+                className="w-full h-full border-0"
+                title="Live App Preview"
+                allow="cross-origin-isolated"
+              />
+            ) : (
+              <iframe
+                srcDoc={staticHtml}
+                className="w-full h-full border-0"
+                title="App Preview"
+                sandbox=""
+              />
+            )}
           </div>
         )}
       </div>

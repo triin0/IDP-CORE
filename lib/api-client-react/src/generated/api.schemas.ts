@@ -120,6 +120,7 @@ export interface ProjectDetails {
   goldenPathChecks: GoldenPathCheck[];
   pipelineStatus?: PipelineStatus;
   deployUrl?: string | null;
+  sandboxId?: string | null;
   createdAt: string;
   error?: string | null;
 }
@@ -147,6 +148,7 @@ export interface DeployProjectResponse {
   id: string;
   status: DeployProjectResponseStatus;
   deployUrl: string;
+  sandboxId?: string | null;
 }
 
 export type ProjectSummaryStatus =

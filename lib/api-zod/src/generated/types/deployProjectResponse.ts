@@ -11,4 +11,5 @@ export interface DeployProjectResponse {
   id: string;
   status: DeployProjectResponseStatus;
   deployUrl: string;
+  sandboxId?: string | null;
 }

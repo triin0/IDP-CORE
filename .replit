@@ -28,7 +28,6 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
-GEMINI_API_KEY = "***REDACTED***"
 
 [nix]
 channel = "stable-25_05"

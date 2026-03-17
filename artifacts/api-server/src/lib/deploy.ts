@@ -1,10 +1,12 @@
 import { eq } from "drizzle-orm";
 import { db, projectsTable, type Project } from "@workspace/db";
+import { isSandboxConfigured, createSandboxForProject } from "./sandbox";
 
 export interface DeployResult {
   id: string;
   status: "deployed";
   deployUrl: string;
+  sandboxId?: string;
 }
 
 function getLanguageClass(filePath: string): string {
@@ -222,6 +224,22 @@ export async function deployProject(project: Project): Promise<DeployResult> {
   const files = project.files as Array<{ path: string; content: string }> | null;
   if (!files || files.length === 0) {
     throw new Error("No files to deploy");
+  }
+
+  if (isSandboxConfigured()) {
+    console.log(`[deploy] Using CodeSandbox for project ${project.id.slice(0, 8)}`);
+    try {
+      const result = await createSandboxForProject(project);
+      return {
+        id: project.id,
+        status: "deployed",
+        deployUrl: result.previewUrl,
+        sandboxId: result.sandboxId,
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[deploy] CodeSandbox deploy failed, falling back to static preview: ${msg}`);
+    }
   }
 
   const domains = process.env["REPLIT_DOMAINS"] ?? process.env["REPLIT_DEV_DOMAIN"] ?? "localhost";
