@@ -13,7 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { generateProjectCode } from "../lib/generate";
 import { generateProjectSpec } from "../lib/spec-generator";
-import { deployProject } from "../lib/deploy";
+import { deployProject, generatePreviewHtml } from "../lib/deploy";
 
 const router: IRouter = Router();
 
@@ -344,6 +344,43 @@ router.post("/projects/:id/deploy", async (req, res) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Deployment failed";
     console.error("Failed to deploy project:", message);
+    res.status(500).json({ error: message });
+  }
+});
+
+router.get("/projects/:id/preview", async (req, res) => {
+  try {
+    const { id } = GetProjectParams.parse(req.params);
+
+    if (!UUID_REGEX.test(id)) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const [project] = await db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.id, id));
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const files = (project.files as Array<{ path: string; content: string }>) || [];
+    const checks = (project.goldenPathChecks as Array<{ name: string; passed: boolean; description?: string }>) || [];
+
+    if (files.length === 0) {
+      res.status(400).json({ error: "Project has no generated files" });
+      return;
+    }
+
+    const html = generatePreviewHtml(project, files, checks);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Preview failed";
+    console.error("Failed to generate preview:", message);
     res.status(500).json({ error: message });
   }
 });

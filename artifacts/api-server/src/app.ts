@@ -18,12 +18,6 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
-const deployedDir =
-  process.env.NODE_ENV === "production"
-    ? path.resolve(currentDir, "../../../deployed-projects")
-    : path.resolve(currentDir, "../../../deployed-projects");
-app.use("/deployed", express.static(deployedDir));
-
 if (process.env.NODE_ENV === "production") {
   const frontendDir = path.resolve(currentDir, "../../idp-frontend/dist/public");
 
