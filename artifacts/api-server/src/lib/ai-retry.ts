@@ -15,6 +15,7 @@ interface ChatCompletionParams {
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000;
+const TRUNCATION_REDUCTION_FACTOR = 0.6;
 
 type AIProvider = "openai" | "gemini";
 
@@ -96,17 +97,20 @@ export async function callWithRetry(
 ): Promise<string> {
   const provider = getProvider();
   let lastError: Error | null = null;
+  let currentParams = { ...params };
+  let truncationRetries = 0;
+  const maxTruncationRetries = 2;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       console.log(
-        `[${label}] Attempt ${attempt}/${MAX_RETRIES} (${provider})...`,
+        `[${label}] Attempt ${attempt}/${MAX_RETRIES} (${provider}), max_tokens=${currentParams.max_completion_tokens ?? "default"}...`,
       );
 
       const { content, finishReason } =
         provider === "gemini"
-          ? await callGemini(params)
-          : await callOpenAI(params);
+          ? await callGemini(currentParams)
+          : await callOpenAI(currentParams);
 
       console.log(
         `[${label}] Attempt ${attempt} finish_reason=${finishReason}, content_length=${content?.length ?? 0}`,
@@ -119,7 +123,30 @@ export async function callWithRetry(
       }
 
       if (finishReason === "length" || finishReason === "MAX_TOKENS") {
-        const errorMsg = `TOKEN_EXHAUSTION: AI returned incomplete content due to length limits (finish_reason=${finishReason}). Prompt complexity exceeds context window.`;
+        truncationRetries++;
+        if (truncationRetries <= maxTruncationRetries && currentParams.max_completion_tokens) {
+          const newMax = Math.round(currentParams.max_completion_tokens * TRUNCATION_REDUCTION_FACTOR);
+          console.warn(
+            `[${label}] Token truncation detected (finish_reason=${finishReason}). ` +
+            `Retrying with reduced scope: max_tokens ${currentParams.max_completion_tokens} → ${newMax} ` +
+            `(retry ${truncationRetries}/${maxTruncationRetries})`,
+          );
+          currentParams = { ...currentParams, max_completion_tokens: newMax };
+          const userMsg = currentParams.messages.find((m) => m.role === "user");
+          if (userMsg && typeof userMsg.content === "string") {
+            userMsg.content = userMsg.content +
+              "\n\nIMPORTANT: Your previous response was truncated due to length. " +
+              "Produce a MORE CONCISE response. Reduce inline comments, use shorter variable names if needed, " +
+              "and focus on the essential code only. Do NOT include any explanatory text.";
+          }
+          attempt--;
+          continue;
+        }
+
+        const errorMsg =
+          `TOKEN_EXHAUSTION: AI response was truncated ${truncationRetries} time(s) due to output length limits ` +
+          `(finish_reason=${finishReason}). The generated code is incomplete and cannot be used. ` +
+          `Try simplifying the project requirements or breaking the prompt into smaller pieces.`;
         console.error(`[${label}] ${errorMsg}`);
         throw new Error(errorMsg);
       }

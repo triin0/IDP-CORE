@@ -11,6 +11,7 @@ export async function recoverOrphanedProjects(): Promise<void> {
       or(
         eq(projectsTable.status, "planning"),
         eq(projectsTable.status, "generating"),
+        eq(projectsTable.status, "validating"),
       ),
     );
 
@@ -31,7 +32,7 @@ export async function recoverOrphanedProjects(): Promise<void> {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[recovery] Spec gen failed for ${project.id.slice(0, 8)}:`, message);
       });
-    } else if (project.status === "generating") {
+    } else if (project.status === "generating" || project.status === "validating") {
       console.log(`[recovery] Re-running code generation for ${project.id.slice(0, 8)}`);
       const spec = project.spec as {
         overview: string;

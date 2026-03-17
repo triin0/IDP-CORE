@@ -47,9 +47,11 @@ export const ListProjectsResponse = zod.object({
         "planning",
         "planned",
         "generating",
+        "validating",
         "ready",
         "deployed",
         "failed",
+        "failed_checks",
       ]),
       fileCount: zod.number(),
       goldenPathScore: zod.string().describe("Pass rate like '9\/9'"),
@@ -89,9 +91,11 @@ export const GetProjectResponse = zod.object({
     "planning",
     "planned",
     "generating",
+    "validating",
     "ready",
     "deployed",
     "failed",
+    "failed_checks",
   ]),
   spec: zod
     .object({
@@ -125,6 +129,7 @@ export const GetProjectResponse = zod.object({
       name: zod.string(),
       passed: zod.boolean(),
       description: zod.string(),
+      critical: zod.boolean().optional(),
     }),
   ),
   pipelineStatus: zod
@@ -215,9 +220,11 @@ export const UpdateSpecResponse = zod.object({
     "planning",
     "planned",
     "generating",
+    "validating",
     "ready",
     "deployed",
     "failed",
+    "failed_checks",
   ]),
   spec: zod
     .object({
@@ -251,6 +258,7 @@ export const UpdateSpecResponse = zod.object({
       name: zod.string(),
       passed: zod.boolean(),
       description: zod.string(),
+      critical: zod.boolean().optional(),
     }),
   ),
   pipelineStatus: zod
@@ -341,6 +349,7 @@ export const ListGoldenPathConfigsResponse = zod.object({
             name: zod.string(),
             description: zod.string(),
             promptInstruction: zod.string(),
+            critical: zod.boolean().optional(),
             check: zod.object({
               type: zod.enum([
                 "file_pattern",
@@ -399,6 +408,7 @@ export const ListGoldenPathConfigsResponse = zod.object({
         name: zod.string(),
         description: zod.string(),
         promptInstruction: zod.string(),
+        critical: zod.boolean().optional(),
         check: zod.object({
           type: zod.enum([
             "file_pattern",
@@ -459,6 +469,7 @@ export const CreateGoldenPathConfigBody = zod.object({
         name: zod.string(),
         description: zod.string(),
         promptInstruction: zod.string(),
+        critical: zod.boolean().optional(),
         check: zod.object({
           type: zod.enum([
             "file_pattern",
@@ -522,6 +533,7 @@ export const GetActiveGoldenPathConfigResponse = zod.object({
         name: zod.string(),
         description: zod.string(),
         promptInstruction: zod.string(),
+        critical: zod.boolean().optional(),
         check: zod.object({
           type: zod.enum([
             "file_pattern",
@@ -588,6 +600,7 @@ export const ResetGoldenPathToDefaultResponse = zod.object({
         name: zod.string(),
         description: zod.string(),
         promptInstruction: zod.string(),
+        critical: zod.boolean().optional(),
         check: zod.object({
           type: zod.enum([
             "file_pattern",
@@ -657,6 +670,7 @@ export const UpdateGoldenPathConfigBody = zod.object({
           name: zod.string(),
           description: zod.string(),
           promptInstruction: zod.string(),
+          critical: zod.boolean().optional(),
           check: zod.object({
             type: zod.enum([
               "file_pattern",
@@ -717,6 +731,7 @@ export const UpdateGoldenPathConfigResponse = zod.object({
         name: zod.string(),
         description: zod.string(),
         promptInstruction: zod.string(),
+        critical: zod.boolean().optional(),
         check: zod.object({
           type: zod.enum([
             "file_pattern",
@@ -798,6 +813,7 @@ export const ActivateGoldenPathConfigResponse = zod.object({
         name: zod.string(),
         description: zod.string(),
         promptInstruction: zod.string(),
+        critical: zod.boolean().optional(),
         check: zod.object({
           type: zod.enum([
             "file_pattern",

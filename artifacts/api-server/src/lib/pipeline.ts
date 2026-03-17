@@ -1,9 +1,11 @@
 import { eq } from "drizzle-orm";
 import { db, projectsTable } from "@workspace/db";
 import { AGENTS, type AgentContext, type AgentOutput, type AgentStageStatus, type AgentRole } from "./agents";
-import { getActiveConfig, runGoldenPathChecks } from "./golden-path";
+import { getActiveConfig, runGoldenPathChecks, getCriticalFailures } from "./golden-path";
+import type { GoldenPathCheck } from "./golden-path";
 import { callWithRetry } from "./ai-retry";
 import { validateAllManifests } from "./dependency-audit";
+import { runBuildVerification } from "./build-verification";
 import type { GoldenPathConfigRules } from "@workspace/db";
 
 export interface PipelineStatus {
@@ -163,8 +165,20 @@ export async function runPipeline(
       `[pipeline:${projectId.slice(0, 8)}] Reconciled ${reconciledFiles.length} files from ${Object.keys(context.priorOutputs).length} agents`,
     );
 
-    const goldenPathChecks = runGoldenPathChecks(reconciledFiles, config);
+    await db
+      .update(projectsTable)
+      .set({ status: "validating", pipelineStatus: pipeline })
+      .where(eq(projectsTable.id, projectId));
 
+    console.log(`[pipeline:${projectId.slice(0, 8)}] Running Golden Path checks...`);
+
+    const goldenPathChecks: GoldenPathCheck[] = runGoldenPathChecks(reconciledFiles, config);
+
+    let depAuditCheck: GoldenPathCheck = {
+      name: "Dependency Audit",
+      passed: true,
+      description: "All dependencies verified against npm registry and OSV vulnerability database",
+    };
     try {
       const auditResult = await validateAllManifests(reconciledFiles);
       if (!auditResult.passed) {
@@ -173,6 +187,11 @@ export async function runPipeline(
         if (hasHallucinatedDeps) {
           throw new Error(`Dependency audit blocked generation: ${auditResult.errors.join("; ")}`);
         }
+        depAuditCheck = {
+          name: "Dependency Audit",
+          passed: false,
+          description: auditResult.errors.join("; "),
+        };
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.message.startsWith("Dependency audit blocked")) {
@@ -180,6 +199,60 @@ export async function runPipeline(
       }
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[pipeline:${projectId.slice(0, 8)}] Dependency audit error:`, msg);
+      depAuditCheck = { name: "Dependency Audit", passed: false, description: `Audit failed: ${msg}` };
+    }
+    goldenPathChecks.push(depAuditCheck);
+
+    let buildCheck: GoldenPathCheck = {
+      name: "Build Verification",
+      passed: true,
+      description: "Project compiles successfully with npm install && npm run build",
+    };
+    try {
+      console.log(`[pipeline:${projectId.slice(0, 8)}] Running build verification...`);
+      const buildResult = await runBuildVerification(reconciledFiles);
+      buildCheck = {
+        name: "Build Verification",
+        passed: buildResult.passed,
+        description: buildResult.description,
+      };
+      if (!buildResult.passed) {
+        console.warn(`[pipeline:${projectId.slice(0, 8)}] Build verification failed: ${buildResult.description}`);
+        if (buildResult.stderr) {
+          console.warn(`[pipeline:${projectId.slice(0, 8)}] Build stderr: ${buildResult.stderr.slice(0, 500)}`);
+        }
+      } else {
+        console.log(`[pipeline:${projectId.slice(0, 8)}] Build verification passed`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[pipeline:${projectId.slice(0, 8)}] Build verification error:`, msg);
+      buildCheck = { name: "Build Verification", passed: false, description: `Build verification failed: ${msg}` };
+    }
+    goldenPathChecks.push(buildCheck);
+
+    const criticalFailures = getCriticalFailures(goldenPathChecks);
+    const hasHallucinatedDeps = depAuditCheck.description.includes("[Hallucination]");
+
+    if (criticalFailures.length > 0 || hasHallucinatedDeps) {
+      const failureNames = criticalFailures.map((c) => c.name);
+      if (hasHallucinatedDeps) {
+        failureNames.push("Dependency Audit (hallucinated packages)");
+      }
+      const errorMsg = `Critical check failures blocked project: ${failureNames.join(", ")}`;
+      console.error(`[pipeline:${projectId.slice(0, 8)}] ${errorMsg}`);
+
+      await db
+        .update(projectsTable)
+        .set({
+          status: "failed_checks",
+          files: reconciledFiles,
+          goldenPathChecks,
+          pipelineStatus: pipeline,
+          error: errorMsg,
+        })
+        .where(eq(projectsTable.id, projectId));
+      return;
     }
 
     await db

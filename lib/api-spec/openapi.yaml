@@ -405,7 +405,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, planning, planned, generating, ready, deployed, failed]
+          enum: [pending, planning, planned, generating, validating, ready, deployed, failed, failed_checks]
       required:
         - id
         - status
@@ -428,6 +428,8 @@ components:
           type: boolean
         description:
           type: string
+        critical:
+          type: boolean
       required:
         - name
         - passed
@@ -537,7 +539,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, planning, planned, generating, ready, deployed, failed]
+          enum: [pending, planning, planned, generating, validating, ready, deployed, failed, failed_checks]
         spec:
           $ref: "#/components/schemas/ProjectSpec"
         files:
@@ -606,7 +608,7 @@ components:
           type: string
         status:
           type: string
-          enum: [pending, planning, planned, generating, ready, deployed, failed]
+          enum: [pending, planning, planned, generating, validating, ready, deployed, failed, failed_checks]
         fileCount:
           type: integer
         goldenPathScore:
@@ -702,6 +704,8 @@ components:
           type: string
         promptInstruction:
           type: string
+        critical:
+          type: boolean
         check:
           $ref: "#/components/schemas/GoldenPathRuleCheck"
       required:

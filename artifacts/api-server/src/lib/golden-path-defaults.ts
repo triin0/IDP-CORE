@@ -45,14 +45,16 @@ export const DEFAULT_GOLDEN_PATH_CONFIG: GoldenPathConfigRules = {
     },
     {
       name: "Security Headers",
-      description: "Includes Helmet for security headers and CORS configuration",
+      description: "Imports and uses Helmet for security headers and CORS configuration",
       promptInstruction: "Use helmet for security headers and configure CORS",
+      critical: true,
       check: { type: "content_match", pattern: "helmet,cors" },
     },
     {
       name: "Input Validation",
-      description: "Uses Zod schema-based input validation on API routes",
+      description: "Imports and uses Zod schema-based input validation on API routes",
       promptInstruction: "Every API route MUST use Zod for input validation",
+      critical: true,
       check: { type: "content_match", pattern: "zod,z.object,z.string" },
     },
     {
@@ -65,6 +67,7 @@ export const DEFAULT_GOLDEN_PATH_CONFIG: GoldenPathConfigRules = {
       name: "No Hardcoded Secrets",
       description: "No hardcoded secrets, passwords, or API keys detected in source",
       promptInstruction: "NO hardcoded secrets; use process.env.VAR_NAME",
+      critical: true,
       check: {
         type: "content_not_match",
         pattern: "(?:password|secret|api_key|apikey|token)\\s*[:=]\\s*[\"'][A-Za-z0-9+/=]{8,}[\"']",
@@ -86,7 +89,7 @@ export const DEFAULT_GOLDEN_PATH_CONFIG: GoldenPathConfigRules = {
       name: "Rate Limiting",
       description: "API endpoints protected with rate limiting",
       promptInstruction: "Implement rate limiting on API endpoints",
-      check: { type: "content_match", pattern: "rate,limit" },
+      check: { type: "content_match", pattern: "rateLimit,rateLimiter,rate-limit" },
     },
     {
       name: "Database Schema",

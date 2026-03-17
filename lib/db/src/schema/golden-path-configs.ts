@@ -5,6 +5,7 @@ export const goldenPathRuleSchema = z.object({
   name: z.string(),
   description: z.string(),
   promptInstruction: z.string(),
+  critical: z.boolean().optional(),
   check: z.object({
     type: z.enum(["file_pattern", "content_match", "content_not_match"]),
     pattern: z.string(),

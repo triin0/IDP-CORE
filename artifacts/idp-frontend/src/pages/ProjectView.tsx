@@ -1,9 +1,10 @@
 import { useGetProject } from "@workspace/api-client-react";
+import { useRegenerateSpec } from "@workspace/api-client-react";
 import { useParams, useLocation } from "wouter";
 import { Workspace } from "@/components/Workspace";
 import { SpecReview } from "@/components/SpecReview";
 import { StatusTerminal } from "@/components/StatusTerminal";
-import { AlertCircle, Loader2, WifiOff } from "lucide-react";
+import { AlertCircle, Loader2, WifiOff, ShieldAlert, XCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 
 function isApiError(err: unknown): err is { name: string; status: number } {
@@ -26,12 +27,166 @@ function PlanningSpinner() {
   );
 }
 
+interface GoldenPathCheckResult {
+  name: string;
+  passed: boolean;
+  description: string;
+  critical?: boolean;
+}
+
+function CheckFailurePanel({
+  checks,
+  error,
+  projectId,
+  onRetry,
+}: {
+  checks: GoldenPathCheckResult[];
+  error?: string | null;
+  projectId: string;
+  onRetry: () => void;
+}) {
+  const failedChecks = checks.filter((c) => !c.passed);
+  const criticalFailed = failedChecks.filter((c) => c.critical);
+  const nonCriticalFailed = failedChecks.filter((c) => !c.critical);
+  const passedChecks = checks.filter((c) => c.passed);
+  const regenerateSpec = useRegenerateSpec();
+  const [, navigate] = useLocation();
+
+  const handleRegenerate = () => {
+    regenerateSpec.mutate(
+      { id: projectId },
+      {
+        onSuccess: () => {
+          onRetry();
+        },
+      },
+    );
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex-1 flex items-center justify-center py-8"
+    >
+      <div className="w-full max-w-2xl mx-auto">
+        <div className="rounded-xl bg-card border border-red-500/30 shadow-2xl overflow-hidden">
+          <div className="px-6 py-4 bg-red-500/10 border-b border-red-500/20 flex items-center gap-3">
+            <ShieldAlert className="w-6 h-6 text-red-400" />
+            <div>
+              <h2 className="text-lg font-mono font-bold text-red-400">QUALITY_GATE_BLOCKED</h2>
+              <p className="text-xs font-mono text-red-400/70 mt-0.5">
+                {criticalFailed.length} critical check{criticalFailed.length !== 1 ? "s" : ""} failed — project cannot proceed
+              </p>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-4">
+            {error && (
+              <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20 text-sm font-mono text-red-300">
+                {error}
+              </div>
+            )}
+
+            {criticalFailed.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-xs font-mono font-semibold text-red-400 uppercase tracking-wider">
+                  Critical Failures (Blocking)
+                </h3>
+                {criticalFailed.map((check) => (
+                  <div
+                    key={check.name}
+                    className="p-3 rounded-lg bg-red-500/5 border border-red-500/20"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                      <span className="font-mono text-sm font-semibold text-red-300">{check.name}</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 uppercase">critical</span>
+                    </div>
+                    <p className="text-xs text-zinc-400 font-mono ml-6">{check.description}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {nonCriticalFailed.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-xs font-mono font-semibold text-amber-400 uppercase tracking-wider">
+                  Non-Critical Failures (Warnings)
+                </h3>
+                {nonCriticalFailed.map((check) => (
+                  <div
+                    key={check.name}
+                    className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                      <span className="font-mono text-sm font-semibold text-amber-300">{check.name}</span>
+                    </div>
+                    <p className="text-xs text-zinc-400 font-mono ml-6">{check.description}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {passedChecks.length > 0 && (
+              <details className="group">
+                <summary className="text-xs font-mono font-semibold text-green-400 uppercase tracking-wider cursor-pointer hover:text-green-300 transition-colors">
+                  Passed Checks ({passedChecks.length})
+                </summary>
+                <div className="mt-2 space-y-1">
+                  {passedChecks.map((check) => (
+                    <div
+                      key={check.name}
+                      className="flex items-center gap-2 p-2 rounded text-xs font-mono text-zinc-500"
+                    >
+                      <span className="text-green-500">✓</span>
+                      <span>{check.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+
+            <div className="pt-4 border-t border-zinc-800 space-y-3">
+              <h3 className="text-xs font-mono font-semibold text-zinc-400 uppercase tracking-wider">
+                What You Can Do
+              </h3>
+              <ul className="text-xs text-zinc-500 font-mono space-y-1 list-disc list-inside">
+                <li>Regenerate from the spec to try generating compliant code</li>
+                <li>Adjust the prompt to be more specific about security requirements</li>
+                <li>Review the project files to understand what was generated</li>
+              </ul>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleRegenerate}
+                  disabled={regenerateSpec.isPending}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground font-mono text-sm rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${regenerateSpec.isPending ? "animate-spin" : ""}`} />
+                  {regenerateSpec.isPending ? "Regenerating..." : "Regenerate Project"}
+                </button>
+                <button
+                  onClick={() => navigate("/")}
+                  className="px-4 py-2 bg-secondary text-foreground font-mono text-sm rounded-lg border border-border hover:bg-secondary/80 transition-colors"
+                >
+                  Back to Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export function ProjectView() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const projectId = params.id || "";
 
-  const { data: project, isLoading, isError, error } = useGetProject(
+  const { data: project, isLoading, isError, error, refetch } = useGetProject(
     projectId,
     {
       query: {
@@ -39,7 +194,7 @@ export function ProjectView() {
         enabled: !!projectId,
         refetchInterval: (query) => {
           const status = query.state.data?.status;
-          return (status === "pending" || status === "planning" || status === "generating") ? 2000 : false;
+          return (status === "pending" || status === "planning" || status === "generating" || status === "validating") ? 2000 : false;
         }
       }
     }
@@ -90,7 +245,7 @@ export function ProjectView() {
     return <PlanningSpinner />;
   }
 
-  if (project.status === "generating") {
+  if (project.status === "generating" || project.status === "validating") {
     return (
       <div className="flex-1 flex items-center justify-center py-8">
         <StatusTerminal
@@ -107,6 +262,17 @@ export function ProjectView() {
         projectId={project.id}
         prompt={project.prompt}
         spec={project.spec}
+      />
+    );
+  }
+
+  if (project.status === "failed_checks") {
+    return (
+      <CheckFailurePanel
+        checks={(project.goldenPathChecks ?? []) as GoldenPathCheckResult[]}
+        error={project.error}
+        projectId={project.id}
+        onRetry={() => refetch()}
       />
     );
   }

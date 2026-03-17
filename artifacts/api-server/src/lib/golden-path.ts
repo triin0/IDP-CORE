@@ -7,7 +7,14 @@ export interface GoldenPathCheck {
   name: string;
   passed: boolean;
   description: string;
+  critical?: boolean;
 }
+
+const CRITICAL_CHECK_NAMES = new Set([
+  "Security Headers",
+  "Input Validation",
+  "No Hardcoded Secrets",
+]);
 
 export async function getActiveConfig(): Promise<GoldenPathConfigRules> {
   try {
@@ -87,19 +94,82 @@ Generate the requested application following these rules. Ensure the code is mod
 Do NOT include any text before or after the JSON. Only output the JSON object.`;
 }
 
+function stripCommentsAndStrings(code: string): string {
+  let result = code.replace(/\/\*[\s\S]*?\*\//g, "");
+  result = result
+    .split("\n")
+    .map((line) => {
+      const commentIdx = line.indexOf("//");
+      if (commentIdx >= 0) {
+        const before = line.slice(0, commentIdx);
+        const singleQuotes = (before.match(/'/g) || []).length;
+        const doubleQuotes = (before.match(/"/g) || []).length;
+        const backticks = (before.match(/`/g) || []).length;
+        if (singleQuotes % 2 === 0 && doubleQuotes % 2 === 0 && backticks % 2 === 0) {
+          return before;
+        }
+      }
+      return line;
+    })
+    .join("\n");
+  return result;
+}
+
+function isImportedOrUsed(allContent: string, keyword: string): boolean {
+  const cleaned = stripCommentsAndStrings(allContent);
+  const lines = cleaned.split("\n");
+  const kw = keyword.toLowerCase();
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const lower = trimmed.toLowerCase();
+
+    if (
+      (lower.includes("import ") || lower.includes("import{")) &&
+      lower.includes(kw)
+    ) {
+      return true;
+    }
+
+    if (lower.includes("require(") && lower.includes(kw)) {
+      return true;
+    }
+
+    if (
+      lower.includes(kw + "(") ||
+      lower.includes("." + kw + "(") ||
+      lower.includes("app.use(" + kw)
+    ) {
+      return true;
+    }
+
+    const assignPattern = new RegExp(
+      `(?:const|let|var)\\s+\\w*${kw}\\w*\\s*=`,
+      "i",
+    );
+    if (assignPattern.test(trimmed)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function runCheckRule(
   rule: GoldenPathRule,
   filePaths: string[],
   allContent: string,
 ): boolean {
   const { type, pattern } = rule.check;
-  const patterns = pattern.split(",").map(p => p.trim());
+  const patterns = pattern.split(",").map((p) => p.trim());
 
   switch (type) {
     case "file_pattern":
-      return patterns.every(p => filePaths.some(fp => fp.includes(p)));
+      return patterns.every((p) => filePaths.some((fp) => fp.includes(p)));
     case "content_match":
-      return patterns.every(p => allContent.toLowerCase().includes(p.toLowerCase()));
+      return patterns.every((p) => isImportedOrUsed(allContent, p));
     case "content_not_match":
       try {
         const regex = new RegExp(pattern, "i");
@@ -117,14 +187,19 @@ export function runGoldenPathChecks(
   config?: GoldenPathConfigRules,
 ): GoldenPathCheck[] {
   const rules = config ?? DEFAULT_GOLDEN_PATH_CONFIG;
-  const filePaths = files.map(f => f.path);
-  const allContent = files.map(f => f.content).join("\n");
+  const filePaths = files.map((f) => f.path);
+  const allContent = files.map((f) => f.content).join("\n");
 
-  return rules.checks.map(rule => ({
+  return rules.checks.map((rule) => ({
     name: rule.name,
     passed: runCheckRule(rule, filePaths, allContent),
     description: rule.description,
+    critical: rule.critical ?? CRITICAL_CHECK_NAMES.has(rule.name),
   }));
+}
+
+export function getCriticalFailures(checks: GoldenPathCheck[]): GoldenPathCheck[] {
+  return checks.filter((c) => c.critical && !c.passed);
 }
 
 export const GOLDEN_PATH_SYSTEM_PROMPT = buildSystemPrompt(DEFAULT_GOLDEN_PATH_CONFIG);

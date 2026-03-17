@@ -22,9 +22,11 @@ export const CreateProjectResponseStatus = {
   planning: "planning",
   planned: "planned",
   generating: "generating",
+  validating: "validating",
   ready: "ready",
   deployed: "deployed",
   failed: "failed",
+  failed_checks: "failed_checks",
 } as const;
 
 export interface CreateProjectResponse {
@@ -41,6 +43,7 @@ export interface GoldenPathCheck {
   name: string;
   passed: boolean;
   description: string;
+  critical?: boolean;
 }
 
 export interface ApiEndpointSpec {
@@ -106,9 +109,11 @@ export const ProjectDetailsStatus = {
   planning: "planning",
   planned: "planned",
   generating: "generating",
+  validating: "validating",
   ready: "ready",
   deployed: "deployed",
   failed: "failed",
+  failed_checks: "failed_checks",
 } as const;
 
 export interface ProjectDetails {
@@ -159,9 +164,11 @@ export const ProjectSummaryStatus = {
   planning: "planning",
   planned: "planned",
   generating: "generating",
+  validating: "validating",
   ready: "ready",
   deployed: "deployed",
   failed: "failed",
+  failed_checks: "failed_checks",
 } as const;
 
 export interface ProjectSummary {
@@ -222,6 +229,7 @@ export interface GoldenPathRule {
   name: string;
   description: string;
   promptInstruction: string;
+  critical?: boolean;
   check: GoldenPathRuleCheck;
 }
 

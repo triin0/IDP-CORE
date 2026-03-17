@@ -4,6 +4,8 @@ export interface DependencyAuditResult {
 }
 
 const FETCH_TIMEOUT_MS = 10000;
+const MIN_AGE_DAYS = 30;
+const MIN_WEEKLY_DOWNLOADS = 1000;
 
 async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {
   const controller = new AbortController();
@@ -12,6 +14,19 @@ async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Res
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function getWeeklyDownloads(name: string): Promise<number | null> {
+  try {
+    const res = await fetchWithTimeout(
+      `https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}`,
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { downloads?: number };
+    return data.downloads ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -30,14 +45,23 @@ async function auditPackage(name: string, version: string, errors: string[]): Pr
     return;
   }
 
-  const npmData = await npmRes.json() as { time?: { created?: string } };
+  const npmData = (await npmRes.json()) as { time?: { created?: string } };
   const createdStr = npmData.time?.created;
 
   if (createdStr) {
-    const ageInHours = (Date.now() - new Date(createdStr).getTime()) / (1000 * 60 * 60);
-    if (ageInHours < 48) {
-      errors.push(`[Slopsquatting] Package '${name}' is suspiciously new (< 48 hours old).`);
+    const ageDays = (Date.now() - new Date(createdStr).getTime()) / (1000 * 60 * 60 * 24);
+    if (ageDays < MIN_AGE_DAYS) {
+      errors.push(
+        `[Slopsquatting] Package '${name}' is suspiciously new (${Math.round(ageDays)} days old, threshold: ${MIN_AGE_DAYS} days).`,
+      );
     }
+  }
+
+  const downloads = await getWeeklyDownloads(name);
+  if (downloads !== null && downloads < MIN_WEEKLY_DOWNLOADS) {
+    errors.push(
+      `[LowPopularity] Package '${name}' has very low weekly downloads (${downloads}, threshold: ${MIN_WEEKLY_DOWNLOADS}).`,
+    );
   }
 
   const osvRes = await fetchWithTimeout("https://api.osv.dev/v1/query", {
@@ -50,7 +74,7 @@ async function auditPackage(name: string, version: string, errors: string[]): Pr
   });
 
   if (osvRes.ok) {
-    const osvData = await osvRes.json() as { vulns?: unknown[] };
+    const osvData = (await osvRes.json()) as { vulns?: unknown[] };
     if (osvData.vulns && osvData.vulns.length > 0) {
       errors.push(`[CVE] Package '${name}@${cleanVersion}' has known vulnerabilities in the OSV database.`);
     }
@@ -72,15 +96,17 @@ export async function validateDependencies(packageJsonString: string): Promise<D
   const deps = { ...pkg.dependencies, ...pkg.devDependencies };
   if (Object.keys(deps).length === 0) return { passed: true, errors: [] };
 
-  await Promise.all(Object.entries(deps).map(async ([name, version]) => {
-    try {
-      await auditPackage(name, version as string, errors);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`[Dependency Audit] Failed to validate package ${name}:`, message);
-      errors.push(`[Inconclusive] Audit failed for '${name}': ${message}`);
-    }
-  }));
+  await Promise.all(
+    Object.entries(deps).map(async ([name, version]) => {
+      try {
+        await auditPackage(name, version as string, errors);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[Dependency Audit] Failed to validate package ${name}:`, message);
+        errors.push(`[Inconclusive] Audit failed for '${name}': ${message}`);
+      }
+    }),
+  );
 
   return {
     passed: errors.length === 0,

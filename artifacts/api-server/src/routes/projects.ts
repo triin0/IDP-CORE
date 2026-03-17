@@ -21,6 +21,7 @@ interface GoldenPathCheckRecord {
   name: string;
   passed: boolean;
   description: string;
+  critical?: boolean;
 }
 
 interface FileRecord {
@@ -221,9 +222,9 @@ router.post("/projects/:id/regenerate-spec", async (req, res) => {
       return;
     }
 
-    if (project.status !== "planned" && project.status !== "failed") {
+    if (project.status !== "planned" && project.status !== "failed" && project.status !== "failed_checks") {
       res.status(400).json({
-        error: `Cannot regenerate spec. Project status is '${project.status}', expected 'planned' or 'failed'.`,
+        error: `Cannot regenerate spec. Project status is '${project.status}', expected 'planned', 'failed', or 'failed_checks'.`,
       });
       return;
     }

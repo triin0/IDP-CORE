@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, CheckCircle2, XCircle, Clock, Bot } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock, Bot, ShieldCheck } from "lucide-react";
 
 interface PipelineStage {
   role: string;
@@ -34,6 +34,18 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
   backend: "Implementing API routes, middleware, and business logic...",
   frontend: "Building UI components, pages, hooks, and styles...",
   security: "Reviewing code for vulnerabilities and hardening output...",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: "INITIALIZING",
+  planning: "GENERATING_SPEC",
+  planned: "SPEC_READY",
+  generating: "CODE_GENERATION",
+  validating: "VALIDATING",
+  ready: "COMPLETE",
+  deployed: "DEPLOYED",
+  failed: "FAILED",
+  failed_checks: "CHECKS_FAILED",
 };
 
 function formatDuration(startedAt?: string | null, completedAt?: string | null): string {
@@ -106,7 +118,7 @@ export function StatusTerminal({ status, pipelineStatus }: StatusTerminalProps) 
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    if (status !== "generating") return;
+    if (status !== "generating" && status !== "validating") return;
     const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(interval);
   }, [status]);
@@ -114,6 +126,8 @@ export function StatusTerminal({ status, pipelineStatus }: StatusTerminalProps) 
   const hasPipeline = pipelineStatus && pipelineStatus.stages.length > 0;
   const completedStages = pipelineStatus?.stages.filter((s) => s.status === "completed").length ?? 0;
   const totalStages = pipelineStatus?.stages.length ?? 0;
+  const isValidating = status === "validating";
+  const statusLabel = STATUS_LABELS[status] || status.toUpperCase();
 
   return (
     <motion.div
@@ -129,7 +143,7 @@ export function StatusTerminal({ status, pipelineStatus }: StatusTerminalProps) 
         </div>
         <div className="mx-auto text-xs font-mono text-muted-foreground flex items-center gap-2">
           <Bot className="w-3.5 h-3.5" />
-          MULTI_AGENT_PIPELINE
+          {statusLabel}
           {hasPipeline && (
             <span className="text-primary">
               [{completedStages}/{totalStages}]
@@ -142,10 +156,17 @@ export function StatusTerminal({ status, pipelineStatus }: StatusTerminalProps) 
       </div>
 
       <div className="p-4 font-mono text-sm bg-zinc-950">
-        <div className="text-primary mb-4 flex items-center text-xs">
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          <span>[PIPELINE] Multi-agent code generation in progress...</span>
-        </div>
+        {isValidating ? (
+          <div className="text-amber-400 mb-4 flex items-center text-xs">
+            <ShieldCheck className="w-4 h-4 mr-2 animate-pulse" />
+            <span>[VALIDATION] Running Golden Path checks, dependency audit, and build verification...</span>
+          </div>
+        ) : (
+          <div className="text-primary mb-4 flex items-center text-xs">
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            <span>[PIPELINE] Multi-agent code generation in progress...</span>
+          </div>
+        )}
 
         {hasPipeline ? (
           <div className="space-y-2">
@@ -162,6 +183,29 @@ export function StatusTerminal({ status, pipelineStatus }: StatusTerminalProps) 
               <span>Initializing agent pipeline...</span>
             </div>
           </div>
+        )}
+
+        {isValidating && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-4 pt-3 border-t border-zinc-800"
+          >
+            <div className="space-y-1 text-xs">
+              <div className="text-amber-400/80 flex items-center gap-2">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Running compliance checks...
+              </div>
+              <div className="text-amber-400/80 flex items-center gap-2">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Auditing dependencies against npm registry...
+              </div>
+              <div className="text-amber-400/80 flex items-center gap-2">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Verifying build (npm install && npm run build)...
+              </div>
+            </div>
+          </motion.div>
         )}
 
         {status === "generating" && (

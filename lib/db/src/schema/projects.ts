@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 export const projectsTable = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   prompt: text("prompt").notNull(),
-  status: text("status", { enum: ["pending", "planning", "planned", "generating", "ready", "deployed", "failed"] }).notNull().default("pending"),
+  status: text("status", { enum: ["pending", "planning", "planned", "generating", "validating", "ready", "deployed", "failed", "failed_checks"] }).notNull().default("pending"),
   spec: jsonb("spec").$type<{
     overview: string;
     fileStructure: string[];
@@ -15,7 +15,7 @@ export const projectsTable = pgTable("projects", {
     architecturalDecisions: string[];
   }>(),
   files: jsonb("files").$type<Array<{ path: string; content: string }>>().default([]),
-  goldenPathChecks: jsonb("golden_path_checks").$type<Array<{ name: string; passed: boolean; description: string }>>().default([]),
+  goldenPathChecks: jsonb("golden_path_checks").$type<Array<{ name: string; passed: boolean; description: string; critical?: boolean }>>().default([]),
   pipelineStatus: jsonb("pipeline_status").$type<{
     stages: Array<{
       role: string;

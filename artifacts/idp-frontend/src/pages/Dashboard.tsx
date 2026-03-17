@@ -10,9 +10,11 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
   planning: { label: "PLANNING", color: "text-violet-400 bg-violet-400/10 border-violet-400/20", icon: Loader2 },
   planned: { label: "SPEC READY", color: "text-amber-400 bg-amber-400/10 border-amber-400/20", icon: FileCheck },
   generating: { label: "GENERATING", color: "text-blue-400 bg-blue-400/10 border-blue-400/20", icon: Loader2 },
+  validating: { label: "VALIDATING", color: "text-amber-400 bg-amber-400/10 border-amber-400/20", icon: Loader2 },
   ready: { label: "READY", color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20", icon: CheckCircle2 },
   deployed: { label: "DEPLOYED", color: "text-primary bg-primary/10 border-primary/20", icon: Rocket },
   failed: { label: "FAILED", color: "text-destructive bg-destructive/10 border-destructive/20", icon: XCircle },
+  failed_checks: { label: "CHECKS FAILED", color: "text-red-400 bg-red-400/10 border-red-400/20", icon: AlertTriangle },
 };
 
 export function Dashboard() {
@@ -88,7 +90,7 @@ export function Dashboard() {
                   <div className="flex-1 min-w-0 mr-4">
                     <div className="flex items-center gap-3 mb-2">
                       <span className={cn("px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider border", config.color)}>
-                        <StatusIcon className={cn("w-3 h-3 inline mr-1", (project.status === "generating" || project.status === "planning") && "animate-spin")} />
+                        <StatusIcon className={cn("w-3 h-3 inline mr-1", (project.status === "generating" || project.status === "planning" || project.status === "validating") && "animate-spin")} />
                         {config.label}
                       </span>
                       <span className="text-[10px] font-mono text-zinc-600 uppercase">
