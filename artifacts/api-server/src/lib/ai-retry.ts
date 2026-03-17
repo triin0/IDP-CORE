@@ -1,5 +1,5 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, type Content } from "@google/generative-ai";
 
 interface ChatMessage {
   role: string;
@@ -15,7 +15,7 @@ interface ChatCompletionParams {
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000;
-const TRUNCATION_REDUCTION_FACTOR = 0.6;
+const MAX_CONTINUATIONS = 4;
 
 type AIProvider = "openai" | "gemini";
 
@@ -42,7 +42,8 @@ async function callGemini(
   const model = gemini.getGenerativeModel({
     model: "gemini-2.5-pro",
     generationConfig: {
-      maxOutputTokens: params.max_completion_tokens ?? 8192,
+      maxOutputTokens: params.max_completion_tokens ?? 65536,
+      temperature: 0.2,
       responseMimeType: "application/json",
     },
   });
@@ -72,6 +73,33 @@ async function callGemini(
   return { content: text, finishReason };
 }
 
+async function callGeminiMultiturn(
+  history: Content[],
+  maxOutputTokens: number,
+): Promise<{ content: string; finishReason: string }> {
+  const gemini = getGeminiClient();
+
+  const model = gemini.getGenerativeModel({
+    model: "gemini-2.5-pro",
+    generationConfig: {
+      maxOutputTokens,
+      temperature: 0.2,
+      responseMimeType: "text/plain",
+    },
+  });
+
+  const chat = model.startChat({ history: history.slice(0, -1) });
+  const lastMsg = history[history.length - 1];
+  const lastText = lastMsg?.parts?.[0] && "text" in lastMsg.parts[0] ? lastMsg.parts[0].text ?? "" : "";
+
+  const result = await chat.sendMessage(lastText || "Continue.");
+  const response = result.response;
+  const text = response.text();
+  const finishReason = response.candidates?.[0]?.finishReason ?? "unknown";
+
+  return { content: text, finishReason };
+}
+
 async function callOpenAI(
   params: ChatCompletionParams,
 ): Promise<{ content: string; finishReason: string }> {
@@ -91,20 +119,152 @@ async function callOpenAI(
   };
 }
 
+async function callOpenAIMultiturn(
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+  model: string,
+  maxTokens?: number,
+): Promise<{ content: string; finishReason: string }> {
+  const response = await openai.chat.completions.create({
+    model,
+    max_completion_tokens: maxTokens,
+    messages,
+  });
+  const choice = response.choices[0];
+  if (!choice) {
+    throw new Error("AI returned no choices");
+  }
+  return {
+    content: choice.message?.content ?? "",
+    finishReason: choice.finish_reason ?? "unknown",
+  };
+}
+
+const CONTINUE_INSTRUCTION =
+  "Your previous response was cut off due to output length limits. " +
+  "Continue generating from the EXACT character where you stopped. " +
+  "Do NOT repeat any content already generated. Do NOT add markdown fences, introductory text, or explanations. " +
+  "Output ONLY the raw continuation of the JSON string.";
+
+async function continueGemini(
+  params: ChatCompletionParams,
+  partialOutput: string,
+  label: string,
+): Promise<string> {
+  const maxTokens = params.max_completion_tokens ?? 65536;
+  let fullResponse = partialOutput;
+
+  const systemPrompt = String(params.messages.find((m) => m.role === "system")?.content ?? "");
+  const userPrompt = String(params.messages.find((m) => m.role === "user")?.content ?? "");
+
+  const history: Content[] = [
+    {
+      role: "user",
+      parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
+    },
+    {
+      role: "model",
+      parts: [{ text: partialOutput }],
+    },
+    {
+      role: "user",
+      parts: [{ text: CONTINUE_INSTRUCTION }],
+    },
+  ];
+
+  for (let cont = 1; cont <= MAX_CONTINUATIONS; cont++) {
+    console.log(
+      `[${label}] Continuation ${cont}/${MAX_CONTINUATIONS}, accumulated_length=${fullResponse.length}`,
+    );
+
+    const { content, finishReason } = await callGeminiMultiturn(history, maxTokens);
+
+    if (!content || content.length === 0) {
+      console.warn(`[${label}] Continuation ${cont} returned empty content`);
+      break;
+    }
+
+    fullResponse += content;
+
+    if (finishReason !== "MAX_TOKENS" && finishReason !== "length") {
+      console.log(`[${label}] Continuation complete (finish_reason=${finishReason}), total_length=${fullResponse.length}`);
+      return fullResponse;
+    }
+
+    history.splice(1, history.length - 1);
+    history.push({ role: "model", parts: [{ text: fullResponse }] });
+    history.push({ role: "user", parts: [{ text: CONTINUE_INSTRUCTION }] });
+  }
+
+  return fullResponse;
+}
+
+async function continueOpenAI(
+  params: ChatCompletionParams,
+  partialOutput: string,
+  label: string,
+): Promise<string> {
+  let fullResponse = partialOutput;
+
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = params.messages.map(m => ({
+    role: m.role as "system" | "user" | "assistant",
+    content: String(m.content),
+  }));
+
+  messages.push({ role: "assistant", content: partialOutput });
+  messages.push({ role: "user", content: CONTINUE_INSTRUCTION });
+
+  for (let cont = 1; cont <= MAX_CONTINUATIONS; cont++) {
+    console.log(
+      `[${label}] Continuation ${cont}/${MAX_CONTINUATIONS}, accumulated_length=${fullResponse.length}`,
+    );
+
+    const { content, finishReason } = await callOpenAIMultiturn(
+      messages,
+      params.model,
+      params.max_completion_tokens,
+    );
+
+    if (!content || content.length === 0) {
+      console.warn(`[${label}] Continuation ${cont} returned empty content`);
+      break;
+    }
+
+    fullResponse += content;
+
+    if (finishReason !== "length") {
+      console.log(`[${label}] Continuation complete (finish_reason=${finishReason}), total_length=${fullResponse.length}`);
+      return fullResponse;
+    }
+
+    const baseLen = params.messages.length;
+    messages.splice(baseLen, messages.length - baseLen);
+    messages.push({ role: "assistant", content: fullResponse });
+    messages.push({ role: "user", content: CONTINUE_INSTRUCTION });
+  }
+
+  return fullResponse;
+}
+
+function isLikelyTruncated(finishReason: string): boolean {
+  return finishReason === "length" || finishReason === "MAX_TOKENS";
+}
+
 export async function callWithRetry(
   params: ChatCompletionParams,
   label: string,
 ): Promise<string> {
   const provider = getProvider();
   let lastError: Error | null = null;
-  let currentParams = { ...params };
-  let truncationRetries = 0;
-  const maxTruncationRetries = 2;
+  const currentParams = { ...params };
+
+  if (!currentParams.max_completion_tokens) {
+    currentParams.max_completion_tokens = provider === "gemini" ? 65536 : 16384;
+  }
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       console.log(
-        `[${label}] Attempt ${attempt}/${MAX_RETRIES} (${provider}), max_tokens=${currentParams.max_completion_tokens ?? "default"}...`,
+        `[${label}] Attempt ${attempt}/${MAX_RETRIES} (${provider}), max_tokens=${currentParams.max_completion_tokens}...`,
       );
 
       const { content, finishReason } =
@@ -122,33 +282,39 @@ export async function callWithRetry(
         );
       }
 
-      if (finishReason === "length" || finishReason === "MAX_TOKENS") {
-        truncationRetries++;
-        if (truncationRetries <= maxTruncationRetries && currentParams.max_completion_tokens) {
-          const newMax = Math.round(currentParams.max_completion_tokens * TRUNCATION_REDUCTION_FACTOR);
-          console.warn(
-            `[${label}] Token truncation detected (finish_reason=${finishReason}). ` +
-            `Retrying with reduced scope: max_tokens ${currentParams.max_completion_tokens} → ${newMax} ` +
-            `(retry ${truncationRetries}/${maxTruncationRetries})`,
-          );
-          currentParams = { ...currentParams, max_completion_tokens: newMax };
-          const userMsg = currentParams.messages.find((m) => m.role === "user");
-          if (userMsg && typeof userMsg.content === "string") {
-            userMsg.content = userMsg.content +
-              "\n\nIMPORTANT: Your previous response was truncated due to length. " +
-              "Produce a MORE CONCISE response. Reduce inline comments, use shorter variable names if needed, " +
-              "and focus on the essential code only. Do NOT include any explanatory text.";
+      if (isLikelyTruncated(finishReason)) {
+        console.warn(
+          `[${label}] Token limit hit (finish_reason=${finishReason}). Starting continuation loop...`,
+        );
+
+        const fullContent =
+          provider === "gemini"
+            ? await continueGemini(currentParams, content, label)
+            : await continueOpenAI(currentParams, content, label);
+
+        const expectsJson = currentParams.response_format?.type === "json_object";
+
+        if (expectsJson) {
+          try {
+            JSON.parse(fullContent);
+            console.log(`[${label}] Continuation produced valid JSON, total_length=${fullContent.length}`);
+            return fullContent;
+          } catch {
+            const truncatedPreview = fullContent.slice(-200);
+            console.error(
+              `[${label}] Continuation produced invalid JSON after ${MAX_CONTINUATIONS} continuations. ` +
+              `Total length=${fullContent.length}. Tail: ...${truncatedPreview}`,
+            );
+            throw new Error(
+              `TOKEN_EXHAUSTION: AI response was truncated and ${MAX_CONTINUATIONS} continuation attempts ` +
+              `could not produce valid JSON (total_length=${fullContent.length}). ` +
+              `Try simplifying the project requirements.`,
+            );
           }
-          attempt--;
-          continue;
         }
 
-        const errorMsg =
-          `TOKEN_EXHAUSTION: AI response was truncated ${truncationRetries} time(s) due to output length limits ` +
-          `(finish_reason=${finishReason}). The generated code is incomplete and cannot be used. ` +
-          `Try simplifying the project requirements or breaking the prompt into smaller pieces.`;
-        console.error(`[${label}] ${errorMsg}`);
-        throw new Error(errorMsg);
+        console.log(`[${label}] Continuation complete (non-JSON mode), total_length=${fullContent.length}`);
+        return fullContent;
       }
 
       return content;

@@ -22,30 +22,38 @@ export async function recoverOrphanedProjects(): Promise<void> {
   console.log(`[recovery] Found ${orphaned.length} orphaned project(s), restarting...`);
 
   for (const project of orphaned) {
-    if (project.status === "planning") {
-      console.log(`[recovery] Re-running spec generation for ${project.id.slice(0, 8)}`);
+    try {
+      if (project.status === "planning") {
+        console.log(`[recovery] Re-running spec generation for ${project.id.slice(0, 8)}`);
+        await db
+          .update(projectsTable)
+          .set({ status: "pending" })
+          .where(eq(projectsTable.id, project.id));
+        await generateProjectSpec(project.id, project.prompt);
+        console.log(`[recovery] Spec gen completed for ${project.id.slice(0, 8)}`);
+      } else if (project.status === "generating" || project.status === "validating") {
+        console.log(`[recovery] Re-running code generation for ${project.id.slice(0, 8)}`);
+        const spec = project.spec as {
+          overview: string;
+          fileStructure: string[];
+          apiEndpoints: Array<{ method: string; path: string; description: string }>;
+          databaseTables: Array<{ name: string; columns: string[] }>;
+          middleware: string[];
+          architecturalDecisions: string[];
+        } | null;
+        await generateProjectCode(project.id, project.prompt, spec ?? undefined);
+        console.log(`[recovery] Code gen completed for ${project.id.slice(0, 8)}`);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[recovery] Recovery failed for ${project.id.slice(0, 8)}: ${message}`);
       await db
         .update(projectsTable)
-        .set({ status: "pending" })
-        .where(eq(projectsTable.id, project.id));
-      generateProjectSpec(project.id, project.prompt).catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error(`[recovery] Spec gen failed for ${project.id.slice(0, 8)}:`, message);
-      });
-    } else if (project.status === "generating" || project.status === "validating") {
-      console.log(`[recovery] Re-running code generation for ${project.id.slice(0, 8)}`);
-      const spec = project.spec as {
-        overview: string;
-        fileStructure: string[];
-        apiEndpoints: Array<{ method: string; path: string; description: string }>;
-        databaseTables: Array<{ name: string; columns: string[] }>;
-        middleware: string[];
-        architecturalDecisions: string[];
-      } | null;
-      generateProjectCode(project.id, project.prompt, spec ?? undefined).catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error(`[recovery] Code gen failed for ${project.id.slice(0, 8)}:`, message);
-      });
+        .set({ status: "failed", error: `Recovery failed: ${message}` })
+        .where(eq(projectsTable.id, project.id))
+        .catch((dbErr: unknown) => {
+          console.error(`[recovery] Failed to update status for ${project.id.slice(0, 8)}:`, dbErr);
+        });
     }
   }
 }

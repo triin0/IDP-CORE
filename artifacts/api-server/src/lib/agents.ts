@@ -316,25 +316,25 @@ export const GENERATION_AGENTS: AgentDefinition[] = [
     role: "architect",
     label: "Architect",
     buildPrompt: buildArchitectPrompt,
-    maxTokens: 16384,
+    maxTokens: 32768,
   },
   {
     role: "backend",
     label: "Backend Developer",
     buildPrompt: buildBackendPrompt,
-    maxTokens: 32768,
+    maxTokens: 65536,
   },
   {
     role: "frontend",
     label: "Frontend Developer",
     buildPrompt: buildFrontendPrompt,
-    maxTokens: 32768,
+    maxTokens: 65536,
   },
   {
     role: "security",
     label: "Security Reviewer",
     buildPrompt: buildSecurityPrompt,
-    maxTokens: 16384,
+    maxTokens: 32768,
   },
 ];
 
@@ -342,7 +342,7 @@ export const VERIFICATION_AGENT: AgentDefinition = {
   role: "verification",
   label: "Verification & Audit",
   buildPrompt: buildVerificationPrompt,
-  maxTokens: 8192,
+  maxTokens: 16384,
 };
 
 export const AGENTS: AgentDefinition[] = [

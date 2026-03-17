@@ -98,11 +98,29 @@ importers:
         specifier: ~5.9.2
         version: 5.9.3
 
+  .local/share/pnpm/.tools/pnpm/8.15.4_tmp_7054:
+    dependencies:
+      pnpm:
+        specifier: 8.15.4
+        version: 8.15.4
+
+  .local/share/pnpm/.tools/pnpm/8.15.4_tmp_7409:
+    dependencies:
+      pnpm:
+        specifier: 8.15.4
+        version: 8.15.4
+
   .local/share/pnpm/.tools/pnpm/8.15.5_tmp_4725:
     dependencies:
       pnpm:
         specifier: 8.15.5
         version: 8.15.5
+
+  .local/share/pnpm/.tools/pnpm/8.15.8_tmp_7627:
+    dependencies:
+      pnpm:
+        specifier: 8.15.8
+        version: 8.15.8
 
   .local/share/pnpm/.tools/pnpm/9.1.0_tmp_7103:
     dependencies:
@@ -3372,8 +3390,18 @@ packages:
   png-js@0.1.1:
     resolution: {integrity: sha512-NTtk2SyfjBm+xYl2/VZJBhFnTQ4kU5qWC7VC4/iGbrgiU4FuB4xC+74erxADYJIqZICOR1HCvRA7EBHkpjTg9g==}
 
+  pnpm@8.15.4:
+    resolution: {integrity: sha512-C9Opvp6w6aaSZ23uwAowO6IYuiedmSQUdWFrOY267t0RFG+SwoQ0WPVXsdEn4J1MFx4QW9zWthACs5aFqAFrng==}
+    engines: {node: '>=16.14'}
+    hasBin: true
+
   pnpm@8.15.5:
     resolution: {integrity: sha512-sFGjLH5pWDO4SSbTspuMylclS1ifBknYmcbp0O22cLkex+KkNFm65zdZu1zmGcMmbxFr+THOItHvF1mn5Fqpbw==}
+    engines: {node: '>=16.14'}
+    hasBin: true
+
+  pnpm@8.15.8:
+    resolution: {integrity: sha512-0aAp4aRHrZC8ls1YsPrUhtKZPVMYVjlve6vy2D6xgju4PFo9D8GPZ1stEDIdSesWH+zjb+gTSqWCPs0hX+7Tkg==}
     engines: {node: '>=16.14'}
     hasBin: true
 
@@ -7097,7 +7125,11 @@ snapshots:
 
   png-js@0.1.1: {}
 
+  pnpm@8.15.4: {}
+
   pnpm@8.15.5: {}
+
+  pnpm@8.15.8: {}
 
   pnpm@9.1.0: {}
 

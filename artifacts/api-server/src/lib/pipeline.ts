@@ -115,7 +115,7 @@ async function runAgent(
   return {
     role: agent.role,
     files: parsed.files,
-    notes: parsed.notes || "",
+    notes: typeof parsed.notes === "string" ? parsed.notes : (parsed.notes ? JSON.stringify(parsed.notes) : ""),
   };
 }
 
@@ -321,7 +321,9 @@ export async function runVerificationStage(
   let verificationNotes = "";
   try {
     const verificationOutput = await runAgent(VERIFICATION_AGENT, config, verificationContext, projectId);
-    verificationNotes = verificationOutput.notes;
+    verificationNotes = typeof verificationOutput.notes === "string"
+      ? verificationOutput.notes
+      : JSON.stringify(verificationOutput.notes);
     console.log(`[pipeline:${projectId.slice(0, 8)}] Verification agent completed`);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

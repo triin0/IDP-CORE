@@ -9,7 +9,7 @@ import { BuildGate } from "@/components/BuildGate";
 import { usePipelineStream } from "@/hooks/usePipelineStream";
 import { AlertCircle, Loader2, WifiOff, ShieldAlert, XCircle, AlertTriangle, RefreshCw, CheckCircle2, Hash, FileWarning, Bot } from "lucide-react";
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 function isApiError(err: unknown): err is { name: string; status: number } {
   return err !== null && typeof err === "object" && "name" in err && (err as { name: string }).name === "ApiError" && "status" in err;
@@ -276,7 +276,9 @@ function VerificationFailurePanel({
                   Verification Summary
                 </h3>
                 <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800 text-xs font-mono text-zinc-300 whitespace-pre-wrap max-h-48 overflow-y-auto">
-                  {verdict.summary}
+                  {typeof verdict.summary === "string"
+                    ? verdict.summary.replace(/^\[object Object\]\n?/, "").trim()
+                    : JSON.stringify(verdict.summary, null, 2)}
                 </div>
               </div>
             )}
@@ -389,20 +391,51 @@ function VerificationFailurePanel({
   );
 }
 
+function buildHistoryLines(
+  pipelineStatus?: PipelineObserverProps["pipelineStatus"],
+): string[] {
+  if (!pipelineStatus?.stages) return [];
+  const lines: string[] = [];
+  for (const stage of pipelineStatus.stages) {
+    if (stage.status === "completed") {
+      lines.push(`[${stage.label}] Completed — ${stage.fileCount ?? 0} files`);
+    } else if (stage.status === "failed") {
+      lines.push(`[${stage.label}] FAILED: ${stage.error || "Error"}`);
+    } else if (stage.status === "running") {
+      lines.push(`[${stage.label}] Starting...`);
+    }
+  }
+  return lines;
+}
+
+function computeElapsed(
+  pipelineStatus?: PipelineObserverProps["pipelineStatus"],
+): number {
+  if (!pipelineStatus?.stages) return 0;
+  const firstStarted = pipelineStatus.stages
+    .map(s => s.startedAt)
+    .filter(Boolean)
+    .sort()[0];
+  if (!firstStarted) return 0;
+  return Math.round((Date.now() - new Date(firstStarted).getTime()) / 1000);
+}
+
 function PipelineObserver({ projectId, status, pipelineStatus }: {
   projectId: string;
   status: string;
   pipelineStatus?: { stages: Array<{ role: string; label: string; status: "pending" | "running" | "completed" | "failed"; startedAt?: string | null; completedAt?: string | null; fileCount?: number | null; error?: string | null }>; currentAgent?: string | null };
 }) {
   const isActive = status === "generating" || status === "validating";
-  const stream = usePipelineStream(projectId, isActive);
-  const [elapsed, setElapsed] = useState(0);
+  const historyLines = useMemo(() => buildHistoryLines(pipelineStatus), [pipelineStatus]);
+  const stream = usePipelineStream(projectId, isActive, historyLines);
+  const [elapsed, setElapsed] = useState(() => computeElapsed(pipelineStatus));
 
   useEffect(() => {
     if (!isActive) return;
-    const interval = setInterval(() => setElapsed(e => e + 1), 1000);
+    setElapsed(computeElapsed(pipelineStatus));
+    const interval = setInterval(() => setElapsed(computeElapsed(pipelineStatus)), 1000);
     return () => clearInterval(interval);
-  }, [isActive]);
+  }, [isActive, pipelineStatus]);
 
   const completedStages = pipelineStatus?.stages.filter(s => s.status === "completed").length ?? 0;
   const totalStages = pipelineStatus?.stages.length ?? 0;

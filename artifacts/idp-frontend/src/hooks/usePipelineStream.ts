@@ -42,6 +42,7 @@ export interface UsePipelineStreamResult {
 export function usePipelineStream(
   projectId: string | null,
   enabled: boolean,
+  initialHistoryLines: string[] = [],
 ): UsePipelineStreamResult {
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -51,6 +52,19 @@ export function usePipelineStream(
   const [currentStage, setCurrentStage] = useState<string | null>(null);
   const [terminalLines, setTerminalLines] = useState<string[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const historyAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (initialHistoryLines.length > 0 && !historyAppliedRef.current) {
+      historyAppliedRef.current = true;
+      setTerminalLines(initialHistoryLines);
+    } else if (initialHistoryLines.length > 0) {
+      setTerminalLines(prev => {
+        const sseOnlyLines = prev.filter(l => l.startsWith("[SSE]") || l.startsWith("[pipeline]") || l.startsWith("[self-heal]") || l.startsWith("[verification]") || l.startsWith("[build]") || l.startsWith("[stderr]"));
+        return [...initialHistoryLines, ...sseOnlyLines].slice(-200);
+      });
+    }
+  }, [initialHistoryLines]);
 
   const addTerminalLine = useCallback((line: string) => {
     setTerminalLines(prev => [...prev.slice(-200), line]);
