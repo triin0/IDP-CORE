@@ -1,0 +1,19 @@
+{
+  "name": "fullstack-todo-app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=server & npm run dev --workspace=client",
+    "build": "npm run build --workspace=server && npm run build --workspace=client",
+    "start": "npm start --workspace=server",
+    "migrate": "npm run migrate --workspace=server",
+    "db:push": "npm run db:push --workspace=server"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

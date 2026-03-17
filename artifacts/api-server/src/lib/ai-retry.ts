@@ -1,6 +1,17 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
+
+interface ChatMessage {
+  role: string;
+  content: string | unknown;
+}
+
+interface ChatCompletionParams {
+  model: string;
+  max_completion_tokens?: number;
+  messages: ChatMessage[];
+  response_format?: { type: string };
+}
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000;
@@ -23,7 +34,7 @@ function getGeminiClient(): GoogleGenerativeAI {
 }
 
 async function callGemini(
-  params: ChatCompletionCreateParamsNonStreaming,
+  params: ChatCompletionParams,
 ): Promise<{ content: string; finishReason: string }> {
   const gemini = getGeminiClient();
 
@@ -61,9 +72,14 @@ async function callGemini(
 }
 
 async function callOpenAI(
-  params: ChatCompletionCreateParamsNonStreaming,
+  params: ChatCompletionParams,
 ): Promise<{ content: string; finishReason: string }> {
-  const response = await openai.chat.completions.create(params);
+  const response = await openai.chat.completions.create({
+    model: params.model,
+    max_completion_tokens: params.max_completion_tokens,
+    messages: params.messages as Array<{ role: "system" | "user" | "assistant"; content: string }>,
+    response_format: params.response_format as { type: "json_object" } | undefined,
+  });
   const choice = response.choices[0];
   if (!choice) {
     throw new Error("AI returned no choices");
@@ -75,7 +91,7 @@ async function callOpenAI(
 }
 
 export async function callWithRetry(
-  params: ChatCompletionCreateParamsNonStreaming,
+  params: ChatCompletionParams,
   label: string,
 ): Promise<string> {
   const provider = getProvider();
