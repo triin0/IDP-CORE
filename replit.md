@@ -1,57 +1,151 @@
-# AI-Native Internal Developer Platform (IDP) — MVP
+# AI-Native Internal Developer Platform (IDP.CORE) — MVP
 
 ## Overview
 
-This project is an AI-Native Internal Developer Platform (IDP) designed to streamline application development. It functions as a pnpm workspace monorepo that accepts natural language prompts, generates multi-file applications adhering to enterprise "Golden Path" standards, and deploys them to live preview URLs. The platform aims to automate and standardize application creation, significantly reducing development time and ensuring compliance with best practices.
+An AI-Native Internal Developer Platform that accepts natural language prompts, uses a multi-agent LLM pipeline to generate complete multi-file applications following "Golden Path" enterprise standards, deploys to live CodeSandbox sandboxes, and provides a real-time observable UI. Secured with Replit Auth multi-tenancy and styled with "The Glass Engine" design system.
 
 ## User Preferences
 
-I want iterative development. Ask before making major architectural changes or before deploying to production. For explanations, prioritize clarity and conciseness. I prefer seeing the overall plan before diving into code. Do not make changes to files in the `deployed-projects/` directory.
+Iterative development. Ask before making major architectural changes or deploying to production. Prioritize clarity and conciseness. Show the overall plan before coding. Do not modify files in `deployed-projects/`.
 
 ## System Architecture
 
-The IDP is built as a pnpm workspace monorepo, featuring an Express 5 API server for orchestration and a React frontend. Data persistence is handled by PostgreSQL with Drizzle ORM. AI capabilities are supported by both OpenAI and Gemini Pro, with auto-selection based on API key availability.
+The IDP is a pnpm workspace monorepo with an Express 5 API server (orchestration), a React frontend (observation UI), PostgreSQL + Drizzle ORM for persistence, and dual AI providers (Gemini Pro primary, OpenAI fallback).
 
-**Core Technical Implementations:**
+**Core Backend Systems:**
 
-*   **Orchestration API:** A central Express server manages the project lifecycle, handling creation, status polling, architectural spec approval, deployment, and deletion. It is secured with helmet, strict CORS, and rate limiting.
-*   **Multi-Agent AI Pipeline:** A sequential 6-agent pipeline (Architect, Backend Developer, Frontend Developer, Security Reviewer, Verification & Audit Agent, Fixer Agent) generates and validates code. A **Self-Healing Loop** allows the Fixer Agent to produce targeted fixes based on error evidence, retrying verification up to 3 times.
-*   **AI Provider Layer:** Supports dual AI providers (OpenAI `gpt-5.2` or Gemini Pro `gemini-2.5-pro`) with built-in retry logic and a **token continuation loop** for handling `MAX_TOKENS` responses.
-*   **Orphan Recovery:** Automatically restarts AI processing for projects stuck in `planning`, `generating`, or `validating` statuses due to server interruptions.
-*   **Golden Path Engine:** Enforces enterprise standards for AI-generated code through eleven automated compliance checks, covering structure, security, validation, database practices, error handling, and TypeScript usage. Critical checks block projects from reaching "ready" status.
-*   **Dependency Audit:** Validates every AI-generated npm dependency against hallucination, typosquatting, low popularity, and CVEs (using the OSV database).
-*   **Build Verification:** Runs `npm install && npm run build` in a temporary directory after code generation, with path traversal protection.
-*   **Authentication & Multi-Tenancy:** Uses Replit Auth (OpenID Connect with PKCE) for user authentication and server-side PostgreSQL sessions. Project access is scoped to the authenticated user, and ownership checks prevent IDOR attacks.
-*   **Git-Style Diff Viewer:** Saves pre-merge snapshots and renders unified diffs for refinements, showing line numbers, highlighting, and collapsible sections.
-*   **Deployment:** Generated projects deploy to live CodeSandbox cloud VMs for interactive previews, with a fallback to static HTML.
-*   **Sandbox Lifecycle Management:** Automatically cleans up stale CodeSandbox VMs and manages sandbox deletion upon project removal.
-*   **Real-Time Pipeline Observability (SSE):** Server-Sent Events stream pipeline progress to the frontend, providing `stage:start/complete/fail`, `verification` and `self-healing` events, and logs.
-*   **Frontend (Observable UI):** A React + Vite application with Tailwind CSS, Shadcn UI, and Framer Motion. Features include: **Live Pipeline Visualization** (horizontal bar with 5 agent nodes that light up neon green with pulse animations as the SSE stream reports active agents; key file: `AgentPipelineBar.tsx`), **Agent Trajectory Dashboard**, **Live Terminal**, **Build Verification Gate**, **Sandbox Preview**, architectural spec review, file tree and code viewer, Golden Path compliance checklist, and one-click deployment.
+*   **Orchestration API:** Express 5 server managing the full project lifecycle. Status flow: `pending` → `planning` → `planned` → `generating` → `validating` → `ready` → `deployed` (or `failed` / `failed_checks` / `failed_validation`). Secured with helmet, CORS (`origin: true`), rate limiting (100 req/15min), and `trust proxy`.
+*   **Multi-Agent AI Pipeline:** Sequential 6-agent pipeline: Architect → Backend Developer → Frontend Developer → Security Reviewer → Verification & Audit Agent → Fixer Agent (on-demand). The Verification Agent runs Golden Path checks, dependency audit, build verification, and SHA-256 hash computation. On failure, the **Self-Healing Loop** triggers the Fixer Agent with exact error evidence, retrying up to 3 times.
+*   **AI Provider Layer:** Dual providers — Gemini Pro (`gemini-2.5-pro`, 65K output tokens) and OpenAI (`gpt-5.2`, 16K output tokens). Built-in retry logic and **token continuation loop** (up to 4 continuations on `MAX_TOKENS`). Agent-specific token limits: Architect 32K, Backend/Frontend 65K, Security 32K, Verification 16K, Fixer 32K.
+*   **Orphan Recovery:** On startup, restarts AI processing for projects stuck in `planning`/`generating`/`validating`. Sequential with try/catch — failures update status to `failed`.
+*   **Golden Path Engine:** Eleven automated compliance checks covering structure, security, validation (Zod), database, error handling, and TypeScript. Critical checks (Security Headers, Input Validation, No Hardcoded Secrets) block `ready` status. Smart import detection strips comments to avoid false positives. Config-driven via `golden_path_configs` table.
+*   **Dependency Audit:** Validates AI-generated npm packages: existence (hallucination guard), age (< 30 days = slopsquatting), popularity (< 1000 weekly downloads), CVEs (OSV database). Key file: `dependency-audit.ts`.
+*   **Build Verification:** Writes generated files to temp directory, runs `npm install && npm run build` with path traversal protection. Key file: `build-verification.ts`.
+*   **Authentication & Multi-Tenancy:** Replit Auth (OIDC with PKCE). Server-side PostgreSQL sessions with httpOnly secure cookies. `requireAuth` middleware on all mutation routes. `loadOwnedProject()` helper enforces ownership (IDOR prevention). Project list scoped to authenticated user. Key files: `lib/auth.ts`, `middlewares/authMiddleware.ts`, `routes/auth.ts`.
+*   **Iterative Refinement:** Delta-only regeneration using existing files + spec as context. Saves `previousFiles` snapshot before merge for diff viewing. Full verification stage after refinement. History tracked in `refinements` JSONB array. Key file: `refine.ts`.
+*   **Deployment:** CodeSandbox cloud VMs (when `CSB_API_KEY`/`codesandbox_api` set) for live previews at `*.csb.app`. Falls back to static HTML. Key file: `sandbox.ts`.
+*   **Sandbox Lifecycle:** Auto-cleanup every 6 hours (projects > 72h old). Manual via `POST /api/projects/cleanup-sandboxes`. Delete endpoint destroys sandbox VM before DB purge.
+*   **Real-Time SSE:** `PipelineEventBus` emits structured events: `stage:start/complete/fail`, `verification:start/gate/complete`, `self-healing:attempt/success/exhausted`, `build:output`, `pipeline:log/complete/error`. SSE endpoint auto-closes on terminal events. 15-second heartbeat.
+
+**Frontend (Observable UI):**
+
+*   **Live Pipeline Visualization:** Horizontal bar with 5 agent nodes (Architect, Backend, Frontend, Security, Verify) that glow neon green with pulse animations as SSE reports active agents. Adds 6th "Fixer" node during self-healing. Key file: `AgentPipelineBar.tsx`.
+*   **Agent Trajectory Dashboard:** Vertical sidebar with per-agent stage cards, self-healing indicators, verification gate display. Key file: `TrajectoryDashboard.tsx`.
+*   **Live Terminal:** Colorized SSE output with auto-scroll/scroll-lock, line numbers. Key file: `LiveTerminal.tsx`.
+*   **Build Verification Gate:** 5-gate visual checklist (Golden Path, Dependencies, Build, Hash Integrity, Security). Key file: `BuildGate.tsx`.
+*   **Git-Style Diff Viewer:** Unified diffs with line numbers, add/remove highlighting, per-file collapsible sections, copy-to-clipboard. Auto-shows after refinement, "View Diff" on history items. Key file: `DiffViewer.tsx`.
+*   **Other:** Sandbox preview iframe, spec review, file tree + code viewer, Golden Path compliance checklist, one-click deploy, Golden Path config editor (Settings page).
 
 **UI/UX — "The Glass Engine" Design System:**
 
-*   **Design:** Deep space black (#09090b) canvas with frosted glass panels (`backdrop-filter: blur(12px)`). Utilities: `.glass-panel`, `.glass-panel-hover`, `.glass-panel-strong`, `.hud-badge`, `.glow-line`.
-*   **Typography:** Inter for UI, JetBrains Mono for code/logs/terminal/badges.
-*   **Color State Machine:** Brand = Cyan (`--primary`), Success = Emerald (`--success`), Warning = Amber (`--warning`), Fail = Crimson (`--destructive`).
-*   **Global HUD:** Cockpit-style frosted header with glow-line separator. Left: logo + nav. Center: SYS/LLM/SANDBOX telemetry badges. Right: Compute Wallet + auth.
-*   **Navigation:** Persistent header with nav tabs and ring-highlighted active state.
-*   **Information Display:** Real-time polling, syntax-highlighted code viewer, HUD telemetry badges.
-
-**System Design Choices:**
-
-*   **Monorepo Structure:** pnpm workspaces for managing deployable applications and shared libraries.
-*   **Database Schema:** `projects` table tracks metadata, status, and outputs. `golden_path_configs` stores customizable enterprise standards.
-*   **TypeScript & Composite Projects:** Extensive use of TypeScript with project references for type safety and modularity.
-*   **Config-Driven Generation:** The Golden Path engine is driven by active configurations stored in the database.
+*   **Design:** Deep space black (#09090b) canvas. Frosted glass panels (`rgba(255,255,255,0.03)` + `backdrop-filter: blur(12px)`). CSS utilities: `.glass-panel`, `.glass-panel-hover`, `.glass-panel-strong`, `.hud-badge`, `.glow-line`. CSS variables: `--glass-bg`, `--glass-border`, `--glass-blur`, `--glass-bg-hover`.
+*   **Typography:** Inter (UI), JetBrains Mono (code/logs/terminal/badges). Imported via Google Fonts.
+*   **Color State Machine:** Brand/Action = Cyan (`--primary: 192 90% 53%`), Success = Emerald (`--success: 155 80% 44%`), Warning = Amber (`--warning: 38 92% 50%`), Fail = Crimson (`--destructive: 0 84% 60%`).
+*   **Global HUD:** Cockpit-style frosted header (`glass-panel-strong`) with `glow-line` separator. Left: logo (icon in ring box) + nav tabs (ring-highlighted active). Center: SYS/LLM/SANDBOX telemetry badges with `hud-pulse` animation. Right: Compute Wallet (Cycles gauge) + user auth.
+*   **Animations:** `cursor-blink`, `pulse-glow`, `hud-pulse`, `glass-shimmer`, `slide-up`, `fade-in`. Framer Motion for component transitions.
 
 ## External Dependencies
 
-*   **Monorepo Tool:** pnpm workspaces
-*   **Database:** PostgreSQL + Drizzle ORM
-*   **API Framework:** Express 5
-*   **Validation:** Zod (`zod/v4`), `drizzle-zod`
-*   **API Codegen:** Orval
-*   **AI Providers:** OpenAI (via Replit AI Integrations), Google Gemini Pro (`@google/generative-ai`)
-*   **Build Tool:** esbuild
-*   **Frontend Frameworks/Libraries:** React, Vite, Tailwind CSS, Shadcn UI, Framer Motion, Lucide React, `react-syntax-highlighter`
-*   **Open Source Vulnerability Database:** OSV (for dependency auditing)
+*   **Monorepo:** pnpm workspaces
+*   **Database:** PostgreSQL + Drizzle ORM (`drizzle-orm`, `drizzle-zod`, `drizzle-kit`)
+*   **API:** Express 5, helmet, cors, express-rate-limit, cookie-parser
+*   **Auth:** openid-client (OIDC/PKCE)
+*   **Validation:** Zod (`zod/v4`)
+*   **API Codegen:** Orval (OpenAPI → React Query hooks + Zod schemas)
+*   **AI:** `@google/generative-ai` (Gemini), OpenAI SDK (via Replit AI Integrations)
+*   **Build:** esbuild, tsx (dev)
+*   **Frontend:** React 19, Vite 7, Tailwind CSS v4, Shadcn UI, Framer Motion, Lucide React, react-syntax-highlighter, diff (v7)
+*   **Vulnerability DB:** OSV
+
+## Project Structure
+
+```text
+/
+├── artifacts/                    # Deployable applications
+│   ├── api-server/               # Express 5 orchestration backend (port 8080)
+│   │   └── src/
+│   │       ├── routes/           # projects.ts, auth.ts, health.ts
+│   │       ├── lib/              # ai-retry, generate, refine, spec-generator, golden-path,
+│   │       │                     # deploy, sandbox, pipeline-events, recovery,
+│   │       │                     # build-verification, dependency-audit, hash-integrity, auth
+│   │       └── middlewares/      # authMiddleware.ts
+│   ├── idp-frontend/             # React frontend served at / (port from $PORT)
+│   │   └── src/
+│   │       ├── pages/            # Dashboard, Home, ProjectView, Settings, Preview
+│   │       ├── components/       # AgentPipelineBar, TrajectoryDashboard, LiveTerminal,
+│   │       │                     # BuildGate, SandboxPreview, PromptForm, SpecReview,
+│   │       │                     # Workspace, DiffViewer, RefinementChat, HealthIndicator
+│   │       └── hooks/            # usePipelineStream (SSE consumer)
+│   └── mockup-sandbox/           # Component preview sandbox
+├── lib/                          # Shared libraries
+│   ├── api-spec/                 # OpenAPI 3.1 spec + Orval codegen config
+│   ├── api-client-react/         # Generated React Query hooks
+│   ├── api-zod/                  # Generated Zod schemas
+│   ├── db/                       # Drizzle schema (projects, golden_path_configs, sessions, users)
+│   ├── replit-auth-web/          # useAuth() React hook for Replit Auth
+│   └── integrations-openai-ai-server/  # OpenAI SDK client
+├── deployed-projects/            # Generated project files on disk (do not modify)
+├── scripts/                      # Utility scripts
+├── pnpm-workspace.yaml
+├── tsconfig.base.json            # Shared TS options (composite: true)
+└── tsconfig.json                 # Root TS project references
+```
+
+## Database Schema
+
+### `projects` table
+- `id` (UUID, PK)
+- `user_id` (text, nullable) — Replit Auth user ID
+- `prompt` (text)
+- `status` (enum: pending/planning/planned/generating/validating/ready/deployed/failed/failed_checks/failed_validation)
+- `spec` (JSONB, nullable) — `{ overview, fileStructure, apiEndpoints, databaseTables, middleware, architecturalDecisions }`
+- `files` (JSONB) — `[{ path, content }]`
+- `golden_path_checks` (JSONB) — `[{ name, passed, description, critical? }]`
+- `sandbox_id` (text, nullable)
+- `deploy_url` (text, nullable)
+- `pipeline_status` (JSONB, nullable) — `{ stages: [{ role, label, status, startedAt?, completedAt?, fileCount?, error? }], currentAgent? }`
+- `refinements` (JSONB) — `[{ prompt, timestamp, filesChanged[], goldenPathScore?, previousFiles? }]`
+- `error` (text, nullable)
+- `created_at` (timestamp)
+
+### `sessions` table
+- `sid` (varchar, PK) — 64-char hex session ID
+- `sess` (JSONB) — user info + OIDC tokens
+- `expire` (timestamp)
+
+### `users` table
+- `id` (text, PK) — Replit user ID from OIDC `sub`
+- `email` (text, nullable)
+- `first_name` / `last_name` (text, nullable)
+- `profile_image_url` (text, nullable)
+- `created_at` / `updated_at` (timestamps)
+
+### `golden_path_configs` table
+- `id` (UUID, PK)
+- `name` (varchar)
+- `description` (text, nullable)
+- `rules` (JSONB) — full GoldenPathConfigRules object
+- `is_active` (boolean, default false)
+- `created_at` / `updated_at` (timestamps)
+
+## Key Commands
+
+- **Typecheck:** `pnpm run typecheck` (from root)
+- **Build:** `pnpm run build`
+- **Push DB schema:** `pnpm --filter @workspace/db run push`
+- **Run codegen:** `pnpm --filter @workspace/api-spec run codegen`
+- **Production:** `pnpm --filter @workspace/idp-frontend run build && pnpm --filter @workspace/api-server run build` then `node artifacts/api-server/dist/index.cjs`
+
+## Environment Variables
+
+- `DATABASE_URL` — PostgreSQL connection string
+- `GEMINI_API_KEY` — Google Gemini Pro API key (primary AI provider)
+- `CSB_API_KEY` / `codesandbox_api` — CodeSandbox API key (optional, for sandbox deployment)
+- `REPL_ID`, `REPLIT_DOMAINS` — Set by Replit environment (used for OIDC redirect)
+- `PORT` — Frontend dev server port (set by Replit)
+
+## API Notes
+
+- **Auth endpoints** (`/api/login`, `/api/callback`, `/api/logout`, `/api/auth/user`) and `previousFiles` in refinement responses are NOT in the OpenAPI spec. Frontend uses `ExtendedRefineResponse` to extend generated types. If codegen is re-run, these casts must be preserved.
+- **CORS:** `origin: true` (allows all origins for dev).
+- **API server port:** 8080. Frontend port: dynamic via `$PORT`.
