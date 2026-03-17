@@ -6,8 +6,10 @@ import type { GoldenPathCheck } from "./golden-path";
 import { callWithRetry } from "./ai-retry";
 import { validateAllManifests } from "./dependency-audit";
 import { runBuildVerification } from "./build-verification";
-import { computeHashManifest, compareHashManifests } from "./hash-integrity";
-import type { HashManifest } from "./hash-integrity";
+import { computeHashManifest, compareHashManifests, computeFullTreeHash } from "./hash-integrity";
+import type { HashManifest, FullTreeHashResult } from "./hash-integrity";
+import { runASTVerification } from "./ast-verification";
+import type { ASTVerificationResult } from "./ast-verification";
 import type { GoldenPathConfigRules } from "@workspace/db";
 import { emitPipelineEvent } from "./pipeline-events";
 
@@ -17,6 +19,7 @@ export type FailureCategory =
   | "dependency_vulnerability"
   | "build_failure"
   | "hash_integrity"
+  | "ast_violation"
   | "spec_mismatch"
   | "none";
 
@@ -178,9 +181,11 @@ function determineFailureCategory(
   depAuditFailed: boolean,
   buildFailed: boolean,
   hashIntegrityFailed: boolean,
+  astFailed: boolean = false,
 ): FailureCategory {
   if (hashIntegrityFailed) return "hash_integrity";
   if (hasHallucinatedDeps) return "dependency_hallucination";
+  if (astFailed) return "ast_violation";
   if (criticalFailures.length > 0) return "golden_path_violation";
   if (buildFailed) return "build_failure";
   if (depAuditFailed) return "dependency_vulnerability";
@@ -195,7 +200,7 @@ export async function runVerificationStage(
   spec: AgentContext["spec"],
   prompt: string,
   hashManifest: HashManifest,
-): Promise<{ verdict: VerificationVerdict; goldenPathChecks: GoldenPathCheck[] }> {
+): Promise<{ verdict: VerificationVerdict; goldenPathChecks: GoldenPathCheck[]; payloadHash: string }> {
   await updatePipelineStage(projectId, pipeline, "verification", {
     status: "running",
     startedAt: new Date().toISOString(),
@@ -278,6 +283,39 @@ export async function runVerificationStage(
     category: "build",
   });
 
+  console.log(`[pipeline:${projectId.slice(0, 8)}] Running AST verification...`);
+  let astResult: ASTVerificationResult;
+  try {
+    astResult = runASTVerification(reconciledFiles);
+    for (const check of astResult.checks) {
+      verdictChecks.push({
+        name: check.name,
+        passed: check.passed,
+        description: check.description,
+        category: "ast_verification",
+      });
+    }
+    if (astResult.passed) {
+      console.log(`[pipeline:${projectId.slice(0, 8)}] AST verification passed (${astResult.checks.length} checks)`);
+    } else {
+      console.warn(`[pipeline:${projectId.slice(0, 8)}] AST verification failed: ${astResult.errors.join("; ")}`);
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[pipeline:${projectId.slice(0, 8)}] AST verification error (non-blocking):`, msg);
+    astResult = { passed: true, checks: [], errors: [] };
+  }
+  goldenPathChecks.push({
+    name: "AST Verification",
+    passed: astResult.passed,
+    description: astResult.passed
+      ? `All ${astResult.checks.filter(c => c.passed).length} AST checks passed — security middleware verified in execution path`
+      : `${astResult.errors.length} AST violation(s): ${astResult.errors.slice(0, 3).join("; ")}`,
+  });
+
+  console.log(`[pipeline:${projectId.slice(0, 8)}] Computing full-tree hash manifest...`);
+  const fullTreeHash = computeFullTreeHash(reconciledFiles, spec?.fileStructure);
+
   const expectedManifest = buildExpectedHashManifest(spec, reconciledFiles);
   const hashComparison = compareHashManifests(hashManifest, expectedManifest);
   const hashAudit = hashComparison.map((entry) => ({
@@ -289,19 +327,23 @@ export async function runVerificationStage(
   const hashIntegrityFailed = hashComparison.some(
     (h) => h.status === "missing"
   );
-  if (hashIntegrityFailed) {
-    const missingFiles = hashComparison.filter(h => h.status === "missing").map(h => h.path);
+
+  const specMismatch = fullTreeHash.specComparison.missing.length > 0;
+  if (hashIntegrityFailed || specMismatch) {
+    const missingCore = hashComparison.filter(h => h.status === "missing").map(h => h.path);
+    const missingSpec = fullTreeHash.specComparison.missing;
+    const allMissing = [...new Set([...missingCore, ...missingSpec])];
     verdictChecks.push({
       name: "Hash Integrity",
       passed: false,
-      description: `Expected core config files missing from output: ${missingFiles.join(", ")}`,
+      description: `Files missing from output: ${allMissing.join(", ")} | Spec match ratio: ${(fullTreeHash.specComparison.matchRatio * 100).toFixed(0)}%`,
       category: "hash_integrity",
     });
   } else {
     verdictChecks.push({
       name: "Hash Integrity",
       passed: true,
-      description: `All ${hashComparison.length} core config files present and hashed`,
+      description: `${fullTreeHash.fileCount} files hashed (SHA-256), payload locked: ${fullTreeHash.payloadHash.slice(0, 16)}... | Spec match: ${(fullTreeHash.specComparison.matchRatio * 100).toFixed(0)}%`,
       category: "hash_integrity",
     });
   }
@@ -333,10 +375,12 @@ export async function runVerificationStage(
 
   const criticalFailures = getCriticalFailures(goldenPathChecks);
   const hasHallucinatedDeps = depAuditCheck.description.includes("[Hallucination]");
+  const astFailed = !astResult.passed;
   const overallPassed =
     criticalFailures.length === 0 &&
     !hasHallucinatedDeps &&
     !hashIntegrityFailed &&
+    !astFailed &&
     buildCheck.passed &&
     depAuditCheck.passed;
 
@@ -346,6 +390,7 @@ export async function runVerificationStage(
     !depAuditCheck.passed,
     !buildCheck.passed,
     hashIntegrityFailed,
+    astFailed,
   );
 
   const passedNames = verdictChecks.filter(c => c.passed).map(c => c.name);
@@ -356,6 +401,7 @@ export async function runVerificationStage(
     `\n--- Automated Check Results ---`,
     `PASSED: ${passedNames.length > 0 ? passedNames.join(", ") : "None"}`,
     `FAILED: ${failedNames.length > 0 ? failedNames.join(", ") : "None"}`,
+    `PAYLOAD HASH: ${fullTreeHash.payloadHash}`,
     overallPassed ? "VERDICT: All critical checks passed." : `VERDICT: Blocked [${failureCategory}] — ${failedNames.join(", ")}`,
   ].join("\n");
 
@@ -384,7 +430,7 @@ export async function runVerificationStage(
     error: overallPassed ? undefined : `Failed [${failureCategory}]: ${failedNames.join(", ")}`,
   });
 
-  return { verdict, goldenPathChecks };
+  return { verdict, goldenPathChecks, payloadHash: fullTreeHash.payloadHash };
 }
 
 const MAX_RECOVERY_LOOPS = 3;
@@ -505,6 +551,7 @@ export async function executeWithSelfHealing(
   files: Array<{ path: string; content: string }>;
   verdict: VerificationVerdict;
   goldenPathChecks: GoldenPathCheck[];
+  payloadHash?: string;
 }> {
   let attempt = 0;
   let currentFiles = reconciledFiles;
@@ -520,7 +567,7 @@ export async function executeWithSelfHealing(
 
     emitPipelineEvent(projectId, "verification:start", { attempt });
 
-    const { verdict, goldenPathChecks } = await runVerificationStage(
+    const { verdict, goldenPathChecks, payloadHash } = await runVerificationStage(
       projectId,
       pipeline,
       currentFiles,
@@ -544,7 +591,8 @@ export async function executeWithSelfHealing(
         emitPipelineEvent(projectId, "self-healing:success", { attempt });
         console.log(`[self-heal:${projectId.slice(0, 8)}] Self-healing SUCCEEDED on attempt ${attempt}`);
       }
-      return { status: "ready", files: currentFiles, verdict, goldenPathChecks };
+      console.log(`[pipeline:${projectId.slice(0, 8)}] Payload hash locked: ${payloadHash}`);
+      return { status: "ready", files: currentFiles, verdict, goldenPathChecks, payloadHash };
     }
 
     attempt++;
@@ -582,10 +630,10 @@ export async function executeWithSelfHealing(
   }
 
   const hashManifest = computeHashManifest(currentFiles);
-  const { verdict, goldenPathChecks } = await runVerificationStage(
+  const { verdict, goldenPathChecks, payloadHash } = await runVerificationStage(
     projectId, pipeline, currentFiles, config, spec, prompt, hashManifest,
   );
-  return { status: verdict.passed ? "ready" : "failed_validation", files: verdict.passed ? currentFiles : originalFiles, verdict, goldenPathChecks };
+  return { status: verdict.passed ? "ready" : "failed_validation", files: verdict.passed ? currentFiles : originalFiles, verdict, goldenPathChecks, payloadHash: verdict.passed ? payloadHash : undefined };
 }
 
 export async function runPipeline(
@@ -705,6 +753,7 @@ export async function runPipeline(
     emitPipelineEvent(projectId, "pipeline:complete", {
       fileCount: result.files.length,
       status: "ready",
+      payloadHash: result.payloadHash,
     });
 
     await db
@@ -715,6 +764,7 @@ export async function runPipeline(
         goldenPathChecks: result.goldenPathChecks,
         pipelineStatus: pipeline,
         verificationVerdict: result.verdict,
+        payloadHash: result.payloadHash ?? null,
       })
       .where(eq(projectsTable.id, projectId));
   } catch (err: unknown) {

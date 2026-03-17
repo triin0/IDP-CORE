@@ -31,7 +31,7 @@ export const projectsTable = pgTable("projects", {
   }>(),
   verificationVerdict: jsonb("verification_verdict").$type<{
     passed: boolean;
-    failureCategory: "golden_path_violation" | "dependency_hallucination" | "dependency_vulnerability" | "build_failure" | "hash_integrity" | "spec_mismatch" | "none";
+    failureCategory: "golden_path_violation" | "dependency_hallucination" | "dependency_vulnerability" | "build_failure" | "hash_integrity" | "ast_violation" | "spec_mismatch" | "none";
     summary: string;
     checks: Array<{
       name: string;
@@ -58,6 +58,7 @@ export const projectsTable = pgTable("projects", {
     filesChanged: string[];
     goldenPathScore?: string;
   }>>().default([]),
+  payloadHash: text("payload_hash"),
   error: text("error"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

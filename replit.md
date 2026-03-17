@@ -19,8 +19,10 @@ The IDP is a pnpm workspace monorepo with an Express 5 API server (orchestration
 *   **AI Provider Layer:** Dual providers — Gemini Pro (`gemini-2.5-pro`, 65K output tokens) and OpenAI (`gpt-5.2`, 16K output tokens). Built-in retry logic and **token continuation loop** (up to 4 continuations on `MAX_TOKENS`). Agent-specific token limits: Architect 32K, Backend/Frontend 65K, Security 32K, Verification 16K, Fixer 32K.
 *   **Orphan Recovery:** On startup, restarts AI processing for projects stuck in `planning`/`generating`/`validating`. Sequential with try/catch — failures update status to `failed`.
 *   **Golden Path Engine:** Eleven automated compliance checks covering structure, security, validation (Zod), database, error handling, and TypeScript. Critical checks (Security Headers, Input Validation, No Hardcoded Secrets) block `ready` status. Smart import detection strips comments to avoid false positives. Config-driven via `golden_path_configs` table.
-*   **Dependency Audit:** Validates AI-generated npm packages: existence (hallucination guard), age (< 30 days = slopsquatting), popularity (< 1000 weekly downloads), CVEs (OSV database). Key file: `dependency-audit.ts`.
-*   **Build Verification:** Writes generated files to temp directory, runs `npm install && npm run build` with path traversal protection. Key file: `build-verification.ts`.
+*   **AST-Level Verification (ts-morph):** Parses generated TypeScript via Abstract Syntax Tree to programmatically verify security middleware exists in the execution path. Checks: helmet() CallExpression before routes, cors() invocation, rate-limit import, Zod validation import, global error handler (4-param middleware). Failures trigger `ast_violation` category in self-healing loop. Key file: `ast-verification.ts`.
+*   **Dependency Audit (OSV Guard):** Validates AI-generated npm packages: existence (hallucination guard), age (< 30 days = slopsquatting), popularity (< 1000 weekly downloads), CVEs (OSV database). Runs before build. Key file: `dependency-audit.ts`.
+*   **Build Verification (Closed-Loop Compiler):** Writes generated files to temp directory, runs `npm install && npm run build`, captures exit code + stderr. On failure, feeds stderr to Fixer Agent for automated repair. 120s timeout. Key file: `build-verification.ts`.
+*   **Cryptographic Hash Manifest:** SHA-256 hashes every generated file, compares full tree against Architect spec's `fileStructure` array (match ratio), computes aggregate payload hash for entire project. Payload hash locked in PostgreSQL `payload_hash` column on verification pass. Prevents shadow branches and silently dropped files. Key file: `hash-integrity.ts`.
 *   **Authentication & Multi-Tenancy:** Replit Auth (OIDC with PKCE). Server-side PostgreSQL sessions with httpOnly secure cookies. `requireAuth` middleware on all mutation routes. `loadOwnedProject()` helper enforces ownership (IDOR prevention). Project list scoped to authenticated user. Key files: `lib/auth.ts`, `middlewares/authMiddleware.ts`, `routes/auth.ts`.
 *   **Iterative Refinement:** Delta-only regeneration using existing files + spec as context. Saves `previousFiles` snapshot before merge for diff viewing. Full verification stage after refinement. History tracked in `refinements` JSONB array. Key file: `refine.ts`.
 *   **Deployment:** CodeSandbox cloud VMs (when `CSB_API_KEY`/`codesandbox_api` set) for live previews at `*.csb.app`. Falls back to static HTML. Key file: `sandbox.ts`.
@@ -105,6 +107,7 @@ The IDP is a pnpm workspace monorepo with an Express 5 API server (orchestration
 - `deploy_url` (text, nullable)
 - `pipeline_status` (JSONB, nullable) — `{ stages: [{ role, label, status, startedAt?, completedAt?, fileCount?, error? }], currentAgent? }`
 - `refinements` (JSONB) — `[{ prompt, timestamp, filesChanged[], goldenPathScore?, previousFiles? }]`
+- `payload_hash` (text, nullable) — SHA-256 aggregate hash of entire file tree, locked on verification pass
 - `error` (text, nullable)
 - `created_at` (timestamp)
 
