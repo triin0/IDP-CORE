@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import YAML from "yaml";
 import {
   useListGoldenPathConfigs,
   useGetActiveGoldenPathConfig,
@@ -25,6 +26,7 @@ import {
   ChevronDown,
   ChevronRight,
   Zap,
+  Upload,
 } from "lucide-react";
 
 interface GoldenPathRule {
@@ -293,6 +295,7 @@ export function Settings() {
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (activeData && !editingRules) {
@@ -387,13 +390,51 @@ export function Settings() {
 
   const handleJsonApply = () => {
     try {
-      const parsed = JSON.parse(jsonText);
+      let parsed: ConfigRules;
+      try {
+        parsed = JSON.parse(jsonText) as ConfigRules;
+      } catch {
+        parsed = YAML.parse(jsonText) as ConfigRules;
+      }
+      if (!parsed || !parsed.techStack || !parsed.checks) {
+        setJsonError("Missing required fields (techStack, checks)");
+        return;
+      }
       setEditingRules(parsed);
       setJsonError(null);
       setShowJsonEditor(false);
     } catch (e) {
-      setJsonError(e instanceof Error ? e.message : "Invalid JSON");
+      setJsonError(e instanceof Error ? e.message : "Invalid JSON/YAML");
     }
+  };
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      try {
+        let parsed: ConfigRules;
+        if (file.name.endsWith(".yaml") || file.name.endsWith(".yml")) {
+          parsed = YAML.parse(text) as ConfigRules;
+        } else {
+          parsed = JSON.parse(text) as ConfigRules;
+        }
+        if (!parsed.techStack || !parsed.checks) {
+          toast({ title: "Import failed", description: "File missing required fields (techStack, checks)", variant: "destructive" });
+          return;
+        }
+        setEditingRules(parsed);
+        setConfigName(file.name.replace(/\.(json|ya?ml)$/i, ""));
+        setEditingId(null);
+        toast({ title: "Config imported", description: `Loaded from ${file.name}` });
+      } catch (err) {
+        toast({ title: "Import failed", description: err instanceof Error ? err.message : "Invalid file format", variant: "destructive" });
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const updateRules = (path: string, value: unknown) => {
@@ -433,11 +474,25 @@ export function Settings() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,.yaml,.yml"
+              onChange={handleFileImport}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono text-zinc-400 border border-zinc-700/50 rounded hover:bg-zinc-800 transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              IMPORT
+            </button>
             <button
               onClick={handleJsonToggle}
               className="px-3 py-1.5 text-xs font-mono text-zinc-400 border border-zinc-700/50 rounded hover:bg-zinc-800 transition-colors"
             >
-              {showJsonEditor ? "VISUAL" : "JSON"}
+              {showJsonEditor ? "VISUAL" : "JSON/YAML"}
             </button>
             <button
               onClick={handleReset}
