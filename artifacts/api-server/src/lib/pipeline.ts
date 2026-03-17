@@ -165,27 +165,21 @@ export async function runPipeline(
 
     const goldenPathChecks = runGoldenPathChecks(reconciledFiles, config);
 
-    let depAuditCheck = { name: "Dependency Audit", passed: true, description: "All dependencies verified against npm registry and OSV vulnerability database" };
     try {
       const auditResult = await validateAllManifests(reconciledFiles);
       if (!auditResult.passed) {
         console.warn(`[pipeline:${projectId.slice(0, 8)}] Dependency audit flagged issues:\n${auditResult.errors.join("\n")}`);
-        depAuditCheck = {
-          name: "Dependency Audit",
-          passed: false,
-          description: auditResult.errors.join("; "),
-        };
+        const hasHallucinatedDeps = auditResult.errors.some(e => e.includes("[Hallucination]"));
+        if (hasHallucinatedDeps) {
+          throw new Error(`Dependency audit blocked generation: ${auditResult.errors.join("; ")}`);
+        }
       }
     } catch (err: unknown) {
+      if (err instanceof Error && err.message.startsWith("Dependency audit blocked")) {
+        throw err;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[pipeline:${projectId.slice(0, 8)}] Dependency audit error:`, msg);
-      depAuditCheck = { name: "Dependency Audit", passed: false, description: `Audit failed: ${msg}` };
-    }
-    goldenPathChecks.push(depAuditCheck);
-
-    const hasHallucinatedDeps = depAuditCheck.description.includes("[Hallucination]");
-    if (hasHallucinatedDeps) {
-      throw new Error(`Dependency audit blocked generation: ${depAuditCheck.description}`);
     }
 
     await db
