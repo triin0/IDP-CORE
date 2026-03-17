@@ -330,7 +330,12 @@ export async function runVerificationStage(
 
   const criticalFailures = getCriticalFailures(goldenPathChecks);
   const hasHallucinatedDeps = depAuditCheck.description.includes("[Hallucination]");
-  const overallPassed = criticalFailures.length === 0 && !hasHallucinatedDeps && !hashIntegrityFailed;
+  const overallPassed =
+    criticalFailures.length === 0 &&
+    !hasHallucinatedDeps &&
+    !hashIntegrityFailed &&
+    buildCheck.passed &&
+    depAuditCheck.passed;
 
   const failureCategory = determineFailureCategory(
     criticalFailures,
