@@ -2,10 +2,12 @@ import express, { type Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import router from "./routes";
+import { authMiddleware } from "./middlewares/authMiddleware";
 
 const currentDir =
   typeof __dirname !== "undefined"
@@ -14,14 +16,11 @@ const currentDir =
 
 const app: Express = express();
 
+app.set("trust proxy", 1);
 app.use(helmet());
 
-const corsOrigin = process.env["FRONTEND_URL"]
-  || (process.env["REPLIT_DEV_DOMAIN"] ? `https://${process.env["REPLIT_DEV_DOMAIN"]}` : null)
-  || "http://localhost:21820";
-
 app.use(cors({
-  origin: corsOrigin,
+  origin: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   credentials: true,
 }));
@@ -36,8 +35,10 @@ const apiLimiter = rateLimit({
 
 app.use("/api/projects", apiLimiter);
 
+app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
+app.use(authMiddleware);
 
 app.use("/api", router);
 

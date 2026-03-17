@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 export const projectsTable = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id"),
   prompt: text("prompt").notNull(),
   status: text("status", { enum: ["pending", "planning", "planned", "generating", "validating", "ready", "deployed", "failed", "failed_checks", "failed_validation"] }).notNull().default("pending"),
   spec: jsonb("spec").$type<{

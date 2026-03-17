@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { eq, desc, count, and } from "drizzle-orm";
 import { db, projectsTable } from "@workspace/db";
 import {
@@ -21,6 +21,38 @@ import { deleteSandbox, cleanupStaleSandboxes } from "../lib/sandbox";
 import { pipelineEvents, type PipelineEvent } from "../lib/pipeline-events";
 
 const router: IRouter = Router();
+
+function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+  next();
+}
+
+async function loadOwnedProject(req: Request, res: Response, id: string) {
+  if (!UUID_REGEX.test(id)) {
+    res.status(404).json({ error: "Project not found" });
+    return null;
+  }
+
+  const [project] = await db
+    .select()
+    .from(projectsTable)
+    .where(eq(projectsTable.id, id));
+
+  if (!project) {
+    res.status(404).json({ error: "Project not found" });
+    return null;
+  }
+
+  if (project.userId && req.user && project.userId !== req.user.id) {
+    res.status(403).json({ error: "Access denied" });
+    return null;
+  }
+
+  return project;
+}
 
 interface GoldenPathCheckRecord {
   name: string;
@@ -72,7 +104,7 @@ interface FileRecord {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-router.get("/projects", async (req, res) => {
+router.get("/projects", requireAuth, async (req, res) => {
   let limit: number;
   let offset: number;
   try {
@@ -86,12 +118,16 @@ router.get("/projects", async (req, res) => {
   }
 
   try {
-    const [totalResult] = await db.select({ value: count() }).from(projectsTable);
+    const userId = req.user!.id;
+    const whereClause = eq(projectsTable.userId, userId);
+
+    const [totalResult] = await db.select({ value: count() }).from(projectsTable).where(whereClause);
     const total = totalResult?.value ?? 0;
 
     const projects = await db
       .select()
       .from(projectsTable)
+      .where(whereClause)
       .orderBy(desc(projectsTable.createdAt))
       .limit(limit)
       .offset(offset);
@@ -122,7 +158,7 @@ router.get("/projects", async (req, res) => {
   }
 });
 
-router.post("/projects/cleanup-sandboxes", async (_req, res) => {
+router.post("/projects/cleanup-sandboxes", requireAuth, async (_req, res) => {
   try {
     const cleaned = await cleanupStaleSandboxes(72);
     res.json({ cleaned, message: `Cleaned ${cleaned} stale sandbox(es) older than 72 hours` });
@@ -133,13 +169,13 @@ router.post("/projects/cleanup-sandboxes", async (_req, res) => {
   }
 });
 
-router.post("/projects", async (req, res) => {
+router.post("/projects", requireAuth, async (req, res) => {
   try {
     const body = CreateProjectBody.parse(req.body);
 
     const [project] = await db
       .insert(projectsTable)
-      .values({ prompt: body.prompt })
+      .values({ prompt: body.prompt, userId: req.user!.id })
       .returning();
 
     generateProjectSpec(project.id, body.prompt).catch((err: unknown) => {
@@ -159,20 +195,8 @@ router.get("/projects/:id", async (req, res) => {
   try {
     const { id } = GetProjectParams.parse(req.params);
 
-    if (!UUID_REGEX.test(id)) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
-
-    const [project] = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.id, id));
-
-    if (!project) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
 
     res.json({
       id: project.id,
@@ -196,14 +220,12 @@ router.get("/projects/:id", async (req, res) => {
   }
 });
 
-router.post("/projects/:id/approve-spec", async (req, res) => {
+router.post("/projects/:id/approve-spec", requireAuth, async (req, res) => {
   try {
     const { id } = ApproveSpecParams.parse(req.params);
 
-    if (!UUID_REGEX.test(id)) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    const owned = await loadOwnedProject(req, res, id);
+    if (!owned) return;
 
     const result = await db
       .update(projectsTable)
@@ -257,24 +279,12 @@ router.post("/projects/:id/approve-spec", async (req, res) => {
   }
 });
 
-router.post("/projects/:id/regenerate-spec", async (req, res) => {
+router.post("/projects/:id/regenerate-spec", requireAuth, async (req, res) => {
   try {
     const { id } = RegenerateSpecParams.parse(req.params);
 
-    if (!UUID_REGEX.test(id)) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
-
-    const [project] = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.id, id));
-
-    if (!project) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
 
     if (project.status !== "planned" && project.status !== "failed" && project.status !== "failed_checks" && project.status !== "failed_validation") {
       res.status(400).json({
@@ -301,25 +311,13 @@ router.post("/projects/:id/regenerate-spec", async (req, res) => {
   }
 });
 
-router.patch("/projects/:id/update-spec", async (req, res) => {
+router.patch("/projects/:id/update-spec", requireAuth, async (req, res) => {
   try {
     const { id } = UpdateSpecParams.parse(req.params);
     const updates = UpdateSpecBody.parse(req.body);
 
-    if (!UUID_REGEX.test(id)) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
-
-    const [project] = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.id, id));
-
-    if (!project) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
 
     if (project.status !== "planned") {
       res.status(400).json({
@@ -369,7 +367,7 @@ router.patch("/projects/:id/update-spec", async (req, res) => {
   }
 });
 
-router.post("/projects/:id/refine", async (req, res) => {
+router.post("/projects/:id/refine", requireAuth, async (req, res) => {
   try {
     let id: string;
     let body: { prompt: string };
@@ -383,20 +381,8 @@ router.post("/projects/:id/refine", async (req, res) => {
       return;
     }
 
-    if (!UUID_REGEX.test(id)) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
-
-    const [project] = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.id, id));
-
-    if (!project) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
 
     if (project.status !== "ready" && project.status !== "deployed") {
       res.status(400).json({
@@ -411,6 +397,8 @@ router.post("/projects/:id/refine", async (req, res) => {
       id,
       status: result.status,
       filesChanged: result.filesChanged,
+      previousFiles: result.previousFiles,
+      files: result.files,
       goldenPathChecks: result.goldenPathChecks,
       refinement: result.refinement,
       verificationVerdict: result.verificationVerdict,
@@ -422,24 +410,12 @@ router.post("/projects/:id/refine", async (req, res) => {
   }
 });
 
-router.post("/projects/:id/deploy", async (req, res) => {
+router.post("/projects/:id/deploy", requireAuth, async (req, res) => {
   try {
     const { id } = DeployProjectParams.parse(req.params);
 
-    if (!UUID_REGEX.test(id)) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
-
-    const [project] = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.id, id));
-
-    if (!project) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
 
     if (project.status !== "ready" && project.status !== "deployed") {
       res.status(400).json({
@@ -467,20 +443,8 @@ router.get("/projects/:id/preview", async (req, res) => {
   try {
     const { id } = GetProjectParams.parse(req.params);
 
-    if (!UUID_REGEX.test(id)) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
-
-    const [project] = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.id, id));
-
-    if (!project) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
 
     const files = (project.files as Array<{ path: string; content: string }>) || [];
     const checks = (project.goldenPathChecks as Array<{ name: string; passed: boolean; description?: string }>) || [];
@@ -500,24 +464,12 @@ router.get("/projects/:id/preview", async (req, res) => {
   }
 });
 
-router.delete("/projects/:id", async (req, res) => {
+router.delete("/projects/:id", requireAuth, async (req, res) => {
   try {
     const { id } = GetProjectParams.parse(req.params);
 
-    if (!UUID_REGEX.test(id)) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
-
-    const [project] = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.id, id));
-
-    if (!project) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
 
     if (project.sandboxId) {
       const sandboxDeleted = await deleteSandbox(project.sandboxId);

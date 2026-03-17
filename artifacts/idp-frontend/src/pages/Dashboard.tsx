@@ -1,9 +1,10 @@
 import { useListProjects } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
-import { Plus, FolderCode, Rocket, Clock, AlertTriangle, Loader2, CheckCircle2, XCircle, Lightbulb, FileCheck } from "lucide-react";
+import { Plus, FolderCode, Rocket, Clock, AlertTriangle, Loader2, CheckCircle2, XCircle, Lightbulb, FileCheck, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@workspace/replit-auth-web";
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   pending: { label: "PENDING", color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20", icon: Clock },
@@ -20,7 +21,30 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 
 export function Dashboard() {
   const [, navigate] = useLocation();
-  const { data, isLoading, isError } = useListProjects({ limit: 50, offset: 0 });
+  const { isAuthenticated, isLoading: authLoading, login } = useAuth();
+  const projectsQuery = useListProjects(
+    { limit: 50, offset: 0 },
+    { query: { enabled: isAuthenticated } as never },
+  );
+  const data = isAuthenticated ? projectsQuery.data : undefined;
+  const isLoading = authLoading || (isAuthenticated && projectsQuery.isLoading);
+  const isError = isAuthenticated && projectsQuery.isError;
+
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center max-w-6xl mx-auto w-full px-6 py-8">
+        <LogIn className="w-16 h-16 text-zinc-700 mb-4" />
+        <h2 className="text-xl font-mono text-zinc-400 mb-2">SIGN_IN_REQUIRED</h2>
+        <p className="text-sm text-zinc-600 font-mono mb-6">Log in with your Replit account to view and manage projects.</p>
+        <button
+          onClick={login}
+          className="px-6 py-2.5 bg-primary text-primary-foreground font-mono text-sm rounded-lg hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all"
+        >
+          LOGIN
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full px-6 py-8">

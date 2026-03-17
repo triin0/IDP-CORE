@@ -15,10 +15,12 @@ interface RefinementRecord {
   timestamp: string;
   filesChanged: string[];
   goldenPathScore: string;
+  previousFiles?: Array<{ path: string; content: string }>;
 }
 
 interface RefinementResult {
   files: Array<{ path: string; content: string }>;
+  previousFiles: Array<{ path: string; content: string }>;
   goldenPathChecks: GoldenPathCheck[];
   filesChanged: string[];
   status: string;
@@ -178,6 +180,15 @@ export async function refineProject(
 
     const changedPaths = deltaFiles.map((f) => f.path);
 
+    const previousFiles: Array<{ path: string; content: string }> = [];
+    for (const delta of deltaFiles) {
+      const existing = existingFiles.find((f) => f.path === delta.path);
+      previousFiles.push({
+        path: delta.path,
+        content: existing?.content ?? "",
+      });
+    }
+
     const mergedFiles = [...existingFiles];
     for (const delta of deltaFiles) {
       const existingIdx = mergedFiles.findIndex((f) => f.path === delta.path);
@@ -244,6 +255,7 @@ export async function refineProject(
       timestamp: new Date().toISOString(),
       filesChanged: changedPaths,
       goldenPathScore,
+      previousFiles,
     };
 
     const existingRefinements = (project.refinements ?? []) as RefinementRecord[];
@@ -267,6 +279,7 @@ export async function refineProject(
 
       return {
         files: healedFiles,
+        previousFiles,
         goldenPathChecks,
         filesChanged: changedPaths,
         status: "ready",
@@ -291,6 +304,7 @@ export async function refineProject(
 
       return {
         files: existingFiles,
+        previousFiles: [],
         goldenPathChecks,
         filesChanged: [],
         status: "failed_validation",

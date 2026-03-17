@@ -1,19 +1,27 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRefineProject } from "@workspace/api-client-react";
-import type { ProjectRefinement } from "@workspace/api-client-react";
-import { Send, Loader2, ChevronDown, ChevronUp, FileCode2, CheckCircle2, Clock } from "lucide-react";
+import type { ProjectRefinement, RefineProjectResponse } from "@workspace/api-client-react";
+import { Send, Loader2, ChevronDown, ChevronUp, FileCode2, CheckCircle2, Clock, GitCompare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { DiffViewer, type DiffFile } from "./DiffViewer";
+
+interface ExtendedRefineResponse extends RefineProjectResponse {
+  previousFiles?: Array<{ path: string; content: string }>;
+  files?: Array<{ path: string; content: string }>;
+}
 
 interface RefinementChatProps {
   projectId: string;
   refinements: ProjectRefinement[];
+  projectFiles: Array<{ path: string; content: string }>;
 }
 
-export function RefinementChat({ projectId, refinements }: RefinementChatProps) {
+export function RefinementChat({ projectId, refinements, projectFiles }: RefinementChatProps) {
   const [prompt, setPrompt] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [diffFiles, setDiffFiles] = useState<DiffFile[] | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
 
@@ -27,13 +35,54 @@ export function RefinementChat({ projectId, refinements }: RefinementChatProps) 
     refineMut.mutate(
       { id: projectId, data: { prompt: trimmed } },
       {
-        onSuccess: () => {
+        onSuccess: (rawData) => {
           setPrompt("");
           queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}`] });
+
+          const data = rawData as ExtendedRefineResponse;
+          const previousFilesData = data.previousFiles ?? [];
+          const filesChanged = data.filesChanged ?? [];
+
+          if (previousFilesData.length > 0 && filesChanged.length > 0) {
+            const newFiles = data.files ?? projectFiles;
+            const diffs: DiffFile[] = filesChanged.map((changedPath) => {
+              const prev = previousFilesData.find((f) => f.path === changedPath);
+              const current = newFiles.find((f) => f.path === changedPath);
+
+              return {
+                path: changedPath,
+                oldContent: prev?.content ?? "",
+                newContent: current?.content ?? "",
+              };
+            }).filter((d) => d.oldContent !== d.newContent || !d.oldContent);
+
+            if (diffs.length > 0) {
+              setDiffFiles(diffs);
+            }
+          }
         },
       },
     );
   };
+
+  const showDiffFromHistory = useCallback((refinement: ProjectRefinement) => {
+    const prevFiles = (refinement as unknown as Record<string, unknown>).previousFiles as
+      Array<{ path: string; content: string }> | undefined;
+
+    if (!prevFiles || prevFiles.length === 0) return;
+
+    const diffs: DiffFile[] = refinement.filesChanged.map((changedPath) => {
+      const prev = prevFiles.find((f) => f.path === changedPath);
+      const current = projectFiles.find((f) => f.path === changedPath);
+      return {
+        path: changedPath,
+        oldContent: prev?.content ?? "",
+        newContent: current?.content ?? "",
+      };
+    });
+
+    setDiffFiles(diffs);
+  }, [projectFiles]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -47,6 +96,14 @@ export function RefinementChat({ projectId, refinements }: RefinementChatProps) 
       inputRef.current.focus();
     }
   }, [isRefining]);
+
+  if (diffFiles) {
+    return (
+      <div className="border-t border-border" style={{ height: "50vh" }}>
+        <DiffViewer files={diffFiles} onClose={() => setDiffFiles(null)} />
+      </div>
+    );
+  }
 
   return (
     <div className="border-t border-border bg-card">
@@ -88,7 +145,7 @@ export function RefinementChat({ projectId, refinements }: RefinementChatProps) 
                       </p>
                       {r.response && (
                         <p className="text-[10px] text-zinc-400 font-mono mt-0.5 truncate">
-                          → {r.response}
+                          {"\u2192"} {r.response}
                         </p>
                       )}
                       <div className="flex items-center gap-3 mt-1">
@@ -105,6 +162,15 @@ export function RefinementChat({ projectId, refinements }: RefinementChatProps) 
                             <CheckCircle2 className="w-2.5 h-2.5" />
                             {r.goldenPathScore}
                           </span>
+                        )}
+                        {Boolean((r as unknown as Record<string, unknown>).previousFiles) && (
+                          <button
+                            onClick={() => showDiffFromHistory(r)}
+                            className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors"
+                          >
+                            <GitCompare className="w-2.5 h-2.5" />
+                            View Diff
+                          </button>
                         )}
                       </div>
                     </div>

@@ -9,8 +9,9 @@ import { ProjectView } from "@/pages/ProjectView";
 import { Settings } from "@/pages/Settings";
 import { Preview } from "@/pages/Preview";
 import NotFound from "@/pages/not-found";
-import { Terminal, Plus, LayoutGrid, Settings2 } from "lucide-react";
+import { Terminal, Plus, LayoutGrid, Settings2, LogIn, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@workspace/replit-auth-web";
 
 const queryClient = new QueryClient();
 
@@ -68,9 +69,58 @@ function NavHeader() {
             </Link>
           </nav>
         </div>
-        <HealthIndicator />
+        <div className="flex items-center gap-3">
+          <HealthIndicator />
+          <AuthButton />
+        </div>
       </div>
     </header>
+  );
+}
+
+function AuthButton() {
+  const { user, isLoading, isAuthenticated, login, logout } = useAuth();
+
+  if (isLoading) {
+    return <div className="w-8 h-8 rounded-full bg-zinc-800 animate-pulse" />;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <button
+        onClick={login}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors"
+      >
+        <LogIn className="w-3.5 h-3.5" />
+        LOGIN
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {user?.profileImageUrl ? (
+        <img
+          src={user.profileImageUrl}
+          alt={user.firstName || "User"}
+          className="w-7 h-7 rounded-full border border-border"
+        />
+      ) : (
+        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
+          <User className="w-3.5 h-3.5 text-primary" />
+        </div>
+      )}
+      <span className="text-xs font-mono text-zinc-400 hidden sm:inline">
+        {user?.firstName || user?.email || "User"}
+      </span>
+      <button
+        onClick={logout}
+        className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors"
+        title="Logout"
+      >
+        <LogOut className="w-3.5 h-3.5" />
+      </button>
+    </div>
   );
 }
 

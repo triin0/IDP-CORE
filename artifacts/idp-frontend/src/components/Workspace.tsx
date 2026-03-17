@@ -275,6 +275,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
             <RefinementChat
               projectId={project.id}
               refinements={project.refinements ?? []}
+              projectFiles={(project.files ?? []) as Array<{ path: string; content: string }>}
             />
           )}
         </div>
