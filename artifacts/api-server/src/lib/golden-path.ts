@@ -79,6 +79,7 @@ ${errorRules.map(r => `   - ${r}`).join("\n")}
 7. **Code Quality**:
    - Complete, functional code — no stubs or TODOs.
    - Modular file organization.
+${config.checks.length > 0 ? `8. **Compliance Requirements**:\n${config.checks.map(c => `   - ${c.name}: ${c.promptInstruction}`).join("\n")}` : ""}
 
 ### TASK
 Generate the requested application following these rules. Ensure the code is modular, documented with brief inline comments, and ready to be built via \`npm install && npm run build\`.
