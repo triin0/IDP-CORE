@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Clock, RotateCcw, Check, AlertCircle, Trash2,
   ChevronRight, Loader2, Sparkles, Camera, Database,
-  Wrench, Code2, Eraser, Undo2, History,
+  Wrench, Code2, Eraser, Undo2, History, Bug,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,7 @@ const TRIGGER_META: Record<string, { icon: typeof Clock; color: string; label: s
   pre_wipe: { icon: Eraser, color: "text-red-400", label: "Pre-Wipe" },
   pre_inject: { icon: Database, color: "text-amber-400", label: "Pre-Inject" },
   pre_restore: { icon: Undo2, color: "text-orange-400", label: "Pre-Restore" },
+  pre_decrypt: { icon: Bug, color: "text-amber-400", label: "Pre-Fix" },
   manual: { icon: Camera, color: "text-emerald-400", label: "Manual" },
 };
 

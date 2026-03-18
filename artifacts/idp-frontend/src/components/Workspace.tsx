@@ -21,6 +21,7 @@ import { BuildGate } from "./BuildGate";
 import { AppAnatomy } from "./AppAnatomy";
 import { SnapshotTimeline } from "./SnapshotTimeline";
 import { SeedDataGenerator } from "./SeedDataGenerator";
+import { ErrorDecryptorOverlay } from "./ErrorDecryptorOverlay";
 import { useXRayInspector } from "@/hooks/useXRayInspector";
 import {
   Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2,
@@ -655,6 +656,7 @@ function SandpackWorkspaceInner({
   deleteMut: { isPending: boolean };
   onSnapshotRestore: () => void;
 }) {
+  const queryClient = useQueryClient();
   const editorRef = useRef<{ getCodemirror: () => unknown } | null>(null);
   const { inspectActive, toggleInspect, lastSelected } = useXRayInspector(editorRef);
   const hasAnnotations = Array.isArray(project.annotatedFiles) && project.annotatedFiles.length > 0;
@@ -698,6 +700,14 @@ function SandpackWorkspaceInner({
                     <span className="truncate">{lastSelected}</span>
                   </div>
                 )}
+                <ErrorDecryptorOverlay
+                  projectId={project.id}
+                  onFixApplied={() => {
+                    queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}`] });
+                    queryClient.invalidateQueries({ queryKey: ["snapshots", project.id] });
+                    onSnapshotRestore();
+                  }}
+                />
               </div>
             </SandpackLayout>
           </ResizablePanel>

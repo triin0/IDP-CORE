@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { eq, and, desc } from "drizzle-orm";
 import { db, projectsTable, fileBlobsTable, snapshotsTable } from "@workspace/db";
 
-type SnapshotTrigger = "pre_generate" | "pre_refine" | "pre_wipe" | "pre_inject" | "pre_restore" | "manual";
+type SnapshotTrigger = "pre_generate" | "pre_refine" | "pre_wipe" | "pre_inject" | "pre_restore" | "pre_decrypt" | "manual";
 
 function hashContent(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");

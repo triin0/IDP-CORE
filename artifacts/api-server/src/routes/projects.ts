@@ -1173,6 +1173,148 @@ router.post("/projects/:id/restore/:snapshotId", requireAuth, async (req: Reques
   }
 });
 
+router.post("/projects/:id/decrypt-error", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { error, files } = req.body as {
+      error: { message: string; line?: number; column?: number; path?: string };
+      files: Array<{ path: string; content: string }>;
+    };
+
+    if (!error?.message) {
+      res.status(400).json({ error: "Missing error.message" });
+      return;
+    }
+
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
+
+    const { callWithRetry } = await import("../lib/ai-retry");
+
+    const fileContext = (files || [])
+      .slice(0, 8)
+      .map((f) => `--- ${f.path} ---\n${f.content}`)
+      .join("\n\n");
+
+    const systemPrompt = `You are a code error diagnostician. Your ONLY job is to:
+1. Explain the error in plain English (2-3 sentences max)
+2. Identify the root cause file and line
+3. Provide the MINIMAL fix as a full file replacement
+
+STRICT RULES:
+- Fix ONLY the reported error. Do not refactor, optimize, or add features.
+- Do not change any file that is not directly causing the error.
+- If you cannot determine the fix, set "fixes" to null.
+- Return ONLY valid JSON matching this exact schema:
+{
+  "explanation": "string - 2-3 sentence plain English explanation",
+  "rootCause": { "path": "string - file path", "line": number },
+  "fixes": [ { "path": "string - file path", "content": "string - complete corrected file content" } ] | null
+}`;
+
+    const userPrompt = `ERROR:
+${error.message}
+${error.line ? `Line: ${error.line}` : ""}
+${error.column ? `Column: ${error.column}` : ""}
+${error.path ? `File: ${error.path}` : ""}
+
+PROJECT FILES:
+${fileContext}`;
+
+    const raw = await callWithRetry(
+      {
+        model: "gemini-2.5-pro",
+        temperature: 0.0,
+        max_completion_tokens: 4096,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        response_format: { type: "json_object" },
+      },
+      "error-decryptor",
+    );
+
+    let parsed: {
+      explanation?: string;
+      rootCause?: { path?: string; line?: number };
+      fixes?: Array<{ path: string; content: string }> | null;
+    };
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = { explanation: raw.slice(0, 500), rootCause: undefined, fixes: null };
+    }
+
+    res.json({
+      explanation: parsed.explanation || "Could not determine the cause of this error.",
+      rootCause: parsed.rootCause || null,
+      fixes: parsed.fixes || null,
+    });
+  } catch (err: unknown) {
+    console.error("Error decryptor failed:", err);
+    res.status(500).json({ error: "Failed to decrypt error" });
+  }
+});
+
+router.post("/projects/:id/apply-decrypt-fix", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { fixes } = req.body as {
+      fixes: Array<{ path: string; content: string }>;
+    };
+
+    if (!fixes || !Array.isArray(fixes) || fixes.length === 0) {
+      res.status(400).json({ error: "No fixes provided" });
+      return;
+    }
+
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
+
+    const currentFiles = (project.files ?? []) as Array<{ path: string; content: string }>;
+
+    const { createSnapshot } = await import("../lib/snapshots");
+
+    let snapshotId: string | null = null;
+    if (currentFiles.length > 0) {
+      snapshotId = await createSnapshot(id, currentFiles, "pre_decrypt", "Before error fix applied");
+    }
+
+    const fixMap = new Map(fixes.map((f) => [f.path, f.content]));
+    const mergedFiles = currentFiles.map((f) => {
+      const fixContent = fixMap.get(f.path);
+      if (fixContent !== undefined) {
+        return { path: f.path, content: fixContent };
+      }
+      return f;
+    });
+
+    for (const fix of fixes) {
+      if (!currentFiles.some((f) => f.path === fix.path)) {
+        mergedFiles.push({ path: fix.path, content: fix.content });
+      }
+    }
+
+    await db
+      .update(projectsTable)
+      .set({ files: mergedFiles })
+      .where(eq(projectsTable.id, id));
+
+    const filesChanged = fixes.map((f) => f.path);
+
+    res.json({
+      applied: true,
+      snapshotId,
+      filesChanged,
+      fileCount: mergedFiles.length,
+    });
+  } catch (err: unknown) {
+    console.error("Apply decrypt fix error:", err);
+    res.status(500).json({ error: "Failed to apply fix" });
+  }
+});
+
 router.delete("/projects/:id/snapshots/:snapshotId", requireAuth, async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
