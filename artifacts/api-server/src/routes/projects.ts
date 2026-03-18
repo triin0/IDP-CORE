@@ -939,8 +939,16 @@ router.post("/projects/:id/seed-data", requireAuth, async (req: Request, res: Re
       res.json({ tables: seedData });
     }
   } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to generate seed data";
     console.error("Seed data error:", err);
-    res.status(500).json({ error: "Failed to generate seed data" });
+    if (message.includes("Circular dependency detected")) {
+      res.status(422).json({
+        error: "Your database schema contains a circular foreign key dependency. Seed data generation is aborted to prevent constraint violations.",
+        detail: message,
+      });
+      return;
+    }
+    res.status(500).json({ error: message });
   }
 });
 

@@ -124,9 +124,14 @@ function topologicalSort(tables: SchemaTable[]): SchemaTable[] {
   }
 
   if (sorted.length < tables.length) {
-    for (const t of tables) {
-      if (!sorted.includes(t.name)) sorted.push(t.name);
-    }
+    const cycleTrapped = tables
+      .filter((t) => !sorted.includes(t.name))
+      .map((t) => t.name);
+    throw new Error(
+      `Circular dependency detected in database schema. ` +
+      `Seed data cannot be topologically sorted. ` +
+      `Tables trapped in cycle: ${cycleTrapped.join(", ")}`,
+    );
   }
 
   const tableMap = new Map(tables.map((t) => [t.name, t]));
