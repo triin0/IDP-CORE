@@ -503,6 +503,15 @@ These are the most frequent build failures. Apply the right fix pattern:
 - "Property 'X' does not exist on type 'Y'" → Add the property to the interface/type, or use optional chaining \`?.X\`.
 - "Object is possibly 'undefined'" → Add null checks or use non-null assertion \`!\` when safe.
 
+**Object literal / unknown property errors (CRITICAL — most common LLM error):**
+- "Object literal may only specify known properties, and 'X' does not exist in type 'Y'" → The LLM hallucinated a config key or option that doesn't exist in the library's API. REMOVE the unknown property entirely. Do NOT try to add it to a type definition — the library doesn't support it.
+  Common hallucinated properties to strip:
+  - Drizzle/ORM: \`body\`, \`params\`, \`query\` passed directly to schema config objects (these belong in route handlers, not schema definitions).
+  - Express middleware: invented option keys like \`strict\`, \`methods\`, \`allowedHeaders\` inside objects that don't accept them. Check the actual library type signature.
+  - Zod schemas: \`body\`, \`params\`, \`query\` as properties of a ZodObject config — these are express-validator patterns, not zod patterns. For zod, define separate schemas and validate in route handlers.
+  - Vite/tsconfig: invented compiler or plugin options that don't exist in the actual API.
+  Strategy: Find the line number from the error, locate the offending property, and DELETE it. If the object becomes empty, remove the entire options argument. Never invent type augmentations to make hallucinated keys compile.
+
 **Express v5 specific:**
 - Express v5 route handlers return Promise — ensure async handlers are properly typed.
 - \`RequestHandler\` type signature changed — use \`(req: Request, res: Response, next: NextFunction) => void\`.
