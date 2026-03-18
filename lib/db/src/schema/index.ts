@@ -4,3 +4,4 @@ export * from "./messages";
 export * from "./golden-path-configs";
 export * from "./auth";
 export * from "./credits";
+export * from "./snapshots";
