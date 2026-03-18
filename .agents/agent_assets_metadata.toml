@@ -24,3 +24,9 @@ id = "3nukxH_HXVI9doibfyMcU"
 uri = "file://git-history.txt"
 type = "text"
 title = "Git History (All Branches)"
+
+[[outputs]]
+id = "Mcm5s1vzTBu3ZC0Cv4m3q"
+uri = "file://.local/tasks/interactive-dom-xray-inspector.md"
+type = "text"
+title = "Task #15: Interactive DOM-to-Source X-Ray Inspector"
