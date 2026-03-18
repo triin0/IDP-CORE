@@ -1,0 +1,2110 @@
+*   4fa0bd9 (replit-agent) Add an app anatomy dashboard for visualizing project structure
+|\  
+| * a265fcf (HEAD -> master, gitsafe-backup/main) Add an app anatomy dashboard for visualizing project structure
+* | b5f9ef1 Add a conversational AI chat for refining app features
+|\| 
+| * bdb2548 Add a conversational AI chat for refining app features
+* | c5c39d8 Update website image for sharing previews
+|\| 
+| * ff50cfa Update website image for sharing previews
+* | c721983 Add an automatic administrative dashboard to all generated applications
+|\| 
+| * e79203b Add an automatic administrative dashboard to all generated applications
+* | b1c32f1 Enhance ghost preview with persona-driven content and styles
+|\| 
+| * 1eacf8f Enhance ghost preview with persona-driven content and styles
+* | e4d8ce1 Add analogy-driven app building and magic suggestion features
+|\| 
+| * 031bdb6 Add analogy-driven app building and magic suggestion features
+* | dbd56c4 Add design personas to customize application aesthetics
+|\| 
+| * 814dadd Add design personas to customize application aesthetics
+* | 47bb773 Disable authentication and add ghost preview feature
+|\| 
+| * a659247 Disable authentication and add ghost preview feature
+* | 26ff929 Add a wizard to break down app ideas into actionable feature lists
+|\| 
+| * 99d997e Add a wizard to break down app ideas into actionable feature lists
+* | 23e3ef8 Automate source code rewriting to enforce package dependencies
+|\| 
+| * 91cf728 Automate source code rewriting to enforce package dependencies
+* | 8e1fac2 Add version enforcement to ensure consistent dependency usage
+|\| 
+| * 1cbc788 Add version enforcement to ensure consistent dependency usage
+* | 23723e7 Improve agent error handling and dependency type checking
+|\| 
+| * 9d76726 Improve agent error handling and dependency type checking
+* | 78b764c Improve the fixer agent to handle common code generation errors
+|\| 
+| * e9fb003 Improve the fixer agent to handle common code generation errors
+* | bc6ad0f Update workspace to use embedded code editor and multiple preview modes
+|\| 
+| * d204a3a Update workspace to use embedded code editor and multiple preview modes
+* | 4a00081 Improve verification and dependency checks for code generation
+|\| 
+| * 0511486 Improve verification and dependency checks for code generation
+* | b8c812f Add transaction support for deleting projects
+|\| 
+| * 565c1e2 Add transaction support for deleting projects
+* | 79ec654 Improve build verification to capture and fix TypeScript errors
+|\| 
+| * ae7a096 Improve build verification to capture and fix TypeScript errors
+* | f698e28 Improve the accuracy of the golden path checker for generated projects
+|\| 
+| * 5d07641 Improve the accuracy of the golden path checker for generated projects
+* | 1de57b9 Improve pipeline reliability and build verification process
+|\| 
+| * 3c33604 Improve pipeline reliability and build verification process
+* | bcc2f01 Relax verification checks and fix self-healing to allow project completion
+|\| 
+| * 84b7857 Relax verification checks and fix self-healing to allow project completion
+* | f04ae3c Published your App
+|\| 
+| * 716dcd1 Published your App
+* | b873f28 Add GitHub export and ZIP download functionality to projects
+|\| 
+| * caefb26 Add GitHub export and ZIP download functionality to projects
+* | 81c516b Implement a credit system for user actions and display balance
+|\| 
+| * 7aec95d Implement a credit system for user actions and display balance
+* | 051416a Add tests to verify code security and integrity checks
+|\| 
+| * 23b3544 Add tests to verify code security and integrity checks
+* | 65dd8c9 Add AST-level verification for security middleware and full tree hashing
+|\| 
+| * e856da0 Add AST-level verification for security middleware and full tree hashing
+* | 70cca7e Update documentation to reflect new design system and authentication
+|\| 
+| * 51f6c4b Update documentation to reflect new design system and authentication
+* | c2732c4 Adopt the "Glass Engine" design system for a sophisticated UI overhaul
+|\| 
+| * d92242c Adopt the "Glass Engine" design system for a sophisticated UI overhaul
+* | 0331ad6 Add live visualization of the AI agent pipeline progress
+|\| 
+| * 210257c Add live visualization of the AI agent pipeline progress
+* | 9357e70 Add user authentication and a file diff viewer to the platform
+|\| 
+| * b631908 Add user authentication and a file diff viewer to the platform
+* | 8ea75b6 Published your App
+|\| 
+| * 73cfb72 Published your App
+* | 8d6c402 Improve AI code generation by handling token limits and recovery
+|\| 
+| * a6708a3 Improve AI code generation by handling token limits and recovery
+* | 195a93f Enhance pipeline observability and add new frontend components
+|\| 
+| * 0170bf8 Enhance pipeline observability and add new frontend components
+* | c7ddbdb Add self-healing pipeline and platform security enhancements
+|\| 
+| * 39c13d9 Add self-healing pipeline and platform security enhancements
+* | 6bece62 Create a comprehensive platform status report document
+|\| 
+| * e10c7ae Create a comprehensive platform status report document
+* | c426c27 Ensure build and dependency checks are hard gates for project verification
+|\| 
+| * 89ed5c5 Ensure build and dependency checks are hard gates for project verification
+* | 36dea93 Published your App
+|\| 
+| * b41f0e7 Published your App
+* | 30b67b0 Enforce verification before saving project refinements
+|\| 
+| * 59a71e0 Enforce verification before saving project refinements
+* | ba6a532 Enhance project refinement with comprehensive verification and state management
+|\| 
+| * 9b9cc61 Enhance project refinement with comprehensive verification and state management
+* | 1ea31cb Published your App
+|\| 
+| * c955545 Published your App
+| * f46fedf Task #10: Verification & Audit Sub-Agent
+* | 1f3e9b8 Add response field to project refinement history
+|\| 
+| * d8dec12 Add response field to project refinement history
+* | 5a22d9c Task #7: Implement Iterative Refinement & Conversation Loop
+|\| 
+| * 16bb3a0 Task #7: Implement Iterative Refinement & Conversation Loop
+* | 447fc67 Task #7: Implement Iterative Refinement & Conversation Loop
+|\| 
+| * 9b2e7eb Task #7: Implement Iterative Refinement & Conversation Loop
+* | 4272fa1 Task #7: Implement Iterative Refinement & Conversation Loop
+|\| 
+* |   82f7910 Add new skills for code review and product strategy
+|\ \  
+* \ \   1c31e7a Remove duplicate dependency audit check from pipeline
+|\ \ \  
+* \ \ \   023cb32 Integrate CodeSandbox for project deployments and previews
+|\ \ \ \  
+* \ \ \ \   3c33a29 Add ability to save notes and file paths for pipeline stages
+|\ \ \ \ \  
+* \ \ \ \ \   2d36902 Implement Multi-Agent Generation Pipeline (Task #6)
+|\ \ \ \ \ \  
+* \ \ \ \ \ \   f8ac8d7 Implement critical hotfixes: token exhaustion hard-stop + dependency audit (Check #10)
+|\ \ \ \ \ \ \  
+* \ \ \ \ \ \ \   e54bbcf Integrate CodeSandbox SDK for enhanced live previews
+|\ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \   4bdf9a4 Add detailed code assessment and analysis documentation
+|\ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \   97f5b2e Add a dedicated preview page for deployed projects
+|\ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \   c480918 Update screenshot to reflect current preview functionality
+|\ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \   61f8777 Add a project preview feature with a dedicated endpoint
+|\ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \   9e1b400 Implement a full-stack bookmark manager application with user authentication
+|\ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \   24d6536 Improve project validation checks for error handling and schema definition
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \   993129c Improve security rules to prevent hardcoded secrets in generated code
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   0a6f5d2 Update settings page to properly load existing configuration data
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   63df1c8 Task #5: Custom Golden Path Configuration
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   fabaae6 Task #5: Custom Golden Path Configuration
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   0ba7fee Published your App
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   34be406 Task #5: Custom Golden Path Configuration
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   ad13cdb Task #5: Custom Golden Path Configuration
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   f50eb16 Update the preview image for the application
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   5367b08 Add support for Gemini AI and improve API health checks
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   a09e851 Enable production deployment and add AI model support
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   11a1b72 feat: Implement spec-first development flow (Planning Mode)
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   de1e3c2 feat: Implement spec-first development flow (Planning Mode)
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   6b29bfb feat: Implement spec-first development flow (Planning Mode)
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   fc5b42b Add and update documentation for various agent skills
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   e28112d Add new skills for platform development and security
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   990aa3e Update the not-found page to match the dark theme and improve navigation
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   2b05ba4 Add new agent skills and update documentation
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   6aaa85f Task #3: Project Dashboard & History
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   52f96e9 Task #3: Project Dashboard & History
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   8e4055d Create detailed reference document on cloud IDE architecture challenges
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   e5f65de Update document detailing cloud IDE security and architecture challenges
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   0eeca41 Task #2: Workspace UI (MVP Frontend)
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   feca501 Task #2: Workspace UI (MVP Frontend)
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   4bef427 Task #2: Workspace UI (MVP Frontend)
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   d0ef162 Task #2: Workspace UI (MVP Frontend)
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   ef0b0bb Task #2: Workspace UI (MVP Frontend)
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   d7eb33b Task #2: Workspace UI (MVP Frontend)
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   4876243 Task #2: Workspace UI (MVP Frontend)
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   d64aba1 Task #2: Workspace UI (MVP Frontend)
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   ad0f1cd Task #2: Workspace UI (MVP Frontend) — Complete & Enhanced
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   701ad31 Add a functional todo list application with backend API support
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   64df45d Add dashboard and project view pages for project management
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   68c1e3e Add a game art generator application with API
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   90d69d1 Add a functional frontend for the AI-driven developer platform
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   dafccb0 Improve health check by caching LLM reachability status
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   6bbd22a Task #1: Orchestration API & Golden Path Engine
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   61af7c0 Task #1: Orchestration API & Golden Path Engine
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   6c89d70 Task #1: Orchestration API & Golden Path Engine
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | d4c15b4 Transitioned from Plan to Build mode
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 819fb91 (subrepl-r7utmb85) Update type definitions for project refinements
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 448f118 Task #10: Verification & Audit Sub-Agent
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 1654580 Task #10: Verification & Audit Sub-Agent
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 5c47d7e Task #7: Implement Iterative Refinement & Conversation Loop
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * dfc5e8f Add new skills for code review and product strategy
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * ead118f Merged changes from jgd7471i/main
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * b073b7b (subrepl-jgd7471i) Pre-sync checkpoint
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 54b5238 Pre-sync checkpoint
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * a3d9e8f Task #9: Upgrade Golden Path engine to genuine quality gates
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 1b674ad Remove duplicate dependency audit check from pipeline
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * ec9ffd1 Integrate CodeSandbox for project deployments and previews
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * b1d344d Add ability to save notes and file paths for pipeline stages
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 6ed320f Implement Multi-Agent Generation Pipeline (Task #6)
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * d570e47 Implement critical hotfixes: token exhaustion hard-stop + dependency audit (Check #10)
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 6d8002d Integrate CodeSandbox SDK for enhanced live previews
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * ee41a9b Add detailed code assessment and analysis documentation
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * d23f8b2 Add a dedicated preview page for deployed projects
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 85b3057 Update screenshot to reflect current preview functionality
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 425e903 Task #8: E2E Testing - Dev, Production & Live Deploy
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 7af028e Add a project preview feature with a dedicated endpoint
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 0f8e325 (subrepl-dwnyivhv) Task #8: E2E Testing - Dev, Production & Live Deploy
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * e1730f8 Implement a full-stack bookmark manager application with user authentication
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * ae656d2 Improve project validation checks for error handling and schema definition
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * b3f13fb Improve security rules to prevent hardcoded secrets in generated code
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 91f55b1 Update settings page to properly load existing configuration data
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * b9464fb Task #5: Custom Golden Path Configuration
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * a612d1b Task #5: Custom Golden Path Configuration
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * eb61a64 Published your App
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 2162cc9 Task #5: Custom Golden Path Configuration
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * aa127ae Task #5: Custom Golden Path Configuration
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 2a89d3b Update the preview image for the application
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * d3d30c1 Add support for Gemini AI and improve API health checks
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 8171249 Enable production deployment and add AI model support
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | * bf44991 feat: Implement spec-first development flow (Planning Mode)
+| | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | * 129e651 feat: Implement spec-first development flow (Planning Mode)
+| | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | * 3d2713f feat: Implement spec-first development flow (Planning Mode)
+| | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | * e347ddc Add and update documentation for various agent skills
+| | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | * 9c7a21d Add new skills for platform development and security
+| | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | * d4f30ed Update the not-found page to match the dark theme and improve navigation
+| | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | * f69ac78 Add new agent skills and update documentation
+| | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | * 2539c5b Task #3: Project Dashboard & History
+| | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | * 6ff23dc Task #3: Project Dashboard & History
+| | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | * 1013ae4 Create detailed reference document on cloud IDE architecture challenges
+| | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | * 8fae0ce Update document detailing cloud IDE security and architecture challenges
+| | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | * 7862782 Task #2: Workspace UI (MVP Frontend)
+| | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | * b48d17a Task #2: Workspace UI (MVP Frontend)
+| | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | * c4b3168 Task #2: Workspace UI (MVP Frontend)
+| | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | * 8130504 Task #2: Workspace UI (MVP Frontend)
+| | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | * 9ce3c27 Task #2: Workspace UI (MVP Frontend)
+| | | | | | | | | | | | |/  
+| | | | | | | | | | | | * 8e26b2f Task #2: Workspace UI (MVP Frontend)
+| | | | | | | | | | | |/  
+| | | | | | | | | | | * 74cd992 Task #2: Workspace UI (MVP Frontend)
+| | | | | | | | | | |/  
+| | | | | | | | | | * 5781287 Task #2: Workspace UI (MVP Frontend)
+| | | | | | | | | |/  
+| | | | | | | | | * 2ddb0ef Task #2: Workspace UI (MVP Frontend) — Complete & Enhanced
+| | | | | | | | |/  
+| | | | | | | | * 6aa84eb Add a functional todo list application with backend API support
+| | | | | | | |/  
+| | | | | | | * 5064405 Add dashboard and project view pages for project management
+| | | | | | |/  
+| | | | | | * 655f178 Add a game art generator application with API
+| | | | | |/  
+| | | | | * 4994187 Add a functional frontend for the AI-driven developer platform
+| | | | |/  
+| | | | * 75524bd Improve health check by caching LLM reachability status
+| | | |/  
+| | | * 2f66a34 Task #1: Orchestration API & Golden Path Engine
+| | |/  
+| | * 5472416 Task #1: Orchestration API & Golden Path Engine
+| |/  
+| * 0a71c90 Task #1: Orchestration API & Golden Path Engine
+|/  
+* 4dd6657 Transitioned from Plan to Build mode
+* c8ed262 Initial commit
+*   4fa0bd9 2026-03-18 Add an app anatomy dashboard for visualizing project structure  (replit-agent)
+|\  
+| * a265fcf 2026-03-18 Add an app anatomy dashboard for visualizing project structure  (HEAD -> master, gitsafe-backup/main)
+* | b5f9ef1 2026-03-18 Add a conversational AI chat for refining app features 
+|\| 
+| * bdb2548 2026-03-18 Add a conversational AI chat for refining app features 
+* | c5c39d8 2026-03-18 Update website image for sharing previews 
+|\| 
+| * ff50cfa 2026-03-18 Update website image for sharing previews 
+* | c721983 2026-03-18 Add an automatic administrative dashboard to all generated applications 
+|\| 
+| * e79203b 2026-03-18 Add an automatic administrative dashboard to all generated applications 
+* | b1c32f1 2026-03-18 Enhance ghost preview with persona-driven content and styles 
+|\| 
+| * 1eacf8f 2026-03-18 Enhance ghost preview with persona-driven content and styles 
+* | e4d8ce1 2026-03-18 Add analogy-driven app building and magic suggestion features 
+|\| 
+| * 031bdb6 2026-03-18 Add analogy-driven app building and magic suggestion features 
+* | dbd56c4 2026-03-18 Add design personas to customize application aesthetics 
+|\| 
+| * 814dadd 2026-03-18 Add design personas to customize application aesthetics 
+* | 47bb773 2026-03-18 Disable authentication and add ghost preview feature 
+|\| 
+| * a659247 2026-03-18 Disable authentication and add ghost preview feature 
+* | 26ff929 2026-03-18 Add a wizard to break down app ideas into actionable feature lists 
+|\| 
+| * 99d997e 2026-03-18 Add a wizard to break down app ideas into actionable feature lists 
+* | 23e3ef8 2026-03-18 Automate source code rewriting to enforce package dependencies 
+|\| 
+| * 91cf728 2026-03-18 Automate source code rewriting to enforce package dependencies 
+* | 8e1fac2 2026-03-18 Add version enforcement to ensure consistent dependency usage 
+|\| 
+| * 1cbc788 2026-03-18 Add version enforcement to ensure consistent dependency usage 
+* | 23723e7 2026-03-18 Improve agent error handling and dependency type checking 
+|\| 
+| * 9d76726 2026-03-18 Improve agent error handling and dependency type checking 
+* | 78b764c 2026-03-18 Improve the fixer agent to handle common code generation errors 
+|\| 
+| * e9fb003 2026-03-18 Improve the fixer agent to handle common code generation errors 
+* | bc6ad0f 2026-03-18 Update workspace to use embedded code editor and multiple preview modes 
+|\| 
+| * d204a3a 2026-03-18 Update workspace to use embedded code editor and multiple preview modes 
+* | 4a00081 2026-03-18 Improve verification and dependency checks for code generation 
+|\| 
+| * 0511486 2026-03-18 Improve verification and dependency checks for code generation 
+* | b8c812f 2026-03-18 Add transaction support for deleting projects 
+|\| 
+| * 565c1e2 2026-03-18 Add transaction support for deleting projects 
+* | 79ec654 2026-03-18 Improve build verification to capture and fix TypeScript errors 
+|\| 
+| * ae7a096 2026-03-18 Improve build verification to capture and fix TypeScript errors 
+* | f698e28 2026-03-17 Improve the accuracy of the golden path checker for generated projects 
+|\| 
+| * 5d07641 2026-03-17 Improve the accuracy of the golden path checker for generated projects 
+* | 1de57b9 2026-03-17 Improve pipeline reliability and build verification process 
+|\| 
+| * 3c33604 2026-03-17 Improve pipeline reliability and build verification process 
+* | bcc2f01 2026-03-17 Relax verification checks and fix self-healing to allow project completion 
+|\| 
+| * 84b7857 2026-03-17 Relax verification checks and fix self-healing to allow project completion 
+* | f04ae3c 2026-03-17 Published your App 
+|\| 
+| * 716dcd1 2026-03-17 Published your App 
+* | b873f28 2026-03-17 Add GitHub export and ZIP download functionality to projects 
+|\| 
+| * caefb26 2026-03-17 Add GitHub export and ZIP download functionality to projects 
+* | 81c516b 2026-03-17 Implement a credit system for user actions and display balance 
+|\| 
+| * 7aec95d 2026-03-17 Implement a credit system for user actions and display balance 
+* | 051416a 2026-03-17 Add tests to verify code security and integrity checks 
+|\| 
+| * 23b3544 2026-03-17 Add tests to verify code security and integrity checks 
+* | 65dd8c9 2026-03-17 Add AST-level verification for security middleware and full tree hashing 
+|\| 
+| * e856da0 2026-03-17 Add AST-level verification for security middleware and full tree hashing 
+* | 70cca7e 2026-03-17 Update documentation to reflect new design system and authentication 
+|\| 
+| * 51f6c4b 2026-03-17 Update documentation to reflect new design system and authentication 
+* | c2732c4 2026-03-17 Adopt the "Glass Engine" design system for a sophisticated UI overhaul 
+|\| 
+| * d92242c 2026-03-17 Adopt the "Glass Engine" design system for a sophisticated UI overhaul 
+* | 0331ad6 2026-03-17 Add live visualization of the AI agent pipeline progress 
+|\| 
+| * 210257c 2026-03-17 Add live visualization of the AI agent pipeline progress 
+* | 9357e70 2026-03-17 Add user authentication and a file diff viewer to the platform 
+|\| 
+| * b631908 2026-03-17 Add user authentication and a file diff viewer to the platform 
+* | 8ea75b6 2026-03-17 Published your App 
+|\| 
+| * 73cfb72 2026-03-17 Published your App 
+* | 8d6c402 2026-03-17 Improve AI code generation by handling token limits and recovery 
+|\| 
+| * a6708a3 2026-03-17 Improve AI code generation by handling token limits and recovery 
+* | 195a93f 2026-03-17 Enhance pipeline observability and add new frontend components 
+|\| 
+| * 0170bf8 2026-03-17 Enhance pipeline observability and add new frontend components 
+* | c7ddbdb 2026-03-17 Add self-healing pipeline and platform security enhancements 
+|\| 
+| * 39c13d9 2026-03-17 Add self-healing pipeline and platform security enhancements 
+* | 6bece62 2026-03-17 Create a comprehensive platform status report document 
+|\| 
+| * e10c7ae 2026-03-17 Create a comprehensive platform status report document 
+* | c426c27 2026-03-17 Ensure build and dependency checks are hard gates for project verification 
+|\| 
+| * 89ed5c5 2026-03-17 Ensure build and dependency checks are hard gates for project verification 
+* | 36dea93 2026-03-17 Published your App 
+|\| 
+| * b41f0e7 2026-03-17 Published your App 
+* | 30b67b0 2026-03-17 Enforce verification before saving project refinements 
+|\| 
+| * 59a71e0 2026-03-17 Enforce verification before saving project refinements 
+* | ba6a532 2026-03-17 Enhance project refinement with comprehensive verification and state management 
+|\| 
+| * 9b9cc61 2026-03-17 Enhance project refinement with comprehensive verification and state management 
+* | 1ea31cb 2026-03-17 Published your App 
+|\| 
+| * c955545 2026-03-17 Published your App 
+| * f46fedf 2026-03-17 Task #10: Verification & Audit Sub-Agent 
+* | 1f3e9b8 2026-03-17 Add response field to project refinement history 
+|\| 
+| * d8dec12 2026-03-17 Add response field to project refinement history 
+* | 5a22d9c 2026-03-17 Task #7: Implement Iterative Refinement & Conversation Loop 
+|\| 
+| * 16bb3a0 2026-03-17 Task #7: Implement Iterative Refinement & Conversation Loop 
+* | 447fc67 2026-03-17 Task #7: Implement Iterative Refinement & Conversation Loop 
+|\| 
+| * 9b2e7eb 2026-03-17 Task #7: Implement Iterative Refinement & Conversation Loop 
+* | 4272fa1 2026-03-17 Task #7: Implement Iterative Refinement & Conversation Loop 
+|\| 
+* |   82f7910 2026-03-17 Add new skills for code review and product strategy 
+|\ \  
+* \ \   1c31e7a 2026-03-17 Remove duplicate dependency audit check from pipeline 
+|\ \ \  
+* \ \ \   023cb32 2026-03-17 Integrate CodeSandbox for project deployments and previews 
+|\ \ \ \  
+* \ \ \ \   3c33a29 2026-03-17 Add ability to save notes and file paths for pipeline stages 
+|\ \ \ \ \  
+* \ \ \ \ \   2d36902 2026-03-17 Implement Multi-Agent Generation Pipeline (Task #6) 
+|\ \ \ \ \ \  
+* \ \ \ \ \ \   f8ac8d7 2026-03-17 Implement critical hotfixes: token exhaustion hard-stop + dependency audit (Check #10) 
+|\ \ \ \ \ \ \  
+* \ \ \ \ \ \ \   e54bbcf 2026-03-17 Integrate CodeSandbox SDK for enhanced live previews 
+|\ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \   4bdf9a4 2026-03-17 Add detailed code assessment and analysis documentation 
+|\ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \   97f5b2e 2026-03-17 Add a dedicated preview page for deployed projects 
+|\ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \   c480918 2026-03-17 Update screenshot to reflect current preview functionality 
+|\ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \   61f8777 2026-03-17 Add a project preview feature with a dedicated endpoint 
+|\ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \   9e1b400 2026-03-17 Implement a full-stack bookmark manager application with user authentication 
+|\ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \   24d6536 2026-03-17 Improve project validation checks for error handling and schema definition 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \   993129c 2026-03-17 Improve security rules to prevent hardcoded secrets in generated code 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   0a6f5d2 2026-03-17 Update settings page to properly load existing configuration data 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   63df1c8 2026-03-17 Task #5: Custom Golden Path Configuration 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   fabaae6 2026-03-17 Task #5: Custom Golden Path Configuration 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   0ba7fee 2026-03-17 Published your App 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   34be406 2026-03-17 Task #5: Custom Golden Path Configuration 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   ad13cdb 2026-03-17 Task #5: Custom Golden Path Configuration 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   f50eb16 2026-03-16 Update the preview image for the application 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   5367b08 2026-03-16 Add support for Gemini AI and improve API health checks 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   a09e851 2026-03-16 Enable production deployment and add AI model support 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   11a1b72 2026-03-16 feat: Implement spec-first development flow (Planning Mode) 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   de1e3c2 2026-03-16 feat: Implement spec-first development flow (Planning Mode) 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   6b29bfb 2026-03-16 feat: Implement spec-first development flow (Planning Mode) 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   fc5b42b 2026-03-16 Add and update documentation for various agent skills 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   e28112d 2026-03-16 Add new skills for platform development and security 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   990aa3e 2026-03-16 Update the not-found page to match the dark theme and improve navigation 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   2b05ba4 2026-03-16 Add new agent skills and update documentation 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   6aaa85f 2026-03-16 Task #3: Project Dashboard & History 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   52f96e9 2026-03-16 Task #3: Project Dashboard & History 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   8e4055d 2026-03-16 Create detailed reference document on cloud IDE architecture challenges 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   e5f65de 2026-03-16 Update document detailing cloud IDE security and architecture challenges 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   0eeca41 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   feca501 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   4bef427 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   d0ef162 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   ef0b0bb 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   d7eb33b 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   4876243 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   d64aba1 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   ad0f1cd 2026-03-16 Task #2: Workspace UI (MVP Frontend) — Complete & Enhanced 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   701ad31 2026-03-16 Add a functional todo list application with backend API support 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   64df45d 2026-03-16 Add dashboard and project view pages for project management 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   68c1e3e 2026-03-16 Add a game art generator application with API 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   90d69d1 2026-03-16 Add a functional frontend for the AI-driven developer platform 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   dafccb0 2026-03-16 Improve health check by caching LLM reachability status 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   6bbd22a 2026-03-16 Task #1: Orchestration API & Golden Path Engine 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   61af7c0 2026-03-16 Task #1: Orchestration API & Golden Path Engine 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \   6c89d70 2026-03-16 Task #1: Orchestration API & Golden Path Engine 
+|\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  
+* | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | d4c15b4 2026-03-16 Transitioned from Plan to Build mode 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 819fb91 2026-03-17 Update type definitions for project refinements  (subrepl-r7utmb85)
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 448f118 2026-03-17 Task #10: Verification & Audit Sub-Agent 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 1654580 2026-03-17 Task #10: Verification & Audit Sub-Agent 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 5c47d7e 2026-03-17 Task #7: Implement Iterative Refinement & Conversation Loop 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * dfc5e8f 2026-03-17 Add new skills for code review and product strategy 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * ead118f 2026-03-17 Merged changes from jgd7471i/main 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * b073b7b 2026-03-17 Pre-sync checkpoint  (subrepl-jgd7471i)
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 54b5238 2026-03-17 Pre-sync checkpoint 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * a3d9e8f 2026-03-17 Task #9: Upgrade Golden Path engine to genuine quality gates 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 1b674ad 2026-03-17 Remove duplicate dependency audit check from pipeline 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * ec9ffd1 2026-03-17 Integrate CodeSandbox for project deployments and previews 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * b1d344d 2026-03-17 Add ability to save notes and file paths for pipeline stages 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 6ed320f 2026-03-17 Implement Multi-Agent Generation Pipeline (Task #6) 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * d570e47 2026-03-17 Implement critical hotfixes: token exhaustion hard-stop + dependency audit (Check #10) 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 6d8002d 2026-03-17 Integrate CodeSandbox SDK for enhanced live previews 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * ee41a9b 2026-03-17 Add detailed code assessment and analysis documentation 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * d23f8b2 2026-03-17 Add a dedicated preview page for deployed projects 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 85b3057 2026-03-17 Update screenshot to reflect current preview functionality 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 425e903 2026-03-17 Task #8: E2E Testing - Dev, Production & Live Deploy 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 7af028e 2026-03-17 Add a project preview feature with a dedicated endpoint 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 0f8e325 2026-03-17 Task #8: E2E Testing - Dev, Production & Live Deploy  (subrepl-dwnyivhv)
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * e1730f8 2026-03-17 Implement a full-stack bookmark manager application with user authentication 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * ae656d2 2026-03-17 Improve project validation checks for error handling and schema definition 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * b3f13fb 2026-03-17 Improve security rules to prevent hardcoded secrets in generated code 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 91f55b1 2026-03-17 Update settings page to properly load existing configuration data 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * b9464fb 2026-03-17 Task #5: Custom Golden Path Configuration 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * a612d1b 2026-03-17 Task #5: Custom Golden Path Configuration 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * eb61a64 2026-03-17 Published your App 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 2162cc9 2026-03-17 Task #5: Custom Golden Path Configuration 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * aa127ae 2026-03-17 Task #5: Custom Golden Path Configuration 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 2a89d3b 2026-03-16 Update the preview image for the application 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | | * d3d30c1 2026-03-16 Add support for Gemini AI and improve API health checks 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | | * 8171249 2026-03-16 Enable production deployment and add AI model support 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | | * bf44991 2026-03-16 feat: Implement spec-first development flow (Planning Mode) 
+| | | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | | * 129e651 2026-03-16 feat: Implement spec-first development flow (Planning Mode) 
+| | | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | | * 3d2713f 2026-03-16 feat: Implement spec-first development flow (Planning Mode) 
+| | | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | | * e347ddc 2026-03-16 Add and update documentation for various agent skills 
+| | | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | | * 9c7a21d 2026-03-16 Add new skills for platform development and security 
+| | | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | | * d4f30ed 2026-03-16 Update the not-found page to match the dark theme and improve navigation 
+| | | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | | * f69ac78 2026-03-16 Add new agent skills and update documentation 
+| | | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | | * 2539c5b 2026-03-16 Task #3: Project Dashboard & History 
+| | | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | | * 6ff23dc 2026-03-16 Task #3: Project Dashboard & History 
+| | | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | | * 1013ae4 2026-03-16 Create detailed reference document on cloud IDE architecture challenges 
+| | | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | | * 8fae0ce 2026-03-16 Update document detailing cloud IDE security and architecture challenges 
+| | | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | | * 7862782 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+| | | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | | * b48d17a 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+| | | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | | * c4b3168 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+| | | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | | * 8130504 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+| | | | | | | | | | | | | |/  
+| | | | | | | | | | | | | * 9ce3c27 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+| | | | | | | | | | | | |/  
+| | | | | | | | | | | | * 8e26b2f 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+| | | | | | | | | | | |/  
+| | | | | | | | | | | * 74cd992 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+| | | | | | | | | | |/  
+| | | | | | | | | | * 5781287 2026-03-16 Task #2: Workspace UI (MVP Frontend) 
+| | | | | | | | | |/  
+| | | | | | | | | * 2ddb0ef 2026-03-16 Task #2: Workspace UI (MVP Frontend) — Complete & Enhanced 
+| | | | | | | | |/  
+| | | | | | | | * 6aa84eb 2026-03-16 Add a functional todo list application with backend API support 
+| | | | | | | |/  
+| | | | | | | * 5064405 2026-03-16 Add dashboard and project view pages for project management 
+| | | | | | |/  
+| | | | | | * 655f178 2026-03-16 Add a game art generator application with API 
+| | | | | |/  
+| | | | | * 4994187 2026-03-16 Add a functional frontend for the AI-driven developer platform 
+| | | | |/  
+| | | | * 75524bd 2026-03-16 Improve health check by caching LLM reachability status 
+| | | |/  
+| | | * 2f66a34 2026-03-16 Task #1: Orchestration API & Golden Path Engine 
+| | |/  
+| | * 5472416 2026-03-16 Task #1: Orchestration API & Golden Path Engine 
+| |/  
+| * 0a71c90 2026-03-16 Task #1: Orchestration API & Golden Path Engine 
+|/  
+* 4dd6657 2026-03-16 Transitioned from Plan to Build mode 
+* c8ed262 2026-03-13 Initial commit 
+---
+DETAILED LOG (all branches):
+---
+commit a265fcfc508f799beffef43d7ea556a099e43374
+Date:   2026-03-18 09:54:51 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: HEAD -> master, gitsafe-backup/main
+
+    Add an app anatomy dashboard for visualizing project structure
+
+commit 4fa0bd9a41a62d1f154fb5a7ed97b9e468d1ecdc
+Date:   2026-03-18 09:54:51 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: replit-agent
+
+    Add an app anatomy dashboard for visualizing project structure
+
+commit bdb25488785dee99dd8c5e16e0444c93badd0daa
+Date:   2026-03-18 09:22:01 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a conversational AI chat for refining app features
+
+commit b5f9ef1a220add33fa47189d4e6db8350c29879e
+Date:   2026-03-18 09:22:01 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a conversational AI chat for refining app features
+
+commit ff50cfaa2aeed49db3e1412b91e2647cf6a7e97c
+Date:   2026-03-18 06:50:57 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update website image for sharing previews
+
+commit c5c39d8581cdc7dc7e25bb52ac49043a817a03c3
+Date:   2026-03-18 06:50:57 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update website image for sharing previews
+
+commit e79203bb4583ac3d2ff9aff3ae62976bd6f263a8
+Date:   2026-03-18 06:36:35 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add an automatic administrative dashboard to all generated applications
+
+commit c7219837babbfe87750f93014de4a64e753a6c70
+Date:   2026-03-18 06:36:35 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add an automatic administrative dashboard to all generated applications
+
+commit 1eacf8ff5d1f074701b7481912ddc1f34db6a94c
+Date:   2026-03-18 06:26:59 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Enhance ghost preview with persona-driven content and styles
+
+commit b1c32f132e8075e645653571c8ce5206ebe32900
+Date:   2026-03-18 06:26:59 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Enhance ghost preview with persona-driven content and styles
+
+commit 031bdb6429b7a3b25ba3e0758e872ef6d19db603
+Date:   2026-03-18 06:19:04 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add analogy-driven app building and magic suggestion features
+
+commit e4d8ce1aa17dc9313a1a4199c661e78a24b4cbd1
+Date:   2026-03-18 06:19:04 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add analogy-driven app building and magic suggestion features
+
+commit 814daddb8a42ce2e2069a3239235d87d3aac4b92
+Date:   2026-03-18 06:11:20 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add design personas to customize application aesthetics
+
+commit dbd56c4a5567eeadc617020a7a4830d130fa4c15
+Date:   2026-03-18 06:11:20 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add design personas to customize application aesthetics
+
+commit a6592470c2e2f515a75d976aa1c19a371d225aad
+Date:   2026-03-18 05:36:42 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Disable authentication and add ghost preview feature
+
+commit 47bb773af76162459ac4d684eff1cb289ffbf62e
+Date:   2026-03-18 05:36:42 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Disable authentication and add ghost preview feature
+
+commit 99d997ea71608ce4a1177aef3e1d6209057ec6db
+Date:   2026-03-18 05:02:12 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a wizard to break down app ideas into actionable feature lists
+
+commit 26ff9292c37c8c90c332cb73e0f50a78627da107
+Date:   2026-03-18 05:02:12 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a wizard to break down app ideas into actionable feature lists
+
+commit 91cf728d7ba55c05435e5d16a2480963437a9966
+Date:   2026-03-18 04:11:39 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Automate source code rewriting to enforce package dependencies
+
+commit 23e3ef8226071c661f0de2c14f337bb995367c57
+Date:   2026-03-18 04:11:39 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Automate source code rewriting to enforce package dependencies
+
+commit 1cbc788642698b511278ff07d98956707e13967a
+Date:   2026-03-18 04:02:15 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add version enforcement to ensure consistent dependency usage
+
+commit 8e1fac2717d88f80dcfb1a5b0da6b7fade1cff57
+Date:   2026-03-18 04:02:15 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add version enforcement to ensure consistent dependency usage
+
+commit 9d76726008de4fb99274ab8512fb711e3b506110
+Date:   2026-03-18 03:47:29 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve agent error handling and dependency type checking
+
+commit 23723e7f79b620b5688ae15fa1a6d7fa11539001
+Date:   2026-03-18 03:47:29 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve agent error handling and dependency type checking
+
+commit e9fb00331d0000668eae50d413b24f3c6c32110b
+Date:   2026-03-18 03:19:16 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve the fixer agent to handle common code generation errors
+
+commit 78b764ca82c2f6eb97850061863e39a566943e31
+Date:   2026-03-18 03:19:16 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve the fixer agent to handle common code generation errors
+
+commit d204a3a0ccf62ff62202c6d223c15f820bc7da59
+Date:   2026-03-18 03:16:45 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update workspace to use embedded code editor and multiple preview modes
+
+commit bc6ad0f35c5dc84b2c2acd5b936b5b694dfbd38e
+Date:   2026-03-18 03:16:45 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update workspace to use embedded code editor and multiple preview modes
+
+commit 05114865b18b23d97822cfe781e337c8f851bad2
+Date:   2026-03-18 03:08:56 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve verification and dependency checks for code generation
+
+commit 4a00081041cb421ea96f8cb3cf0d9c037c5acb64
+Date:   2026-03-18 03:08:56 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve verification and dependency checks for code generation
+
+commit 565c1e2e3c240031c60c88a9105b9df26c5ad2fa
+Date:   2026-03-18 02:18:31 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add transaction support for deleting projects
+
+commit b8c812fcc5545cb940b9d7d704a29dc5a8165209
+Date:   2026-03-18 02:18:31 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add transaction support for deleting projects
+
+commit ae7a096d8e0844499d47445ef365cfe748afce7c
+Date:   2026-03-18 02:10:58 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve build verification to capture and fix TypeScript errors
+
+commit 79ec654d40cb86a5519b92896624e7033e75ade4
+Date:   2026-03-18 02:10:58 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve build verification to capture and fix TypeScript errors
+
+commit 5d076416e5417bfd8964082769106947fd5422f5
+Date:   2026-03-17 17:52:42 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve the accuracy of the golden path checker for generated projects
+
+commit f698e28ea867cf9186b7e11986db2653448b4c16
+Date:   2026-03-17 17:52:42 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve the accuracy of the golden path checker for generated projects
+
+commit 3c33604a36b09475c3100bf07f743c11f06ae64d
+Date:   2026-03-17 16:56:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve pipeline reliability and build verification process
+
+commit 1de57b96590754e134247051fb590205cdc19ab0
+Date:   2026-03-17 16:56:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve pipeline reliability and build verification process
+
+commit 84b7857ca4017b7e7cd19ad3e63a5bbabdb6aedf
+Date:   2026-03-17 16:39:41 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Relax verification checks and fix self-healing to allow project completion
+
+commit bcc2f01b613040c1734d2fce9c5106da59600189
+Date:   2026-03-17 16:39:41 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Relax verification checks and fix self-healing to allow project completion
+
+commit 716dcd17106e3dd0393fbfe9aeda7d208fd1373e
+Date:   2026-03-17 16:09:17 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Published your App
+
+commit f04ae3c5cc7799df07a3671d8ee5415b0aa068ba
+Date:   2026-03-17 16:09:17 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Published your App
+
+commit caefb269af0eace155e202e01f7ce75b0166bcbc
+Date:   2026-03-17 16:02:42 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add GitHub export and ZIP download functionality to projects
+
+commit b873f2821002686391bdf987c41722d123282945
+Date:   2026-03-17 16:02:42 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add GitHub export and ZIP download functionality to projects
+
+commit 7aec95d57582f712648e9b32abd2dea1cff14ac1
+Date:   2026-03-17 15:33:51 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Implement a credit system for user actions and display balance
+
+commit 81c516b90579920ad231bdaf44afa16f439af5b0
+Date:   2026-03-17 15:33:51 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Implement a credit system for user actions and display balance
+
+commit 23b354494f3e9ac54c78ba4a0f9fb028eca7281c
+Date:   2026-03-17 14:32:49 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add tests to verify code security and integrity checks
+
+commit 051416a4eff01e79f24b2b41fbf900f744391f11
+Date:   2026-03-17 14:32:49 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add tests to verify code security and integrity checks
+
+commit e856da0d556c9da00c37d6b4a6d7ca43299e0fbf
+Date:   2026-03-17 13:21:07 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add AST-level verification for security middleware and full tree hashing
+
+commit 65dd8c98738a9657a4929e6bb2f5fcbc93d75454
+Date:   2026-03-17 13:21:07 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add AST-level verification for security middleware and full tree hashing
+
+commit 51f6c4b092b87c21dea3f3a0dcd6b582ad347f77
+Date:   2026-03-17 13:00:51 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update documentation to reflect new design system and authentication
+
+commit 70cca7e110b01446a94f068e934add695befc4da
+Date:   2026-03-17 13:00:51 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update documentation to reflect new design system and authentication
+
+commit d92242c69e53eba0ad4c1e9ec49c28becc992867
+Date:   2026-03-17 12:53:00 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Adopt the "Glass Engine" design system for a sophisticated UI overhaul
+
+commit c2732c44b25eef69d28bf5f92031c1ebc266b184
+Date:   2026-03-17 12:53:00 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Adopt the "Glass Engine" design system for a sophisticated UI overhaul
+
+commit 210257c019fe428fa51b48f8782fb8eb86c39f1c
+Date:   2026-03-17 12:29:30 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add live visualization of the AI agent pipeline progress
+
+commit 0331ad67e53d6869b472c7f6b193d9225d9d2936
+Date:   2026-03-17 12:29:30 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add live visualization of the AI agent pipeline progress
+
+commit b631908620edfa57b7f601fba3ae0a4d6f63551d
+Date:   2026-03-17 11:23:06 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add user authentication and a file diff viewer to the platform
+
+commit 9357e705450e9aa7d6fc4c9607c3117f464b2f6a
+Date:   2026-03-17 11:23:06 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add user authentication and a file diff viewer to the platform
+
+commit 73cfb726280b405506481f33c449c547e0fcf06a
+Date:   2026-03-17 10:56:16 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Published your App
+
+commit 8ea75b632de4698b30869d290c72bb105967853d
+Date:   2026-03-17 10:56:16 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Published your App
+
+commit a6708a35680b07114969a3c27405d0222b74b723
+Date:   2026-03-17 10:54:55 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve AI code generation by handling token limits and recovery
+
+commit 8d6c402186138725db623e262cf30f86b26574d1
+Date:   2026-03-17 10:54:55 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve AI code generation by handling token limits and recovery
+
+commit 195a93f316dc773fc3f1ec9bbb90da2a8966921d
+Date:   2026-03-17 09:37:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Enhance pipeline observability and add new frontend components
+
+commit 0170bf86e5e21738e729d6dab0468b0514ae231c
+Date:   2026-03-17 09:37:09 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Enhance pipeline observability and add new frontend components
+
+commit c7ddbdbc384e1b1ff3b208adb0fbb1f046db58a4
+Date:   2026-03-17 09:03:14 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add self-healing pipeline and platform security enhancements
+
+commit 39c13d93c792e8c2542661282a5112e1d4ea1b18
+Date:   2026-03-17 09:03:14 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add self-healing pipeline and platform security enhancements
+
+commit 6bece6282b24bf94d9d8b5f0f6240c648a859acc
+Date:   2026-03-17 08:43:01 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Create a comprehensive platform status report document
+
+commit e10c7ae703236682aebeaad88d14ac01997a4549
+Date:   2026-03-17 08:43:01 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Create a comprehensive platform status report document
+
+commit c426c27df28ef9af4cb1a8ccba6559cf9e906358
+Date:   2026-03-17 08:24:31 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Ensure build and dependency checks are hard gates for project verification
+
+commit 89ed5c5430b452ad00ead49808728cfb667c4b7a
+Date:   2026-03-17 08:24:31 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Ensure build and dependency checks are hard gates for project verification
+
+commit 36dea93e69b12749000e806cf3cffc9a8d64ff60
+Date:   2026-03-17 08:10:47 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Published your App
+
+commit b41f0e7e57c4732ce7f7910edafff146143d1f1d
+Date:   2026-03-17 08:10:46 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Published your App
+
+commit 30b67b06266a4f43b2fd3dc785a1ac3b0bf99e84
+Date:   2026-03-17 04:23:53 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Enforce verification before saving project refinements
+
+commit 59a71e014a56d5e9f319118ecb8a49ef3feb3dc7
+Date:   2026-03-17 04:23:53 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Enforce verification before saving project refinements
+
+commit ba6a532a7889211924c76285e729d93999c65b3c
+Date:   2026-03-17 04:22:29 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Enhance project refinement with comprehensive verification and state management
+
+commit 9b9cc61f6530baaf11c94f92063406b21d5ae1ca
+Date:   2026-03-17 04:22:29 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Enhance project refinement with comprehensive verification and state management
+
+commit 1ea31cba0756a7607441d1979801a27bbff48317
+Date:   2026-03-17 04:13:37 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Published your App
+
+commit c9555451fc5756bb207836499bf2eb4cf5e54263
+Date:   2026-03-17 04:13:37 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Published your App
+
+commit f46fedff1f93376a154b8d673aa78e461ab5a47a
+Date:   2026-03-17 04:10:58 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #10: Verification & Audit Sub-Agent
+
+commit 1f3e9b89acde63352ca581fd4c5b7e89e95a06ed
+Date:   2026-03-17 04:10:53 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add response field to project refinement history
+
+commit d8dec123ec28c93542031c9bc791524bf5d22c6a
+Date:   2026-03-17 04:10:52 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add response field to project refinement history
+
+commit 5a22d9cfb88d3158e45c87ca63512bd65076f441
+Date:   2026-03-17 04:07:54 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #7: Implement Iterative Refinement & Conversation Loop
+
+commit 16bb3a080ca2d2d6383000e31d51e7616aea9888
+Date:   2026-03-17 04:07:54 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #7: Implement Iterative Refinement & Conversation Loop
+
+commit 819fb91d6fbb4d3f2fa5a6764d1aabfc5ec233f6
+Date:   2026-03-17 04:05:26 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: subrepl-r7utmb85
+
+    Update type definitions for project refinements
+
+commit 447fc676e9b9d2aa0e3eb6fa503ed63be1f3a14f
+Date:   2026-03-17 04:04:00 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #7: Implement Iterative Refinement & Conversation Loop
+
+commit 9b2e7ebc94fd5111bdde9bd667a936deb8984405
+Date:   2026-03-17 04:04:00 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #7: Implement Iterative Refinement & Conversation Loop
+
+commit 448f1184938f2c56aaa90d139aaef42aa4f84ec1
+Date:   2026-03-17 04:01:15 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #10: Verification & Audit Sub-Agent
+
+commit 165458044865ca331e02de319c14387e56178422
+Date:   2026-03-17 03:56:33 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #10: Verification & Audit Sub-Agent
+
+commit 4272fa10ed9e90826bb7f38f07faa50481f1d554
+Date:   2026-03-17 04:00:51 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #7: Implement Iterative Refinement & Conversation Loop
+
+commit 5c47d7e15fb195c9cecb70d7ee4f9a24b6661f55
+Date:   2026-03-17 04:00:51 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #7: Implement Iterative Refinement & Conversation Loop
+
+commit 82f7910f886914094d7e92b2fe303dd512b4042b
+Date:   2026-03-17 03:44:49 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add new skills for code review and product strategy
+
+commit dfc5e8f6552211891b191cd7d14966f0a8f25119
+Date:   2026-03-17 03:44:49 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add new skills for code review and product strategy
+
+commit ead118f6c46277df6c03dd012eded12500b57410
+Date:   2026-03-17 03:37:25 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Merged changes from jgd7471i/main
+
+commit b073b7bc5d3e221ee50b3ea316e109cc4680d53b
+Date:   2026-03-17 03:34:34 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: subrepl-jgd7471i
+
+    Pre-sync checkpoint
+
+commit 54b5238f8258e68699bf27ce79e1048145654a5c
+Date:   2026-03-17 03:34:28 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Pre-sync checkpoint
+
+commit a3d9e8f196230d3e6eae79a0ab8751dcfe3584bd
+Date:   2026-03-17 03:29:27 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #9: Upgrade Golden Path engine to genuine quality gates
+
+commit 1c31e7a040bbb3f7f20e2ecc0ac11772d2e59329
+Date:   2026-03-17 03:35:18 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Remove duplicate dependency audit check from pipeline
+
+commit 1b674adfe2d132d84d2804059cba1f29e3288d3c
+Date:   2026-03-17 03:35:18 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Remove duplicate dependency audit check from pipeline
+
+commit 023cb3269905955bf7a62bfb6fa373fd9168e579
+Date:   2026-03-17 03:28:38 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Integrate CodeSandbox for project deployments and previews
+
+commit ec9ffd1ac0dc435e6e690af39e793d19ac6ca57d
+Date:   2026-03-17 03:28:38 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Integrate CodeSandbox for project deployments and previews
+
+commit 3c33a2983c423a8accfd7aa5f2d2c016646608a4
+Date:   2026-03-17 03:10:22 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add ability to save notes and file paths for pipeline stages
+
+commit b1d344d0de10f116ac58f94aff1a478abe82dfef
+Date:   2026-03-17 03:10:22 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add ability to save notes and file paths for pipeline stages
+
+commit 2d36902ebf297bc67effaead1460fe09c950a045
+Date:   2026-03-17 03:07:47 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Implement Multi-Agent Generation Pipeline (Task #6)
+
+commit 6ed320fb6f1a5392a0d266759fbca42e579970e7
+Date:   2026-03-17 03:07:46 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Implement Multi-Agent Generation Pipeline (Task #6)
+
+commit f8ac8d769feec15aae913698b206aa8e7b14d5ff
+Date:   2026-03-17 02:50:21 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Implement critical hotfixes: token exhaustion hard-stop + dependency audit (Check #10)
+
+commit d570e475d07e62161a51367cf4abf2811d8b8865
+Date:   2026-03-17 02:50:21 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Implement critical hotfixes: token exhaustion hard-stop + dependency audit (Check #10)
+
+commit e54bbcfd0d794329400678ab304906a335aca5cd
+Date:   2026-03-17 02:43:52 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Integrate CodeSandbox SDK for enhanced live previews
+
+commit 6d8002dfa2b10a8f8cd00f8428003a9dca7f20e7
+Date:   2026-03-17 02:43:51 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Integrate CodeSandbox SDK for enhanced live previews
+
+commit 4bdf9a418c47c5ef5152ee75cb1de1444a082626
+Date:   2026-03-17 02:33:57 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add detailed code assessment and analysis documentation
+
+commit ee41a9b44557791499e057b514c6e89b1cc09346
+Date:   2026-03-17 02:33:56 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add detailed code assessment and analysis documentation
+
+commit 97f5b2ef0e94360875e0fac910d6d937765d836f
+Date:   2026-03-17 02:30:17 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a dedicated preview page for deployed projects
+
+commit d23f8b25e8a452e5c67274f68075486d7ca72350
+Date:   2026-03-17 02:30:16 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a dedicated preview page for deployed projects
+
+commit c4809184ff82f1f5b8c32b5e9e34c8948f2f954a
+Date:   2026-03-17 01:55:47 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update screenshot to reflect current preview functionality
+
+commit 85b30570cee460f36c0faaad0e0b6f78837b6675
+Date:   2026-03-17 01:55:47 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update screenshot to reflect current preview functionality
+
+commit 425e90300e780f0e13b5139c7fb3f8437b708f57
+Date:   2026-03-17 01:53:26 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #8: E2E Testing - Dev, Production & Live Deploy
+
+commit 61f8777529a1ef6a0ee4235be30a70425ae19d16
+Date:   2026-03-17 01:53:22 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a project preview feature with a dedicated endpoint
+
+commit 7af028ece537985d5dc285e2eeeec487ee8987b2
+Date:   2026-03-17 01:53:22 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a project preview feature with a dedicated endpoint
+
+commit 0f8e3253428539e7b2628ce0da609326d0119663
+Date:   2026-03-17 01:50:05 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: subrepl-dwnyivhv
+
+    Task #8: E2E Testing - Dev, Production & Live Deploy
+
+commit 9e1b400c726634254bc462f0bc0d7dfd03743bcd
+Date:   2026-03-17 01:45:54 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Implement a full-stack bookmark manager application with user authentication
+
+commit e1730f8add84be32769d78b3759bda53d7696c33
+Date:   2026-03-17 01:45:54 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Implement a full-stack bookmark manager application with user authentication
+
+commit 24d6536bfec6ecc35c033db619203b0628129f22
+Date:   2026-03-17 01:41:49 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve project validation checks for error handling and schema definition
+
+commit ae656d2f413709b0aadb979a0988e7e9d75898a3
+Date:   2026-03-17 01:41:49 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve project validation checks for error handling and schema definition
+
+commit 993129cfa53923b8364bde48674b6d3f16fb9c53
+Date:   2026-03-17 01:31:50 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve security rules to prevent hardcoded secrets in generated code
+
+commit b3f13fb95499e01fb818b9eabda5ca0d016b015a
+Date:   2026-03-17 01:31:50 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve security rules to prevent hardcoded secrets in generated code
+
+commit 0a6f5d2aa8f0e7e1c156fc708682be0a24adb047
+Date:   2026-03-17 01:26:39 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update settings page to properly load existing configuration data
+
+commit 91f55b159b80913d8bcd3a85c28cd748fb4e61d4
+Date:   2026-03-17 01:26:39 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update settings page to properly load existing configuration data
+
+commit 63df1c8bee945592aded1d69664b8a63eef44032
+Date:   2026-03-17 01:24:33 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #5: Custom Golden Path Configuration
+
+commit b9464fbf38fb6711beada274a66dc8b6943ad436
+Date:   2026-03-17 01:24:32 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #5: Custom Golden Path Configuration
+
+commit fabaae6292236f8bca925a6a48e07ece5ef53116
+Date:   2026-03-17 01:22:04 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #5: Custom Golden Path Configuration
+
+commit a612d1b60b626c31e0e505b7f80917c97b581615
+Date:   2026-03-17 01:22:04 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #5: Custom Golden Path Configuration
+
+commit 0ba7feebe00116db9d1d4fc68ddd0c3f59d2f3b5
+Date:   2026-03-17 01:21:32 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Published your App
+
+commit eb61a646aa0e46e4174942d564955ce5c65065f4
+Date:   2026-03-17 01:21:31 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Published your App
+
+commit 34be406945cc26d870c6b9910b835162bc45c714
+Date:   2026-03-17 01:16:35 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #5: Custom Golden Path Configuration
+
+commit 2162cc9cda23992f15cb220adc3632b9945f1ae5
+Date:   2026-03-17 01:16:35 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #5: Custom Golden Path Configuration
+
+commit ad13cdba551af5ab33055bf66f5adf044b6e353d
+Date:   2026-03-17 01:13:14 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #5: Custom Golden Path Configuration
+
+commit aa127ae8ca12e784a1ee2914f605167cf79e8894
+Date:   2026-03-17 01:13:14 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #5: Custom Golden Path Configuration
+
+commit f50eb168c6549ec08a7fc26295afc2e00ad525d6
+Date:   2026-03-16 23:43:54 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update the preview image for the application
+
+commit 2a89d3bf34db198156155b2ff29de620d83818b1
+Date:   2026-03-16 23:43:54 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update the preview image for the application
+
+commit 5367b0887d88b13be5815879e6d396fde973d00e
+Date:   2026-03-16 23:38:00 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add support for Gemini AI and improve API health checks
+
+commit d3d30c1c24f3e90acb8d918515bb8d2d8fa83476
+Date:   2026-03-16 23:38:00 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add support for Gemini AI and improve API health checks
+
+commit a09e851e382d74498a101444cbae6de1dc93700b
+Date:   2026-03-16 23:30:11 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Enable production deployment and add AI model support
+
+commit 8171249a829d95475253d12eb101d62e25d747d4
+Date:   2026-03-16 23:30:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Enable production deployment and add AI model support
+
+commit 11a1b72039f65f38e1469803fb9ad95b685a56ad
+Date:   2026-03-16 23:00:36 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    feat: Implement spec-first development flow (Planning Mode)
+
+commit bf449919b8a9e76a583ac344e4ce1c977a2097c2
+Date:   2026-03-16 23:00:35 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    feat: Implement spec-first development flow (Planning Mode)
+
+commit de1e3c21315eefe5de1f70e0f7aa0a221c8fca3c
+Date:   2026-03-16 22:56:26 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    feat: Implement spec-first development flow (Planning Mode)
+
+commit 129e65169752d9c8c6d9e347fde4c008a9876190
+Date:   2026-03-16 22:56:26 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    feat: Implement spec-first development flow (Planning Mode)
+
+commit 6b29bfbb432e202b66a91c47002e7f41151c63b9
+Date:   2026-03-16 22:50:38 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    feat: Implement spec-first development flow (Planning Mode)
+
+commit 3d2713f2497011b668e68246c97884f390cb9871
+Date:   2026-03-16 22:50:38 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    feat: Implement spec-first development flow (Planning Mode)
+
+commit fc5b42b37d514cdd331d60b2601ed5c507d3cfec
+Date:   2026-03-16 22:41:08 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add and update documentation for various agent skills
+
+commit e347ddc58c123fadf7e591d5cc0d54365b150fff
+Date:   2026-03-16 22:41:08 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add and update documentation for various agent skills
+
+commit e28112dbc27c0816e88c8ec8608c0541e9769743
+Date:   2026-03-16 22:38:21 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add new skills for platform development and security
+
+commit 9c7a21d5e5c5f7fecdf85528b77f38a47bdcf2f1
+Date:   2026-03-16 22:38:21 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add new skills for platform development and security
+
+commit 990aa3e00ff48d40ff0076efde2a8bb136eb031e
+Date:   2026-03-16 22:35:00 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update the not-found page to match the dark theme and improve navigation
+
+commit d4f30ed4edf42c6a562a43e4ce98fc4900e73f16
+Date:   2026-03-16 22:35:00 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update the not-found page to match the dark theme and improve navigation
+
+commit 2b05ba4a8a9e52cd2b899c301b62f8a404c1fa29
+Date:   2026-03-16 22:33:43 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add new agent skills and update documentation
+
+commit f69ac78c48c24ae06fe9280baa38be5d45a3f680
+Date:   2026-03-16 22:33:43 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add new agent skills and update documentation
+
+commit 6aaa85f5503d3b1aef164ab4a9c13fc3006f3dee
+Date:   2026-03-16 22:32:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #3: Project Dashboard & History
+
+commit 2539c5b1597a6ff94e6f3dd29527e8931373dcc3
+Date:   2026-03-16 22:32:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #3: Project Dashboard & History
+
+commit 52f96e9f351d942c22d1e0d9d45bb68f9c83a9b1
+Date:   2026-03-16 22:30:05 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #3: Project Dashboard & History
+
+commit 6ff23dce9dbb1b07f458b0542028955e67ccfe52
+Date:   2026-03-16 22:30:05 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #3: Project Dashboard & History
+
+commit 8e4055dd18889b9d74eb36d6548433508aca1565
+Date:   2026-03-16 22:25:05 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Create detailed reference document on cloud IDE architecture challenges
+
+commit 1013ae418dd1b534ce60c08b0d3b245a16cef120
+Date:   2026-03-16 22:25:05 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Create detailed reference document on cloud IDE architecture challenges
+
+commit e5f65decc8cb9fcd912475ca8a62bd45a82d356e
+Date:   2026-03-16 22:21:20 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update document detailing cloud IDE security and architecture challenges
+
+commit 8fae0ceb64e69f7929360d4d5c5323ce4ae5d474
+Date:   2026-03-16 22:21:20 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Update document detailing cloud IDE security and architecture challenges
+
+commit 0eeca41bfc98e4f8f9ecd1a0004d8d68ca9ab247
+Date:   2026-03-16 22:03:19 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit 786278218f36a122deaa97e0e6c63692150960d6
+Date:   2026-03-16 22:03:19 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit feca501caf2f1f4822cf96f352d230fb3a8d7312
+Date:   2026-03-16 21:59:55 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit b48d17aa931f2833cd349a67e8afb9cd78312867
+Date:   2026-03-16 21:59:55 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit 4bef427b9d513bdeaa813cc507a7fd75df4dae97
+Date:   2026-03-16 21:56:31 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit c4b316811895df6fec788cd27aba662d1204545c
+Date:   2026-03-16 21:56:31 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit d0ef1627628673d0e74ea46136763b42b1b21d6e
+Date:   2026-03-16 21:54:03 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit 8130504536da832d1eec531f6b9ba057cf7e31ce
+Date:   2026-03-16 21:54:03 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit ef0b0bbe27e241a1bf8911bbf367047eeff647ec
+Date:   2026-03-16 21:51:39 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit 9ce3c27ad48aabe967ada41dafc8e3d4114a542e
+Date:   2026-03-16 21:51:39 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit d7eb33be6e61e4fd66e62951394a91cc0e14cbe5
+Date:   2026-03-16 21:48:21 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit 8e26b2f9a007da20aa52bdde75d95bb1ae5a8d17
+Date:   2026-03-16 21:48:21 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit 48762434fea71c6f12f599f5a832aa935971fccd
+Date:   2026-03-16 21:45:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit 74cd992113c095d20f6e338e7654297e4c9443a5
+Date:   2026-03-16 21:45:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit d64aba1de30cff9fa8e75266b63ba69a192e1c66
+Date:   2026-03-16 21:40:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit 57812875590ff58676ae86b849673c150425e4df
+Date:   2026-03-16 21:40:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend)
+
+commit ad0f1cd99da4285d806df2f8883542c747b3c946
+Date:   2026-03-16 21:33:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend) — Complete & Enhanced
+
+commit 2ddb0efeb12317f24593d37f59e404c4de2da35a
+Date:   2026-03-16 21:33:10 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #2: Workspace UI (MVP Frontend) — Complete & Enhanced
+
+commit 701ad31d017f4def76f9fb2c8d966c63d2fa0fd6
+Date:   2026-03-16 16:03:23 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a functional todo list application with backend API support
+
+commit 6aa84ebb8d275be531d63de27d48110567139fcd
+Date:   2026-03-16 16:03:22 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a functional todo list application with backend API support
+
+commit 64df45dc2d5d8aab287ec7f0f928b8f5d7bef406
+Date:   2026-03-16 15:58:13 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add dashboard and project view pages for project management
+
+commit 50644050b2208409253a76abd6339d7f5ca89359
+Date:   2026-03-16 15:58:13 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add dashboard and project view pages for project management
+
+commit 68c1e3e74581636ae51b0b8142565fb440881a32
+Date:   2026-03-16 15:44:55 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a game art generator application with API
+
+commit 655f17828105cdf2154016e1bc74a25a92bb5011
+Date:   2026-03-16 15:44:55 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a game art generator application with API
+
+commit 90d69d17f3bc158abcc144bafddd686014c67d8c
+Date:   2026-03-16 15:41:34 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a functional frontend for the AI-driven developer platform
+
+commit 4994187b9ac5c6ab45ebf1135be9d89a0a9badae
+Date:   2026-03-16 15:41:34 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Add a functional frontend for the AI-driven developer platform
+
+commit dafccb0a7f0ce1d78ffb3393c1606fe7f84841ae
+Date:   2026-03-16 15:32:27 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve health check by caching LLM reachability status
+
+commit 75524bdadaf048880d33e7fb45369ee0abbabb27
+Date:   2026-03-16 15:32:27 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Improve health check by caching LLM reachability status
+
+commit 6bbd22afeedd2badc1af92dcb2a82ab24a825113
+Date:   2026-03-16 15:29:43 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #1: Orchestration API & Golden Path Engine
+
+commit 2f66a347b2f226311a4be254c9d2526dd684ad91
+Date:   2026-03-16 15:29:43 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #1: Orchestration API & Golden Path Engine
+
+commit 61af7c0573026c9985abf2aaf9e84ac183cbc520
+Date:   2026-03-16 15:25:54 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #1: Orchestration API & Golden Path Engine
+
+commit 547241657538ec78ae8cde49c43112cad707e840
+Date:   2026-03-16 15:25:54 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #1: Orchestration API & Golden Path Engine
+
+commit 6c89d707b9b6d9b8f597df3f25aeaba0fa04af60
+Date:   2026-03-16 15:16:18 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #1: Orchestration API & Golden Path Engine
+
+commit 0a71c906c5e4646af2e56f1bf827fd013581c901
+Date:   2026-03-16 15:16:18 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Task #1: Orchestration API & Golden Path Engine
+
+commit d4c15b45ea6cc67d1e7c7b6b4c7f0d5d61e10279
+Date:   2026-03-16 15:07:50 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Transitioned from Plan to Build mode
+
+commit 4dd6657d9353651234516f0167c23c7c0c233a6a
+Date:   2026-03-16 15:07:50 +0000
+Author: createappeal <50529956-createappeal@users.noreply.replit.com>
+Branch: 
+
+    Transitioned from Plan to Build mode
+
+commit c8ed262197365085518a6c4c832ef2c408cadc91
+Date:   2026-03-13 23:21:55 +0000
+Author: agent <agent@replit.com>
+Branch: 
+
+    Initial commit
+
