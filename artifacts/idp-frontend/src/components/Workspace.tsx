@@ -670,6 +670,7 @@ function SandpackWorkspaceInner({
                 border: "none",
                 borderRadius: 0,
                 background: "#0a0a0f",
+                overflow: "hidden",
               }}
             >
               <SandpackFileExplorer
@@ -677,6 +678,7 @@ function SandpackWorkspaceInner({
                   height: "100%",
                   minWidth: "180px",
                   maxWidth: "220px",
+                  overflow: "auto",
                 }}
               />
               <div className="relative flex-1 h-full flex flex-col">
