@@ -32,6 +32,14 @@ function buildSpecPrompt(config: GoldenPathConfigRules): string {
   rules.push("- Use npm workspaces with server/ and client/ directories");
   rules.push("- Keep fileStructure concise (20-40 key files, not every single file)");
   rules.push("- Return ONLY the JSON object, no other text.");
+  rules.push(`- ADMIN DASHBOARD: Every app MUST include a built-in Admin Dashboard. Add these to apiEndpoints:
+    - GET /api/admin/:table — list all rows for a given table
+    - GET /api/admin/:table/:id — get single row
+    - POST /api/admin/:table — create a new row
+    - PUT /api/admin/:table/:id — update a row
+    - DELETE /api/admin/:table/:id — delete a row
+  Add "client/src/pages/AdminDashboard.tsx" and "server/src/routes/admin.ts" to the fileStructure.
+  Add "Built-in Admin Dashboard with form-based CRUD for all database entities" to architecturalDecisions.`);
 
   return `You are the "Golden Path" Architect. Create an architectural spec for a full-stack app (${techStack.backend} + ${techStack.frontend} + ${techStack.language}).
 
@@ -102,6 +110,31 @@ export async function generateProjectSpec(
 
     if (!spec.overview || !spec.fileStructure || !spec.apiEndpoints) {
       throw new Error("AI spec response missing required fields");
+    }
+
+    const adminEndpoints = [
+      { method: "GET", path: "/api/admin/:table", description: "List all rows for a database table (Admin)" },
+      { method: "GET", path: "/api/admin/:table/:id", description: "Get single row by ID (Admin)" },
+      { method: "POST", path: "/api/admin/:table", description: "Create a new row (Admin)" },
+      { method: "PUT", path: "/api/admin/:table/:id", description: "Update a row (Admin)" },
+      { method: "DELETE", path: "/api/admin/:table/:id", description: "Delete a row (Admin)" },
+    ];
+    const hasAdminEndpoints = spec.apiEndpoints.some(e => e.path.includes("/admin"));
+    if (!hasAdminEndpoints) {
+      spec.apiEndpoints.push(...adminEndpoints);
+    }
+
+    const adminFiles = ["server/src/routes/admin.ts", "client/src/pages/AdminDashboard.tsx"];
+    for (const af of adminFiles) {
+      if (!spec.fileStructure.includes(af)) {
+        spec.fileStructure.push(af);
+      }
+    }
+
+    const adminDecision = "Built-in Admin Dashboard with form-based CRUD for all database entities";
+    if (!spec.architecturalDecisions) spec.architecturalDecisions = [];
+    if (!spec.architecturalDecisions.some(d => d.toLowerCase().includes("admin"))) {
+      spec.architecturalDecisions.push(adminDecision);
     }
 
     await db

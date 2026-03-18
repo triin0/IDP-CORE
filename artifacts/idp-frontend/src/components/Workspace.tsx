@@ -267,6 +267,20 @@ function StatusPanel({ project, onDeploy, isDeploying, deployUrl, deployError, o
           status={project.status}
         />
 
+        {(isReady || isDeployed) && project.files.some(f => f.path.includes("admin") || f.path.includes("Admin")) && (
+          <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
+            <div className="flex items-center gap-2">
+              <span className="text-base">⚙</span>
+              <div>
+                <div className="text-xs font-mono font-semibold text-amber-400">ADMIN MODE INCLUDED</div>
+                <div className="text-[10px] text-zinc-500 mt-0.5">
+                  Your app includes a built-in management dashboard at <span className="text-amber-400/80 font-mono">/admin</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="pt-2">
           {liveUrl ? (
             <div className="space-y-2">
@@ -561,6 +575,7 @@ function buildStaticPreview(files: Array<{ path: string; content: string }>, pro
     ${serverFiles.length > 0 ? `<div class="section"><div class="section-title">Backend</div><div class="server"><div class="dot"></div><span style="font-size:13px;color:#d4d4d8;">Express server &middot; ${serverFiles.length} files</span></div></div>` : ""}
     ${schemaFiles.length > 0 ? `<div class="section"><div class="section-title">Database</div><div class="grid">${schemaFiles.map(f => `<div class="card">${esc(f.path.split("/").pop() || "")}</div>`).join("")}</div></div>` : ""}
     ${safeDeps.length > 0 ? `<div class="section"><div class="section-title">Stack</div><div class="pills">${safeDeps.map(d => `<div class="pill">${d}</div>`).join("")}</div></div>` : ""}
+    ${files.some(f => f.path.includes("admin") || f.path.includes("Admin")) ? `<div class="section" style="border-color: #f59e0b33; background: #f59e0b08;"><div class="section-title" style="color:#f59e0b;">⚙ Admin Dashboard</div><div style="font-size:13px;color:#d4d4d8;">This app includes a built-in management dashboard at <span style="font-family:monospace;color:#f59e0b;">/admin</span> where you can add, edit, and delete your data without touching code.</div></div>` : ""}
   </div>
 </body>
 </html>`;
