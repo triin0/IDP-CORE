@@ -50,6 +50,115 @@ const PACKAGE_SUBSTITUTIONS: Record<string, { replacement: string; version: stri
   "mysql2": { replacement: "pg", version: "^8.16.0" },
 };
 
+interface ImportRewriteRule {
+  fromModule: string;
+  toModule: string;
+  importRewrite: (line: string) => string;
+  drizzleAdapterFrom: string;
+  drizzleAdapterTo: string;
+  bodyRewrite: (content: string) => string;
+}
+
+const IMPORT_REWRITE_RULES: ImportRewriteRule[] = [
+  {
+    fromModule: "postgres",
+    toModule: "pg",
+    drizzleAdapterFrom: "drizzle-orm/postgres-js",
+    drizzleAdapterTo: "drizzle-orm/node-postgres",
+    importRewrite: (_line: string) => {
+      return 'import { Pool } from "pg";';
+    },
+    bodyRewrite: (content: string) => {
+      let result = content;
+
+      result = result.replace(
+        /import\s*\{\s*drizzle\s*\}\s*from\s*["']drizzle-orm\/postgres-js["']/g,
+        'import { drizzle } from "drizzle-orm/node-postgres"'
+      );
+
+      result = result.replace(
+        /(?:const|let|var)\s+(\w+)\s*=\s*(\w+)\s*\(\s*([\s\S]*?)\)\s*;/g,
+        (match, varName, funcName, args) => {
+          if (funcName === "drizzle" || funcName === "Pool" || funcName === "require") return match;
+          if (result.includes(`import ${funcName}`) || funcName === "postgres" || funcName === "sql") {
+            const cleanArgs = args.trim();
+            if (cleanArgs.startsWith("{")) {
+              return `const ${varName} = new Pool(${cleanArgs});`;
+            }
+            return `const ${varName} = new Pool({ connectionString: ${cleanArgs} });`;
+          }
+          return match;
+        }
+      );
+
+      return result;
+    },
+  },
+  {
+    fromModule: "better-sqlite3",
+    toModule: "pg",
+    drizzleAdapterFrom: "drizzle-orm/better-sqlite3",
+    drizzleAdapterTo: "drizzle-orm/node-postgres",
+    importRewrite: () => 'import { Pool } from "pg";',
+    bodyRewrite: (content: string) => {
+      let result = content;
+      result = result.replace(
+        /import\s*\{\s*drizzle\s*\}\s*from\s*["']drizzle-orm\/better-sqlite3["']/g,
+        'import { drizzle } from "drizzle-orm/node-postgres"'
+      );
+      result = result.replace(
+        /import\s+Database\s+from\s+["']better-sqlite3["']/g,
+        'import { Pool } from "pg"'
+      );
+      result = result.replace(
+        /new\s+Database\s*\(\s*(.*?)\s*\)/g,
+        'new Pool({ connectionString: process.env.DATABASE_URL })'
+      );
+      return result;
+    },
+  },
+  {
+    fromModule: "mysql2",
+    toModule: "pg",
+    drizzleAdapterFrom: "drizzle-orm/mysql2",
+    drizzleAdapterTo: "drizzle-orm/node-postgres",
+    importRewrite: () => 'import { Pool } from "pg";',
+    bodyRewrite: (content: string) => {
+      let result = content;
+      result = result.replace(
+        /import\s*\{\s*drizzle\s*\}\s*from\s*["']drizzle-orm\/mysql2["']/g,
+        'import { drizzle } from "drizzle-orm/node-postgres"'
+      );
+      result = result.replace(
+        /import\s+\w+\s+from\s+["']mysql2(?:\/promise)?["']\s*;?/g,
+        'import { Pool } from "pg";'
+      );
+      result = result.replace(
+        /import\s*\{[^}]*\}\s*from\s+["']mysql2(?:\/promise)?["']\s*;?/g,
+        'import { Pool } from "pg";'
+      );
+      result = result.replace(
+        /\w+\.createPool\s*\(\s*([\s\S]*?)\s*\)/g,
+        'new Pool({ connectionString: process.env.DATABASE_URL })'
+      );
+      result = result.replace(
+        /\w+\.createConnection\s*\(\s*([\s\S]*?)\s*\)/g,
+        'new Pool({ connectionString: process.env.DATABASE_URL })'
+      );
+      return result;
+    },
+  },
+];
+
+const AXIOS_REWRITE: { pattern: RegExp; replacement: string }[] = [
+  { pattern: /import\s+axios\s+from\s+["']axios["']\s*;?/g, replacement: "" },
+  { pattern: /import\s*\{\s*[^}]*\}\s*from\s+["']axios["']\s*;?/g, replacement: "" },
+  { pattern: /axios\.get\s*\(\s*(.*?)\s*\)/g, replacement: "fetch($1).then(r => r.json())" },
+  { pattern: /axios\.post\s*\(\s*(.*?),\s*(.*?)\s*\)/g, replacement: 'fetch($1, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify($2) }).then(r => r.json())' },
+  { pattern: /axios\.put\s*\(\s*(.*?),\s*(.*?)\s*\)/g, replacement: 'fetch($1, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify($2) }).then(r => r.json())' },
+  { pattern: /axios\.delete\s*\(\s*(.*?)\s*\)/g, replacement: 'fetch($1, { method: "DELETE" }).then(r => r.json())' },
+];
+
 function enforceVersions(
   pkg: Record<string, unknown>,
   mandatedDeps: Record<string, string>,
@@ -115,11 +224,97 @@ function enforceVersions(
   return { modified, fixes };
 }
 
+function rewriteSourceImports(
+  files: Array<{ path: string; content: string }>,
+  substitutedPackages: Set<string>,
+): { files: Array<{ path: string; content: string }>; fixes: string[] } {
+  if (substitutedPackages.size === 0) return { files, fixes: [] };
+
+  const fixes: string[] = [];
+
+  const updatedFiles = files.map(file => {
+    if (!file.path.match(/\.[tj]sx?$/) || file.path.endsWith(".d.ts")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    for (const rule of IMPORT_REWRITE_RULES) {
+      if (!substitutedPackages.has(rule.fromModule)) continue;
+
+      const importPattern = new RegExp(
+        `(?:import\\s+.*?from\\s+["']${rule.fromModule}(?:\\/[^"']*)?["']|require\\s*\\(\\s*["']${rule.fromModule}(?:\\/[^"']*)?["']\\s*\\))\\s*;?`,
+        "g"
+      );
+
+      if (new RegExp(importPattern.source).test(content)) {
+        content = content.replace(importPattern, (match) => rule.importRewrite(match));
+        content = rule.bodyRewrite(content);
+
+        const adapterPattern = new RegExp(
+          `["']${rule.drizzleAdapterFrom.replace(/[/]/g, "\\/")}["']`,
+          "g"
+        );
+        content = content.replace(adapterPattern, `"${rule.drizzleAdapterTo}"`);
+
+        fixes.push(`[${file.path}] Rewrote ${rule.fromModule} → ${rule.toModule} imports + API usage`);
+        modified = true;
+      }
+    }
+
+    if (substitutedPackages.has("axios") || content.includes("from \"axios\"") || content.includes("from 'axios'")) {
+      for (const { pattern, replacement } of AXIOS_REWRITE) {
+        const before = content;
+        content = content.replace(pattern, replacement);
+        if (content !== before) modified = true;
+      }
+      if (modified && !fixes.some(f => f.includes(file.path) && f.includes("axios"))) {
+        fixes.push(`[${file.path}] Replaced axios calls with native fetch()`);
+      }
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: updatedFiles, fixes };
+}
+
+function detectSubstitutedPackages(
+  files: Array<{ path: string; content: string }>,
+): Set<string> {
+  const substituted = new Set<string>();
+
+  for (const file of files) {
+    if (!file.path.match(/\.[tj]sx?$/) || file.path.endsWith(".d.ts")) continue;
+
+    const lines = file.content.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+
+      for (const rule of IMPORT_REWRITE_RULES) {
+        const modulePattern = new RegExp(`["']${rule.fromModule}(?:/[^"']*)?["']`);
+        if (modulePattern.test(trimmed) && (trimmed.includes("import") || trimmed.includes("require"))) {
+          substituted.add(rule.fromModule);
+        }
+      }
+
+      if (/["']axios["']/.test(trimmed) && (trimmed.includes("import") || trimmed.includes("require"))) {
+        substituted.add("axios");
+      }
+    }
+  }
+
+  return substituted;
+}
+
 export function enforcePackageVersions(
   files: Array<{ path: string; content: string }>,
 ): { files: Array<{ path: string; content: string }>; fixes: string[] } {
   const allFixes: string[] = [];
-  const updatedFiles = files.map(file => {
+
+  const bannedInSource = detectSubstitutedPackages(files);
+
+  let updatedFiles = files.map(file => {
     if (!file.path.endsWith("package.json")) return file;
 
     let pkg: Record<string, unknown>;
@@ -146,6 +341,12 @@ export function enforcePackageVersions(
 
     return file;
   });
+
+  if (bannedInSource.size > 0) {
+    const importResult = rewriteSourceImports(updatedFiles, bannedInSource);
+    updatedFiles = importResult.files;
+    allFixes.push(...importResult.fixes);
+  }
 
   return { files: updatedFiles, fixes: allFixes };
 }
