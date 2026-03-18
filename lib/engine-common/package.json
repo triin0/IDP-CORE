@@ -1,0 +1,21 @@
+{
+  "name": "@workspace/engine-common",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*",
+    "@workspace/integrations-openai-ai-server": "workspace:*",
+    "@google/generative-ai": "catalog:",
+    "drizzle-orm": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

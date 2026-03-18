@@ -7,7 +7,13 @@ The AI-Native Internal Developer Platform (IDP.CORE) is an MVP designed to revol
 Iterative development. Ask before making major architectural changes or deploying to production. Prioritize clarity and conciseness. Show the overall plan before coding. Do not modify files in `deployed-projects/`.
 
 ## System Architecture
-The IDP is built as a pnpm workspace monorepo. It features an Express 5 API server for orchestration, a React frontend for the observation UI, and uses PostgreSQL with Drizzle ORM for data persistence. It utilizes a dual AI provider strategy, with Gemini Pro as the primary and OpenAI as a fallback.
+The IDP is built as a pnpm workspace monorepo with a **Strategy Pattern engine architecture**. It features an Express 5 API server for orchestration, a React frontend for the observation UI, and uses PostgreSQL with Drizzle ORM for data persistence. It utilizes a dual AI provider strategy, with Gemini Pro as the primary and OpenAI as a fallback.
+
+**Engine Architecture (Phase 2A — Polyglot Pivot):**
+*   **`lib/engine-common/`** (`@workspace/engine-common`): Shared engine utilities — `ai-retry.ts` (LLM call infrastructure with retry + continuation), `snapshots.ts` (CAS snapshot engine), `pipeline-events.ts` (SSE event bus), `types.ts` (EngineInterface contract).
+*   **`lib/engine-react/`** (`@workspace/engine-react`): React/Express generation engine — extracted from api-server. Contains `pipeline.ts`, `agents.ts`, `golden-path.ts`, `spec-generator.ts`, `refine.ts`, `seed-generator.ts`, `deploy.ts`, `sandbox.ts`, `design-personas.ts`, `source-annotator.ts`, and all verification modules (AST, build, dependency audit, hash integrity, version enforcement).
+*   **`artifacts/api-server/src/lib/`**: Now contains thin re-export shims that delegate to `@workspace/engine-common` and `@workspace/engine-react`. Engine-agnostic code (`auth.ts`, `credits.ts`, `github.ts`) remains in api-server. This preserves all existing dynamic `await import()` paths in routes.
+*   **Future:** `lib/engine-fastapi/` will implement the same `EngineInterface` for Python/FastAPI generation (Phase 2C).
 
 **Core Architectural Decisions:**
 *   **Orchestration API:** An Express 5 server manages the project lifecycle, including `pending` through `deployed` (or `failed`) states.

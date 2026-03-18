@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@google/generative-ai':
+      specifier: ^0.24.1
+      version: 0.24.1
     '@replit/vite-plugin-cartographer':
       specifier: ^0.5.0
       version: 0.5.0
@@ -205,6 +208,12 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/engine-common':
+        specifier: workspace:*
+        version: link:../../lib/engine-common
+      '@workspace/engine-react':
+        specifier: workspace:*
+        version: link:../../lib/engine-react
       '@workspace/integrations-openai-ai-server':
         specifier: workspace:*
         version: link:../../lib/integrations-openai-ai-server
@@ -709,6 +718,86 @@ importers:
       drizzle-kit:
         specifier: ^0.31.9
         version: 0.31.9
+
+  lib/engine-common:
+    dependencies:
+      '@google/generative-ai':
+        specifier: 'catalog:'
+        version: 0.24.1
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../db
+      '@workspace/integrations-openai-ai-server':
+        specifier: workspace:*
+        version: link:../integrations-openai-ai-server
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.1(@opentelemetry/api@1.9.0)(@types/pg@8.18.0)(pg@8.20.0)
+    devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  lib/engine-react:
+    dependencies:
+      '@babel/core':
+        specifier: ^7.29.0
+        version: 7.29.0
+      '@babel/generator':
+        specifier: ^7.29.1
+        version: 7.29.1
+      '@babel/parser':
+        specifier: ^7.29.2
+        version: 7.29.2
+      '@babel/plugin-syntax-jsx':
+        specifier: ^7.28.6
+        version: 7.28.6(@babel/core@7.29.0)
+      '@babel/plugin-syntax-typescript':
+        specifier: ^7.28.6
+        version: 7.28.6(@babel/core@7.29.0)
+      '@babel/traverse':
+        specifier: ^7.29.0
+        version: 7.29.0
+      '@babel/types':
+        specifier: ^7.29.0
+        version: 7.29.0
+      '@codesandbox/sdk':
+        specifier: ^2.4.2
+        version: 2.4.2
+      '@google/generative-ai':
+        specifier: 'catalog:'
+        version: 0.24.1
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../db
+      '@workspace/engine-common':
+        specifier: workspace:*
+        version: link:../engine-common
+      '@workspace/integrations-openai-ai-server':
+        specifier: workspace:*
+        version: link:../integrations-openai-ai-server
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.1(@opentelemetry/api@1.9.0)(@types/pg@8.18.0)(pg@8.20.0)
+      ts-morph:
+        specifier: ^27.0.2
+        version: 27.0.2
+    devDependencies:
+      '@types/babel__core':
+        specifier: ^7.20.5
+        version: 7.20.5
+      '@types/babel__generator':
+        specifier: ^7.27.0
+        version: 7.27.0
+      '@types/babel__traverse':
+        specifier: ^7.28.0
+        version: 7.28.0
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.3.5
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
 
   lib/integrations-openai-ai-react: {}
 
