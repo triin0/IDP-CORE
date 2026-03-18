@@ -39,6 +39,7 @@ export interface VerificationVerdict {
     currentHash?: string;
     expectedHash?: string;
   }>;
+  buildPassed: boolean;
   buildStderr?: string;
   dependencyErrors: string[];
   recommendedFixes: string[];
@@ -266,11 +267,12 @@ export async function runVerificationStage(
     };
     if (!buildResult.passed) {
       console.warn(`[pipeline:${projectId.slice(0, 8)}] Build verification failed: ${buildResult.description.slice(0, 300)}`);
-      const cleanedStderr = (buildResult.stderr || "")
+      const rawOutput = [buildResult.stdout || "", buildResult.stderr || ""].join("\n");
+      const cleanedOutput = rawOutput
         .split("\n")
-        .filter((l: string) => !/^npm\s+(warn|notice|WARN|ERR!)/i.test(l) && l.trim().length > 0)
+        .filter((l: string) => !/^npm\s+(warn|notice|WARN|ERR!|error\s+(code|path|workspace|location|command|Lifecycle))/i.test(l) && l.trim().length > 0)
         .join("\n");
-      buildStderr = cleanedStderr || buildResult.description || undefined;
+      buildStderr = cleanedOutput || buildResult.description || undefined;
     } else {
       console.log(`[pipeline:${projectId.slice(0, 8)}] Build verification passed`);
     }
@@ -421,6 +423,7 @@ export async function runVerificationStage(
     summary,
     checks: verdictChecks,
     hashAudit,
+    buildPassed: buildCheck.passed,
     buildStderr,
     dependencyErrors,
     recommendedFixes,
@@ -585,7 +588,7 @@ export async function executeWithSelfHealing(
       passed: verdict.passed,
       failureCategory: verdict.failureCategory,
       summary: verdict.summary,
-      buildPassed: !verdict.buildStderr,
+      buildPassed: verdict.buildPassed,
       dependencyErrors: verdict.dependencyErrors.length,
     });
 
@@ -617,7 +620,7 @@ export async function executeWithSelfHealing(
       maxAttempts: MAX_RECOVERY_LOOPS,
       failureCategory: verdict.failureCategory,
       errors: verdict.dependencyErrors.slice(0, 5),
-      buildStderr: verdict.buildStderr?.slice(0, 500),
+      buildStderr: verdict.buildStderr?.slice(0, 2000),
     });
 
     console.warn(`[self-heal:${projectId.slice(0, 8)}] Recovery attempt ${attempt}/${MAX_RECOVERY_LOOPS} for [${verdict.failureCategory}]`);

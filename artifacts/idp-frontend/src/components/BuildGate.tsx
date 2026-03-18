@@ -18,6 +18,7 @@ interface VerificationVerdictData {
     currentHash?: string;
     expectedHash?: string;
   }>;
+  buildPassed?: boolean;
   buildStderr?: string;
   dependencyErrors: string[];
   recommendedFixes: string[];
@@ -49,7 +50,7 @@ function deriveGateStatus(verdict: VerificationVerdictData | null | undefined, k
     case "dependencies":
       return verdict.dependencyErrors.length === 0 && verdict.failureCategory !== "dependency_hallucination" && verdict.failureCategory !== "dependency_vulnerability" ? "pass" : "fail";
     case "build":
-      return !verdict.buildStderr && verdict.failureCategory !== "build_failure" ? "pass" : "fail";
+      return (verdict.buildPassed ?? !verdict.buildStderr) && verdict.failureCategory !== "build_failure" ? "pass" : "fail";
     case "hash_integrity":
       return verdict.failureCategory !== "hash_integrity" ? "pass" : "fail";
     case "security": {

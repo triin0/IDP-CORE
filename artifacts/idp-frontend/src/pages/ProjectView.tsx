@@ -55,6 +55,7 @@ interface VerificationVerdictData {
     currentHash?: string;
     expectedHash?: string;
   }>;
+  buildPassed?: boolean;
   buildStderr?: string;
   dependencyErrors: string[];
   recommendedFixes: string[];

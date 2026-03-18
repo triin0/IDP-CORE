@@ -26,24 +26,29 @@ function cleanEnv(): Record<string, string> {
   return env;
 }
 
-function extractTscErrors(stderr: string): string {
-  const lines = stderr.split("\n");
+function extractTscErrors(combined: string): string {
+  const lines = combined.split("\n");
   const errorLines = lines.filter(
     (l) =>
       l.includes("error TS") ||
       l.includes("Cannot find") ||
       l.includes("has no exported member") ||
       l.includes("is not assignable") ||
-      l.includes("Property") ||
-      l.includes("Module") ||
+      l.includes("is not a module") ||
+      l.includes("has no default export") ||
+      l.includes("Type '") ||
+      l.includes("Argument of type") ||
+      l.includes("Expected") ||
+      (l.includes("Property '") && l.includes("does not exist")) ||
+      (l.includes("Module '") && l.includes("has no")) ||
       (l.includes(": error") && !l.startsWith("npm"))
   );
   if (errorLines.length > 0) {
-    return errorLines.slice(0, 20).join("\n");
+    return errorLines.slice(0, 30).join("\n");
   }
   return lines
-    .filter((l) => !l.startsWith("npm warn") && !l.startsWith("npm error") && l.trim().length > 0)
-    .slice(0, 20)
+    .filter((l) => !l.startsWith("npm warn") && !l.startsWith("npm error") && !l.startsWith("npm notice") && l.trim().length > 0)
+    .slice(0, 30)
     .join("\n");
 }
 
@@ -163,13 +168,16 @@ export async function runBuildVerification(
       };
     } catch (err: unknown) {
       const execErr = err as { stderr?: string; stdout?: string; message?: string };
+      const rawStdout = execErr.stdout ?? "";
       const rawStderr = execErr.stderr ?? "";
-      const tscErrors = extractTscErrors(rawStderr);
-      const combinedStdout = (execErr.stdout ?? "") + "\n" + (installStdout ?? "");
+      const combined = rawStdout + "\n" + rawStderr;
+      const tscErrors = extractTscErrors(combined);
       return {
         passed: false,
-        description: `Build failed. TypeScript errors:\n${tscErrors}`,
-        stdout: combinedStdout,
+        description: tscErrors
+          ? `Build failed. TypeScript errors:\n${tscErrors}`
+          : `Build failed: ${rawStderr.split("\n").filter(l => !l.startsWith("npm") && l.trim()).slice(0, 10).join("\n") || "Unknown error"}`,
+        stdout: rawStdout,
         stderr: rawStderr,
       };
     }
