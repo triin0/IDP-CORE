@@ -53,6 +53,16 @@ async function refreshIfExpired(
   }
 }
 
+const DEV_USER: AuthUser = {
+  id: "dev-user-001",
+  email: "dev@idp.local",
+  firstName: "Dev",
+  lastName: "User",
+  profileImageUrl: null,
+};
+
+const AUTH_DISABLED = true;
+
 export async function authMiddleware(
   req: Request,
   res: Response,
@@ -61,6 +71,12 @@ export async function authMiddleware(
   req.isAuthenticated = function (this: Request) {
     return this.user != null;
   } as Request["isAuthenticated"];
+
+  if (AUTH_DISABLED) {
+    req.user = DEV_USER;
+    next();
+    return;
+  }
 
   const sid = getSessionId(req);
   if (!sid) {

@@ -576,6 +576,94 @@ router.delete("/projects/:id", requireAuth, async (req, res) => {
   }
 });
 
+router.post("/ghost-preview", async (req: Request, res: Response) => {
+  try {
+    const { appName, tagline, features } = req.body as {
+      appName?: string;
+      tagline?: string;
+      features?: Array<{ category: string; name: string; description: string }>;
+    };
+
+    if (!appName || !features || !Array.isArray(features) || features.length === 0) {
+      res.status(400).json({ error: "Missing appName or features" });
+      return;
+    }
+
+    const { callWithRetry } = await import("../lib/ai-retry");
+
+    const featureList = features
+      .map((f) => `- ${f.category}: ${f.name} (${f.description})`)
+      .join("\n");
+
+    const systemPrompt = `You are a UI wireframe generator. Generate a SINGLE self-contained React component that renders a high-fidelity homepage mockup for the described application.
+
+Rules:
+- Return ONLY valid JSON: { "code": "..." }
+- The "code" field contains a complete React component as a default export
+- Use ONLY inline styles (no Tailwind, no CSS imports, no external dependencies)
+- Use a dark theme with these colors: background #0a0a12, cards #12121a, borders #1e1e2e, text #e4e4e7, muted text #71717a, accent #22d3ee
+- Create a professional landing page / dashboard mockup showing:
+  - A navigation bar with the app name and placeholder menu items
+  - A hero section with the tagline
+  - Feature cards or sections based on the enabled features
+  - A call-to-action button
+  - A footer
+- Make it look like a real product — use realistic placeholder text, not "Lorem ipsum"
+- All content must be hardcoded (no props, no API calls, no state management)
+- Use modern layout: flexbox or CSS grid via inline styles
+- Include visual hierarchy: headings, subheadings, body text
+- Add subtle visual details: rounded corners, box shadows, emoji or unicode icons
+- The component MUST be declared as: function App() { ... } (NO export keyword — the code runs in a script tag, not a module)
+- Keep it under 200 lines`;
+
+    const raw = await callWithRetry(
+      {
+        model: "gemini-2.5-pro",
+        max_completion_tokens: 8192,
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: `Generate a homepage mockup for "${appName}" — ${tagline || ""}
+
+Enabled features:
+${featureList}`,
+          },
+        ],
+        response_format: { type: "json_object" },
+      },
+      "GhostPreview",
+    );
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+      } else {
+        throw new Error("AI returned invalid response");
+      }
+    }
+
+    if (!parsed.code || typeof parsed.code !== "string") {
+      throw new Error("AI returned response without code");
+    }
+
+    let cleanCode = (parsed.code as string)
+      .replace(/export\s+default\s+function/g, "function")
+      .replace(/export\s+default\s+/g, "")
+      .replace(/export\s+function/g, "function");
+
+    res.json({ code: cleanCode });
+  } catch (err: unknown) {
+    const internal = err instanceof Error ? err.message : "Unknown error";
+    console.error("Ghost Preview error:", internal);
+    res.status(500).json({ error: "Failed to generate preview. Please try again." });
+  }
+});
+
 router.post("/deconstruct", async (req: Request, res: Response) => {
   try {
     const { idea } = req.body as { idea?: string };

@@ -43,6 +43,7 @@ const deconstructLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use("/api/deconstruct", deconstructLimiter);
+app.use("/api/ghost-preview", deconstructLimiter);
 
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
