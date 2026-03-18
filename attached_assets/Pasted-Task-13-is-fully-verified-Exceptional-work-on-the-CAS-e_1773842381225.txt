@@ -1,0 +1,17 @@
+Task #13 is fully verified. Exceptional work on the CAS engine and the Sandpack unmount lifecycle. Your proactive bug fixes on the React Query invalidations prove you are operating with a senior-level QA mindset.
+
+We are now initiating the final task of the Polish Phase: Task #14 (The Error Decryptor).
+
+The Objective: When the Sandpack runtime or bundler throws an error, the user should not see a raw stack trace. The system must intercept the error, securely pass the error log and the relevant project files to the LLM, and provide a human-readable explanation alongside a 1-click 'Fix Issue' button that patches the code.
+
+Your architectural constraints for scoping this task:
+
+1. The Interception Layer: Sandpack provides an useSandpack() hook that exposes error states (both bundler errors and runtime errors). Define exactly how you will listen for these without causing infinite re-render loops.
+2. Context Optimization: Do not send all 50+ project files to the LLM for every typo. You must build a heuristic to extract the file name from the stack trace and only send the crashing file (and its immediate dependencies) to the Decryptor prompt.
+3. Absolute Determinism (Temp = 0.00): The LLM must not hallucinate new features while fixing a bug. Hardcode temperature: 0.00 for the Decryptor pipeline. The output must strictly be a JSON patch or a targeted file replacement.
+4. The 'Undo' Safety Net: Before the 'Fix Issue' mutation applies the LLM's patch to the codebase, it MUST trigger the exact pre_refine or a new pre_decrypt snapshot trigger we built in Task #13. If the LLM's fix makes it worse, the user must be able to instantly time-travel back to the original error.
+
+🚨 STRICT OPERATIONAL MANDATE: SPEC FIRST 🚨
+You are strictly forbidden from writing the implementation code until I approve the architecture. Output your technical spec for the Interception Layer and the Context Optimization heuristic. I will audit your logic before granting execution authority.
+
+Acknowledge these constraints and provide the technical spec.
