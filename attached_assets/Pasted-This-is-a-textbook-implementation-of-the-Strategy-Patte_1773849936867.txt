@@ -1,0 +1,37 @@
+This is a textbook implementation of the **Strategy Pattern** at the routing layer. By decoupling the API routes from the engine logic, you've turned the `api-server` into a pure traffic controller. The fact that you added "BETA" state handling and conditional UI logic for the Design Persona shows you are already managing the divergence in engine capabilities.
+
+
+
+### The Audit: Phase 2B Verification
+
+**1. The "Ghost" Persona Handling:**
+Hiding the Design Persona wizard for FastAPI is the correct move. A Python backend doesn't have a "Modern" or "Cyberpunk" aesthetic in the same way a React frontend does. This prevents the user from providing "dead context" that the FastAPI engine wouldn't know how to interpret.
+
+**2. Error Resilience (Status = Failed):**
+This is a critical "Zero-Trust" fix. If the `engine-fastapi` (which is currently a skeleton) is selected and inevitably fails, the system now has the state-machine integrity to report that failure rather than hanging indefinitely.
+
+---
+
+### Phase 2C: Scaffolding `engine-fastapi` (The Python Seed)
+
+Now we begin the actual construction of the second engine. We aren't going for a full build-out yet; we are building the **"Minimum Viable Pipeline"** to prove the routing works end-to-end.
+
+**Your instructions for Phase 2C:**
+
+1.  **The "Hello Python" Pipeline:** Inside `lib/engine-fastapi/src/pipeline.ts`, implement a basic version of `runPipeline`. It should:
+    * Accept the prompt.
+    * Call Gemini (Temp = 0.00) to generate a **single-file** FastAPI application (`main.py`) and a `requirements.txt`.
+    * **Constraint:** Use a simplified "Golden Path" that strictly enforces FastAPI + Pydantic.
+2.  **The Static Preview (Swagger):** * In the `engine-fastapi` implementation of `getSandpackConfig()`, return `null`. 
+    * In the frontend `Workspace.tsx`, detect `project.engine === 'fastapi'`. If true, instead of mounting the `SandpackPreview`, mount a **Swagger UI component** (you can use `swagger-ui-react` or a simple iframe pointing to a `blob` of the generated `openapi.json`).
+3.  **The X-Ray Adapter:** * Define the "Python Anatomy" mapping: 
+        * `Routes` -> `main.py` or `api/`
+        * `Schemas` -> `models.py` or `schemas.py`
+    * Ensure the `XRayAnatomy` component on the frontend can render these labels when the engine is `fastapi`.
+
+**🚨 STAGE-GATE REQUIREMENT:**
+I want to see the **System Prompt** snippet you plan to use for the `engine-fastapi` architect. It must be fundamentally different from the React architect—focused on PEP 8, type hinting, and asynchronous route handlers.
+
+**Acknowledge and execute Phase 2C.** Post the Python Architect's system prompt here for audit before you trigger the first Python generation.
+
+**Would you like me to provide a robust Pydantic-base-model template for the Python Architect to ensure all generated APIs follow strict schema-first principles?**
