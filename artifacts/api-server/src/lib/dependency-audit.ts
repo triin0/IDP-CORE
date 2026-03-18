@@ -30,7 +30,7 @@ async function getWeeklyDownloads(name: string): Promise<number | null> {
   }
 }
 
-async function auditPackage(name: string, version: string, errors: string[]): Promise<void> {
+async function auditPackage(name: string, version: string, errors: string[], isDevOnly: boolean = false): Promise<void> {
   const cleanVersion = version.replace(/[\^~><=]/g, "").trim();
 
   const npmRes = await fetchWithTimeout(`https://registry.npmjs.org/${encodeURIComponent(name)}`);
@@ -64,22 +64,24 @@ async function auditPackage(name: string, version: string, errors: string[]): Pr
     );
   }
 
-  const osvRes = await fetchWithTimeout("https://api.osv.dev/v1/query", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      version: cleanVersion,
-      package: { name, ecosystem: "npm" },
-    }),
-  });
+  if (!isDevOnly) {
+    const osvRes = await fetchWithTimeout("https://api.osv.dev/v1/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        version: cleanVersion,
+        package: { name, ecosystem: "npm" },
+      }),
+    });
 
-  if (osvRes.ok) {
-    const osvData = (await osvRes.json()) as { vulns?: unknown[] };
-    if (osvData.vulns && osvData.vulns.length > 0) {
-      errors.push(`[CVE] Package '${name}@${cleanVersion}' has known vulnerabilities in the OSV database.`);
+    if (osvRes.ok) {
+      const osvData = (await osvRes.json()) as { vulns?: unknown[] };
+      if (osvData.vulns && osvData.vulns.length > 0) {
+        errors.push(`[CVE] Package '${name}@${cleanVersion}' has known vulnerabilities in the OSV database.`);
+      }
+    } else {
+      errors.push(`[Inconclusive] Could not check vulnerabilities for '${name}' — OSV returned ${osvRes.status}.`);
     }
-  } else {
-    errors.push(`[Inconclusive] Could not check vulnerabilities for '${name}' — OSV returned ${osvRes.status}.`);
   }
 }
 
@@ -93,13 +95,16 @@ export async function validateDependencies(packageJsonString: string): Promise<D
     return { passed: false, errors: ["Golden Path #10: Invalid package.json format generated."] };
   }
 
-  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-  if (Object.keys(deps).length === 0) return { passed: true, errors: [] };
+  const prodDeps = pkg.dependencies || {};
+  const devDeps = pkg.devDependencies || {};
+  const allDeps = { ...devDeps, ...prodDeps };
+  if (Object.keys(allDeps).length === 0) return { passed: true, errors: [] };
 
   await Promise.all(
-    Object.entries(deps).map(async ([name, version]) => {
+    Object.entries(allDeps).map(async ([name, version]) => {
       try {
-        await auditPackage(name, version as string, errors);
+        const isDevOnly = !(name in prodDeps);
+        await auditPackage(name, version as string, errors, isDevOnly);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[Dependency Audit] Failed to validate package ${name}:`, message);

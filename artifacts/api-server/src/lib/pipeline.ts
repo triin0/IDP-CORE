@@ -334,15 +334,22 @@ export async function runVerificationStage(
     (h) => h.status === "missing"
   );
 
-  const specMismatch = fullTreeHash.specComparison.missing.length > 0;
-  if (hashIntegrityFailed || specMismatch) {
+  const missingSpec = fullTreeHash.specComparison.missing;
+  const specMatchRatio = fullTreeHash.specComparison.matchRatio;
+  const specMismatch = specMatchRatio < 0.5;
+  if (hashIntegrityFailed) {
     const missingCore = hashComparison.filter(h => h.status === "missing").map(h => h.path);
-    const missingSpec = fullTreeHash.specComparison.missing;
-    const allMissing = [...new Set([...missingCore, ...missingSpec])];
     verdictChecks.push({
       name: "Hash Integrity",
       passed: false,
-      description: `Files missing from output: ${allMissing.join(", ")} | Spec match ratio: ${(fullTreeHash.specComparison.matchRatio * 100).toFixed(0)}%`,
+      description: `Core config files missing: ${missingCore.join(", ")} | Spec match ratio: ${(specMatchRatio * 100).toFixed(0)}%`,
+      category: "hash_integrity",
+    });
+  } else if (specMismatch) {
+    verdictChecks.push({
+      name: "Hash Integrity",
+      passed: false,
+      description: `Spec match ratio too low (${(specMatchRatio * 100).toFixed(0)}%). Missing: ${missingSpec.slice(0, 5).join(", ")}${missingSpec.length > 5 ? ` (+${missingSpec.length - 5} more)` : ""}`,
       category: "hash_integrity",
     });
   } else {
@@ -385,14 +392,15 @@ export async function runVerificationStage(
   const hasCVEsOnly = !depAuditCheck.passed && !hasHallucinatedDeps && depAuditCheck.description.includes("[CVE]");
   const overallPassed =
     !hasHallucinatedDeps &&
-    !hashIntegrityFailed;
+    !hashIntegrityFailed &&
+    !specMismatch;
 
   const failureCategory = determineFailureCategory(
     criticalFailures,
     hasHallucinatedDeps,
     !depAuditCheck.passed,
     !buildCheck.passed,
-    hashIntegrityFailed,
+    hashIntegrityFailed || specMismatch,
     astFailed,
   );
 

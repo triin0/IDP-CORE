@@ -38,32 +38,46 @@ function createInMemoryProject(files: Array<{ path: string; content: string }>):
 }
 
 function findServerEntryFiles(files: Array<{ path: string; content: string }>): Array<{ path: string; content: string }> {
-  const serverPatterns = [
-    /server\/src\/index\.[tj]sx?$/,
-    /server\/src\/app\.[tj]sx?$/,
-    /server\/index\.[tj]sx?$/,
-    /src\/server\.[tj]sx?$/,
-    /src\/index\.[tj]sx?$/,
-    /src\/app\.[tj]sx?$/,
-    /index\.[tj]sx?$/,
-    /app\.[tj]sx?$/,
+  const serverPatterns: Array<{ pattern: RegExp; priority: number }> = [
+    { pattern: /^server\/src\/index\.[tj]sx?$/, priority: 1 },
+    { pattern: /^server\/src\/app\.[tj]sx?$/, priority: 2 },
+    { pattern: /^server\/index\.[tj]sx?$/, priority: 3 },
+    { pattern: /^src\/server\.[tj]sx?$/, priority: 4 },
+    { pattern: /^src\/index\.[tj]sx?$/, priority: 5 },
+    { pattern: /^src\/app\.[tj]sx?$/, priority: 6 },
+    { pattern: /^index\.[tj]sx?$/, priority: 7 },
+    { pattern: /^app\.[tj]sx?$/, priority: 8 },
   ];
 
-  const serverFiles = files.filter(f => {
-    if (f.path.includes("client/") || f.path.includes("frontend/") || f.path.includes("react")) return false;
-    return serverPatterns.some(p => p.test(f.path));
-  });
+  const candidates = files
+    .filter(f => !f.path.includes("client/") && !f.path.includes("frontend/") && !f.path.includes("react"))
+    .map(f => {
+      for (const { pattern, priority } of serverPatterns) {
+        if (pattern.test(f.path)) {
+          return { file: f, priority };
+        }
+      }
+      return null;
+    })
+    .filter((c): c is { file: { path: string; content: string }; priority: number } => c !== null)
+    .sort((a, b) => a.priority - b.priority);
 
-  if (serverFiles.length === 0) {
-    return files.filter(f =>
-      (f.path.endsWith(".ts") || f.path.endsWith(".js")) &&
-      !f.path.includes("client/") &&
-      !f.path.includes("frontend/") &&
-      (f.content.includes("express") || f.content.includes("app.listen") || f.content.includes("createServer"))
-    );
+  if (candidates.length > 0) {
+    return [candidates[0].file];
   }
 
-  return serverFiles;
+  const fallback = files.filter(f =>
+    (f.path.endsWith(".ts") || f.path.endsWith(".js")) &&
+    !f.path.includes("client/") &&
+    !f.path.includes("frontend/") &&
+    (f.content.includes("express") || f.content.includes("app.listen") || f.content.includes("createServer"))
+  );
+
+  if (fallback.length > 0) {
+    return [fallback[0]];
+  }
+
+  return [];
 }
 
 function getAllCallExpressions(sourceFile: SourceFile): CallExpression[] {
@@ -330,10 +344,18 @@ export function runASTVerification(
 
     let primarySource: SourceFile | undefined;
     for (const entry of serverEntries) {
-      const sf = project.getSourceFile(entry.path);
+      const sf = project.getSourceFile(entry.path) || project.getSourceFile(`/${entry.path}`);
       if (sf) {
         primarySource = sf;
         break;
+      }
+    }
+
+    if (!primarySource) {
+      const allSources = project.getSourceFiles();
+      for (const entry of serverEntries) {
+        primarySource = allSources.find(s => s.getFilePath().endsWith(entry.path));
+        if (primarySource) break;
       }
     }
 

@@ -36,6 +36,11 @@
       "sourceType": "github",
       "computedHash": "d31e234f0c90694a670222cdd1dafa853e051d7066beda389f1097c22dadd461"
     },
+    "firecrawl": {
+      "source": "firecrawl/cli",
+      "sourceType": "github",
+      "computedHash": "f79f957689cc705613a2731f2f35360192fc9a6a28bc3de73484c973621df5ed"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
@@ -45,6 +50,16 @@
       "source": "softaworks/agent-toolkit",
       "sourceType": "github",
       "computedHash": "aa6f4b25f60cbad65bd0826f09e0eded14e588da06172995277511e9a86ee2d7"
+    },
+    "humanizer": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "34a38e6acc60d4529612d41ffe740bca0060d3c5e89e2a0d24ae795f67157fbb"
+    },
+    "javascript-sdk": {
+      "source": "inf-sh/skills",
+      "sourceType": "github",
+      "computedHash": "ba7cd3d49643061b48c88b764c6abb6f84ff6b555fcc685d52ab8fe78fa0b8f3"
     },
     "llm-evaluation": {
       "source": "wshobson/agents",
@@ -91,6 +106,11 @@
       "sourceType": "github",
       "computedHash": "ff132ba281d460d3cf7814601e304f24e795a606a8e20e78f1bd103258bc735c"
     },
+    "skill-lookup": {
+      "source": "f/awesome-chatgpt-prompts",
+      "sourceType": "github",
+      "computedHash": "1aea49ff724011f7436fa388d5a4b9ffc6e162256792760595dc86f3a0b9ad33"
+    },
     "swiftui-expert-skill": {
       "source": "avdlee/swiftui-agent-skill",
       "sourceType": "github",
@@ -110,6 +130,16 @@
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
       "computedHash": "0a413bf988d06481f69bb81df2070741c3ba12dd9f1be2706d57f259c905992d"
+    },
+    "using-superpowers": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "91a4d2ccb9432dfd4d3654f6ebd97875adab301d3d77f84e590169ba397760e3"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "afeca00ac2f492d88fdd010e73d91719a5b57c564bb4a73325b0bd77e11323ab"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

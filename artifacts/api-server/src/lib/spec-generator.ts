@@ -27,6 +27,8 @@ function buildSpecPrompt(config: GoldenPathConfigRules): string {
     const schemaDir = folderStructure.backend.find(p => p.includes("schema")) ?? "server/src/schema/";
     rules.push(`- Database: ${techStack.orm} with schema in ${schemaDir}`);
   }
+  rules.push("- MANDATORY dependency versions: express ^5.1.0, vite ^6.3.0, react ^19.1.0, typescript ^5.8.0, zod ^3.25.0, drizzle-orm ^0.44.0");
+  rules.push("- Use npm workspaces with server/ and client/ directories");
   rules.push("- Keep fileStructure concise (20-40 key files, not every single file)");
   rules.push("- Return ONLY the JSON object, no other text.");
 
