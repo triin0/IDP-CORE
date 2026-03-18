@@ -94,7 +94,7 @@ You MUST use these exact versions. Using older versions will FAIL the security a
 - @types/react: "^19.1.0"
 - @types/react-dom: "^19.1.0"
 
-Do NOT include axios — use native fetch() instead. Do NOT use @libsql/client or better-sqlite3.
+Do NOT include axios — use native fetch() instead. Do NOT use @libsql/client, better-sqlite3, or the \`postgres\` package. The ONLY database driver allowed is \`pg\` (node-postgres). Import as: \`import pg from "pg"\` or \`import { Pool } from "pg"\`.
 
 **@types/ packages (CRITICAL):** If the spec requires packages that don't ship their own TypeScript types, you MUST add the corresponding \`@types/\` package to \`server/package.json\` devDependencies. Common ones:
 - cookie-parser → @types/cookie-parser
@@ -222,7 +222,7 @@ Generate ONLY backend files:
 - server/src/routes/ (API route handlers)
 - server/src/middleware/ (auth, validation, error handling)
 - server/src/lib/ (business logic, utilities)
-- server/src/db/index.ts (database connection using drizzle-orm + pg)
+- server/src/db/index.ts (database connection using drizzle-orm + pg — MUST use \`import { Pool } from "pg"\`, NOT \`import postgres from "postgres"\`)
 - server/src/schema/ (only if Architect didn't provide them)
 
 Do NOT generate frontend files, package.json, or config files (the Architect handles those).

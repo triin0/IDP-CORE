@@ -12,6 +12,7 @@ export type PipelineEventType =
   | "self-healing:success"
   | "self-healing:exhausted"
   | "build:output"
+  | "version-enforcement"
   | "pipeline:complete"
   | "pipeline:error";
 

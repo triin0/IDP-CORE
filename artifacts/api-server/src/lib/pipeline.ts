@@ -12,6 +12,7 @@ import { runASTVerification } from "./ast-verification";
 import type { ASTVerificationResult } from "./ast-verification";
 import type { GoldenPathConfigRules } from "@workspace/db";
 import { emitPipelineEvent } from "./pipeline-events";
+import { enforcePackageVersions } from "./version-enforcement";
 
 function extractJSON(raw: string): unknown | null {
   const fenced = raw.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
@@ -229,8 +230,16 @@ export async function runVerificationStage(
   let buildStderr: string | undefined;
   const dependencyErrors: string[] = [];
 
+  const enforcement = enforcePackageVersions(reconciledFiles);
+  let enforcedFiles = reconciledFiles;
+  if (enforcement.fixes.length > 0) {
+    enforcedFiles = enforcement.files;
+    console.log(`[pipeline:${projectId.slice(0, 8)}] Version enforcement applied ${enforcement.fixes.length} fixes:\n${enforcement.fixes.join("\n")}`);
+    emitPipelineEvent(projectId, "version-enforcement", { fixes: enforcement.fixes });
+  }
+
   console.log(`[pipeline:${projectId.slice(0, 8)}] Running Golden Path checks...`);
-  const goldenPathChecks: GoldenPathCheck[] = runGoldenPathChecks(reconciledFiles, config);
+  const goldenPathChecks: GoldenPathCheck[] = runGoldenPathChecks(enforcedFiles, config);
   for (const check of goldenPathChecks) {
     verdictChecks.push({
       name: check.name,
@@ -246,7 +255,7 @@ export async function runVerificationStage(
     description: "All dependencies verified against npm registry and OSV vulnerability database",
   };
   try {
-    const auditResult = await validateAllManifests(reconciledFiles);
+    const auditResult = await validateAllManifests(enforcedFiles);
     if (!auditResult.passed) {
       console.warn(`[pipeline:${projectId.slice(0, 8)}] Dependency audit flagged issues:\n${auditResult.errors.join("\n")}`);
       dependencyErrors.push(...auditResult.errors);
@@ -277,7 +286,7 @@ export async function runVerificationStage(
   };
   try {
     console.log(`[pipeline:${projectId.slice(0, 8)}] Running build verification...`);
-    const buildResult = await runBuildVerification(reconciledFiles);
+    const buildResult = await runBuildVerification(enforcedFiles);
     buildCheck = {
       name: "Build Verification",
       passed: buildResult.passed,
@@ -310,7 +319,7 @@ export async function runVerificationStage(
   console.log(`[pipeline:${projectId.slice(0, 8)}] Running AST verification...`);
   let astResult: ASTVerificationResult;
   try {
-    astResult = runASTVerification(reconciledFiles);
+    astResult = runASTVerification(enforcedFiles);
     for (const check of astResult.checks) {
       verdictChecks.push({
         name: check.name,
@@ -338,9 +347,9 @@ export async function runVerificationStage(
   });
 
   console.log(`[pipeline:${projectId.slice(0, 8)}] Computing full-tree hash manifest...`);
-  const fullTreeHash = computeFullTreeHash(reconciledFiles, spec?.fileStructure);
+  const fullTreeHash = computeFullTreeHash(enforcedFiles, spec?.fileStructure);
 
-  const expectedManifest = buildExpectedHashManifest(spec, reconciledFiles);
+  const expectedManifest = buildExpectedHashManifest(spec, enforcedFiles);
   const hashComparison = compareHashManifests(hashManifest, expectedManifest);
   const hashAudit = hashComparison.map((entry) => ({
     path: entry.path,
@@ -385,7 +394,7 @@ export async function runVerificationStage(
     priorOutputs: {
       reconciled: {
         role: "verification" as AgentRole,
-        files: reconciledFiles,
+        files: enforcedFiles,
         notes: "Reconciled final file tree from all generation agents",
       },
     },
