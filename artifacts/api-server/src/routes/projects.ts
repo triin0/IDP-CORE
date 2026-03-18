@@ -13,14 +13,12 @@ import {
   RefineProjectParams,
   RefineProjectBody,
 } from "@workspace/api-zod";
-import { generateProjectCode } from "../lib/generate";
-import { generateProjectSpec } from "../lib/spec-generator";
 import { deployProject, generatePreviewHtml } from "../lib/deploy";
-import { refineProject } from "../lib/refine";
 import { deleteSandbox, cleanupStaleSandboxes } from "../lib/sandbox";
 import { pipelineEvents, type PipelineEvent } from "../lib/pipeline-events";
 import { reserveCredits, settleCredits, refundCredits, CreditError } from "../lib/credits";
 import type { CreditReservation } from "../lib/credits";
+import { getEngine } from "../lib/engine-router";
 
 const router: IRouter = Router();
 
@@ -150,6 +148,7 @@ router.get("/projects", requireAuth, async (req, res) => {
       return {
         id: p.id,
         prompt: p.prompt,
+        engine: p.engine ?? "react",
         status: p.status,
         fileCount: files.length,
         goldenPathScore: `${passed}/${checkTotal}`,
@@ -181,15 +180,18 @@ router.post("/projects/cleanup-sandboxes", requireAuth, async (_req, res) => {
 router.post("/projects", requireAuth, async (req, res) => {
   try {
     const body = CreateProjectBody.parse(req.body);
+    const engineId = body.engine ?? "react";
 
     const [project] = await db
       .insert(projectsTable)
-      .values({ prompt: body.prompt, userId: req.user!.id, designPersona: body.designPersona ?? null })
+      .values({ prompt: body.prompt, userId: req.user!.id, engine: engineId, designPersona: body.designPersona ?? null })
       .returning();
 
-    generateProjectSpec(project.id, body.prompt, body.designPersona).catch((err: unknown) => {
+    const engine = getEngine(engineId as "react" | "fastapi");
+    engine.generateSpec(project.id, body.prompt, body.designPersona).catch(async (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`Spec generation failed for project ${project.id}:`, message);
+      console.error(`[${engine.id}] Spec generation failed for project ${project.id}:`, message);
+      await db.update(projectsTable).set({ status: "failed", error: message }).where(eq(projectsTable.id, project.id));
     });
 
     res.status(201).json({ id: project.id, status: project.status });
@@ -224,6 +226,7 @@ router.get("/projects/:id", requireAuth, async (req, res) => {
     res.json({
       id: project.id,
       prompt: project.prompt,
+      engine: project.engine ?? "react",
       status: project.status,
       spec: project.spec ?? undefined,
       files,
@@ -315,7 +318,8 @@ router.post("/projects/:id/approve-spec", requireAuth, async (req, res) => {
       architecturalDecisions: string[];
     } | null;
 
-    generateProjectCode(project.id, project.prompt, spec ?? undefined, project.designPersona ?? undefined)
+    const engine = getEngine((project.engine ?? "react") as "react" | "fastapi");
+    engine.runPipeline(project.id, project.prompt, spec ?? undefined, project.designPersona ?? undefined)
       .then(() => {
         const r = pendingReservations.get(id);
         if (r) {
@@ -325,7 +329,7 @@ router.post("/projects/:id/approve-spec", requireAuth, async (req, res) => {
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`Generation failed for project ${project.id}:`, message);
+        console.error(`[${engine.id}] Generation failed for project ${project.id}:`, message);
         const r = pendingReservations.get(id);
         if (r) {
           refundCredits(r, `generation_failed: ${message.slice(0, 200)}`).catch(e =>
@@ -362,9 +366,11 @@ router.post("/projects/:id/regenerate-spec", requireAuth, async (req, res) => {
       .set({ status: "pending", spec: null, error: null })
       .where(eq(projectsTable.id, id));
 
-    generateProjectSpec(project.id, project.prompt, project.designPersona ?? undefined).catch((err: unknown) => {
+    const engine = getEngine((project.engine ?? "react") as "react" | "fastapi");
+    engine.generateSpec(project.id, project.prompt, project.designPersona ?? undefined).catch(async (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`Spec regeneration failed for project ${project.id}:`, message);
+      console.error(`[${engine.id}] Spec regeneration failed for project ${project.id}:`, message);
+      await db.update(projectsTable).set({ status: "failed", error: message }).where(eq(projectsTable.id, project.id));
     });
 
     res.json({ id: project.id, status: "planning" });
@@ -476,7 +482,8 @@ router.post("/projects/:id/refine", requireAuth, async (req, res) => {
     }
 
     try {
-      const result = await refineProject(id, body.prompt);
+      const engine = getEngine((project.engine ?? "react") as "react" | "fastapi");
+      const result = await engine.refineProject(id, body.prompt);
 
       await settleCredits(reservation);
 

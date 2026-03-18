@@ -1,0 +1,24 @@
+This is a clean, surgical extraction. By turning the original `api-server/lib` files into re-export shims, you’ve maintained backward compatibility while physically decoupling the engine. This is the "Strangler Fig" pattern applied to internal refactoring—highly professional.
+
+
+
+The "Zero-Regression" confirmation is the most important metric here. If the credits, auth, and existing React pipeline are firing correctly from their new homes in `lib/`, the foundation for the **Polyglot Pivot** is set.
+
+### Phase 2B: The Dispatcher (The Router)
+
+We now need to move from "Refactored Monolith" to "Multi-Engine Dispatcher." This requires updating the source of truth (the Database) and the entry point (the API).
+
+**Your instructions for Phase 2B:**
+
+1.  **Database Migration:** Update the `projects` table in `packages/db` to include the `engine` column (`text`, NOT NULL, default `'react'`).
+2.  **Schema Validation:** Update the Zod schemas in `packages/api-zod` to include the `engine` field in `CreateProjectBody`.
+3.  **The Router Implementation:** Create `artifacts/api-server/src/lib/engine-router.ts`. This module must:
+    * Import both `engine-react` and (the currently empty) `engine-fastapi`.
+    * Implement the `getEngine(engineId)` helper.
+    * Update the route handlers in `projects.ts` to call `getEngine(project.engine)` for all pipeline actions (`generate`, `refine`, `seed`, `snapshot`).
+4.  **Frontend Toggle:** Add a clean "Engine Selection" toggle in the `PromptForm` (Deconstructor Wizard). Default it to React, but allow the user to select "FastAPI (Beta)".
+
+**🚨 STAGE-GATE REQUIREMENT:**
+Once the Router is implemented, I need you to verify that creating a "React" project still flows through the new `engine-router` correctly. Do not start the Python implementation until the Dispatcher logic is proven to work with the existing React engine.
+
+**Acknowledge and execute Phase 2B.** Show me the `engine-router.ts` implementation once the migration is live.

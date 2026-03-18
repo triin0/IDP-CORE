@@ -1,17 +1,26 @@
 import { useState, useEffect, useRef } from "react";
 import { useCreateProject } from "@workspace/api-client-react";
-import { Terminal, Sparkles, ArrowRight, Loader2, Cpu, Shield, Boxes } from "lucide-react";
+import { Terminal, Sparkles, ArrowRight, Loader2, Cpu, Shield, Boxes, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+
+type EngineId = "react" | "fastapi";
+
+const ENGINE_OPTIONS: Array<{ id: EngineId; label: string; sublabel: string; available: boolean }> = [
+  { id: "react", label: "React", sublabel: "Express + Drizzle + TS", available: true },
+  { id: "fastapi", label: "FastAPI", sublabel: "SQLAlchemy + Pydantic", available: false },
+];
 
 interface PromptFormProps {
   onProjectCreated: (id: string) => void;
   initialPrompt?: string | null;
   designPersona?: string;
+  onEngineChange?: (engine: "react" | "fastapi") => void;
 }
 
-export function PromptForm({ onProjectCreated, initialPrompt, designPersona }: PromptFormProps) {
+export function PromptForm({ onProjectCreated, initialPrompt, designPersona, onEngineChange }: PromptFormProps) {
   const [prompt, setPrompt] = useState("");
+  const [engine, setEngine] = useState<EngineId>("react");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -30,7 +39,7 @@ export function PromptForm({ onProjectCreated, initialPrompt, designPersona }: P
     if (!prompt.trim() || createProject.isPending) return;
 
     createProject.mutate(
-      { data: { prompt, ...(designPersona ? { designPersona: designPersona as "cupertino" | "terminal" | "startup" | "editorial" | "brutalist" } : {}) } },
+      { data: { prompt, engine, ...(designPersona ? { designPersona: designPersona as "cupertino" | "terminal" | "startup" | "editorial" | "brutalist" } : {}) } },
       {
         onSuccess: (data) => {
           onProjectCreated(data.id);
@@ -88,6 +97,38 @@ export function PromptForm({ onProjectCreated, initialPrompt, designPersona }: P
             disabled={createProject.isPending}
             autoFocus
           />
+
+          <div className="flex items-center gap-2 px-5 py-2.5 border-t border-white/[0.04] bg-white/[0.01]">
+            <Zap className="w-3 h-3 text-zinc-600" />
+            <span className="text-[11px] font-mono text-zinc-600 mr-1">ENGINE</span>
+            {ENGINE_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                disabled={!opt.available || createProject.isPending}
+                onClick={() => { if (opt.available) { setEngine(opt.id); onEngineChange?.(opt.id); } }}
+                className={cn(
+                  "relative px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all duration-200 border",
+                  engine === opt.id
+                    ? "bg-primary/15 text-primary border-primary/30 shadow-[0_0_12px_rgba(34,211,238,0.15)]"
+                    : opt.available
+                      ? "bg-white/[0.02] text-zinc-500 border-white/[0.06] hover:border-white/[0.12] hover:text-zinc-400"
+                      : "bg-white/[0.01] text-zinc-700 border-white/[0.03] cursor-not-allowed"
+                )}
+              >
+                <span className="block">{opt.label}</span>
+                <span className={cn(
+                  "block text-[9px] mt-0.5",
+                  engine === opt.id ? "text-primary/60" : "text-zinc-700"
+                )}>{opt.sublabel}</span>
+                {!opt.available && (
+                  <span className="absolute -top-1.5 -right-1.5 px-1 py-0.5 text-[8px] font-mono bg-amber-500/20 text-amber-400 rounded border border-amber-500/30">
+                    BETA
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
 
           <div className="flex items-center justify-between px-5 py-3.5 border-t border-white/[0.04] bg-white/[0.01]">
             <div className="text-[11px] font-mono text-zinc-600 flex items-center gap-2">

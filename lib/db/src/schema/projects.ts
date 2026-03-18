@@ -6,6 +6,7 @@ export const projectsTable = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id"),
   prompt: text("prompt").notNull(),
+  engine: text("engine", { enum: ["react", "fastapi"] }).notNull().default("react"),
   designPersona: text("design_persona"),
   status: text("status", { enum: ["pending", "planning", "planned", "generating", "validating", "ready", "deployed", "failed", "failed_checks", "failed_validation"] }).notNull().default("pending"),
   spec: jsonb("spec").$type<{
