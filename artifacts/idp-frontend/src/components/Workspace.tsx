@@ -22,12 +22,13 @@ import { AppAnatomy } from "./AppAnatomy";
 import { SnapshotTimeline } from "./SnapshotTimeline";
 import { SeedDataGenerator } from "./SeedDataGenerator";
 import { ErrorDecryptorOverlay } from "./ErrorDecryptorOverlay";
+import { ExpoSnackEmbed } from "./ExpoSnackEmbed";
 import { useXRayInspector } from "@/hooks/useXRayInspector";
 import {
   Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2,
   AlertCircle, Zap, ShieldCheck, Eye, FileCode, Download, Github,
   Trash2, Play, Monitor, PanelLeft, RefreshCw, Maximize2, Minimize2, Clock, Sparkles,
-  Cpu, Crosshair,
+  Cpu, Crosshair, Smartphone,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -63,7 +64,7 @@ interface WorkspaceProps {
 
 const API_BASE = import.meta.env.VITE_API_URL ?? `${window.location.origin}/api`;
 
-type PreviewMode = "sandpack" | "sandbox" | "static" | "swagger";
+type PreviewMode = "sandpack" | "sandbox" | "static" | "swagger" | "snack";
 
 function PreviewPane({
   project,
@@ -94,6 +95,7 @@ function PreviewPane({
   const hasLiveSandbox = !!sandboxPreviewUrl;
 
   const isFastAPI = project.engine === "fastapi";
+  const isMobile = project.engine === "mobile-expo";
 
   const staticHtml = useMemo(() => {
     const files = (project.files ?? []) as Array<{ path: string; content: string }>;
@@ -114,7 +116,20 @@ function PreviewPane({
     )}>
       <div className="flex items-center justify-between px-2 py-1.5 bg-card border-b border-border/50 shrink-0">
         <div className="flex items-center gap-1">
-          {isFastAPI ? (
+          {isMobile ? (
+            <button
+              onClick={() => setPreviewMode("snack")}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-colors",
+                previewMode === "snack"
+                  ? "bg-blue-500/15 text-blue-400"
+                  : "text-zinc-500 hover:text-zinc-300",
+              )}
+            >
+              <Smartphone className="w-3 h-3" />
+              Device
+            </button>
+          ) : isFastAPI ? (
             <button
               onClick={() => setPreviewMode("swagger")}
               className={cn(
@@ -247,6 +262,9 @@ function PreviewPane({
             title="Swagger UI Preview"
             sandbox="allow-scripts allow-same-origin"
           />
+        )}
+        {previewMode === "snack" && isMobile && (
+          <ExpoSnackEmbed project={project} />
         )}
         {previewMode === "sandbox" && !sandboxPreviewUrl && (
           <div className="flex items-center justify-center h-full">
@@ -1124,6 +1142,8 @@ function SandpackWorkspaceInner({
   const { inspectActive, toggleInspect, lastSelected } = useXRayInspector(editorRef);
   const hasAnnotations = Array.isArray(project.annotatedFiles) && project.annotatedFiles.length > 0;
   const isFastAPIInner = project.engine === "fastapi";
+  const isMobileInner = project.engine === "mobile-expo";
+  const usePlainEditor = isFastAPIInner || isMobileInner;
   const [activeFile, setActiveFile] = useState<string | null>(null);
 
   const projectFiles = useMemo(() => {
@@ -1138,7 +1158,7 @@ function SandpackWorkspaceInner({
       <div className="flex-1 flex min-h-0">
         <ResizablePanelGroup direction="horizontal" className="min-h-0">
           <ResizablePanel defaultSize={55} minSize={30}>
-            {isFastAPIInner ? (
+            {usePlainEditor ? (
               <div className="flex h-full" style={{ background: "#0a0a0f" }}>
                 <div className="flex flex-col border-r border-zinc-800 overflow-auto" style={{ minWidth: 160, maxWidth: 200 }}>
                   <div className="px-3 py-2 text-[10px] font-mono text-zinc-600 uppercase tracking-wider border-b border-zinc-800">
@@ -1163,7 +1183,9 @@ function SandpackWorkspaceInner({
                   <div className="flex items-center gap-2 px-3 py-1.5 border-b border-zinc-800 bg-zinc-950">
                     <FileCode className="w-3 h-3 text-zinc-600" />
                     <span className="text-[11px] font-mono text-zinc-400">{displayFile}</span>
-                    <span className="ml-auto text-[9px] font-mono text-zinc-700 bg-zinc-900 px-1.5 py-0.5 rounded">PYTHON</span>
+                    <span className="ml-auto text-[9px] font-mono text-zinc-700 bg-zinc-900 px-1.5 py-0.5 rounded">
+                      {isMobileInner ? "TSX" : "PYTHON"}
+                    </span>
                   </div>
                   <pre className="p-4 text-[12px] font-mono text-zinc-300 leading-relaxed whitespace-pre-wrap">{displayContent}</pre>
                 </div>
@@ -1287,7 +1309,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
   const projectEngine = project.engine;
   const isFastAPIProject = projectEngine === "fastapi";
   const isMobileProject = projectEngine === "mobile-expo";
-  const [previewMode, setPreviewMode] = useState<PreviewMode>(isFastAPIProject ? "swagger" : isMobileProject ? "static" : "sandpack");
+  const [previewMode, setPreviewMode] = useState<PreviewMode>(isMobileProject ? "snack" : isFastAPIProject ? "swagger" : "sandpack");
   const [showSidebar, setShowSidebar] = useState(true);
   const [snapshotVersion, setSnapshotVersion] = useState(0);
   const [, navigate] = useLocation();
@@ -1434,7 +1456,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
 
       <div className="flex-1 bg-card border border-border shadow-2xl rounded-xl overflow-hidden flex flex-col min-h-0">
         {hasAnyFiles ? (
-          isFastAPIProject ? (
+          (isFastAPIProject || isMobileProject) ? (
             <SandpackWorkspaceInner
               project={project}
               rightPanel={rightPanel}
