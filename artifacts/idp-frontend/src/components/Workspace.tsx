@@ -17,10 +17,12 @@ import {
 import { GoldenPath } from "./GoldenPath";
 import { RefinementChat } from "./RefinementChat";
 import { BuildGate } from "./BuildGate";
+import { AppAnatomy } from "./AppAnatomy";
 import {
   Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2,
   AlertCircle, Zap, ShieldCheck, Eye, FileCode, Download, Github,
   Trash2, Play, Monitor, PanelLeft, RefreshCw, Maximize2, Minimize2,
+  Cpu,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -582,7 +584,7 @@ function buildStaticPreview(files: Array<{ path: string; content: string }>, pro
 }
 
 export function Workspace({ project, onReset }: WorkspaceProps) {
-  const [rightPanel, setRightPanel] = useState<"status" | "preview">("status");
+  const [rightPanel, setRightPanel] = useState<"status" | "preview" | "anatomy">("status");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("sandpack");
   const [showSidebar, setShowSidebar] = useState(true);
   const [, navigate] = useLocation();
@@ -692,6 +694,16 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
               <Eye className="w-3 h-3" />
               Preview
             </button>
+            <button
+              onClick={() => setRightPanel("anatomy")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono transition-colors",
+                rightPanel === "anatomy" ? "bg-zinc-800 text-zinc-200" : "text-zinc-500 hover:text-zinc-300",
+              )}
+            >
+              <Cpu className="w-3 h-3" />
+              X-Ray
+            </button>
           </div>
         </div>
       </div>
@@ -747,6 +759,8 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
                       setPreviewMode={setPreviewMode}
                       liveUrl={liveUrl}
                     />
+                  ) : rightPanel === "anatomy" ? (
+                    <AppAnatomy project={project} />
                   ) : (
                     <div className="h-full overflow-y-auto">
                       <StatusPanel
