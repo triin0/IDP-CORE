@@ -135,7 +135,7 @@ export function SeedDataGenerator({ project }: SeedDataGeneratorProps) {
 
   const generateMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${API_BASE}/api/projects/${project.id}/seed-data`, {
+      const res = await fetch(`${API_BASE}/projects/${project.id}/seed-data`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rowsPerTable, format: inject ? "json" : format, inject }),
@@ -149,14 +149,14 @@ export function SeedDataGenerator({ project }: SeedDataGeneratorProps) {
     onSuccess: (data) => {
       setResult(data);
       if (data.injected) {
-        queryClient.invalidateQueries({ queryKey: ["project", project.id] });
+        queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}`] });
       }
     },
   });
 
   const wipeMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${API_BASE}/api/projects/${project.id}/wipe-seed-data`, {
+      const res = await fetch(`${API_BASE}/projects/${project.id}/wipe-seed-data`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -169,7 +169,7 @@ export function SeedDataGenerator({ project }: SeedDataGeneratorProps) {
     onSuccess: () => {
       setResult(null);
       setShowWipeConfirm(false);
-      queryClient.invalidateQueries({ queryKey: ["project", project.id] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}`] });
     },
   });
 
