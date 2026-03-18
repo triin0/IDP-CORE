@@ -1,17 +1,31 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDeployProject, useDeleteProject } from "@workspace/api-client-react";
 import type { ProjectDetails } from "@workspace/api-client-react";
-import { FileTree } from "./FileTree";
-import { CodeViewer } from "./CodeViewer";
+import {
+  SandpackProvider,
+  SandpackLayout,
+  SandpackFileExplorer,
+  SandpackCodeEditor,
+  SandpackPreview,
+} from "@codesandbox/sandpack-react";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { GoldenPath } from "./GoldenPath";
 import { RefinementChat } from "./RefinementChat";
 import { BuildGate } from "./BuildGate";
-import { SandboxPreview } from "./SandboxPreview";
-import { Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2, AlertCircle, Zap, ShieldCheck, Hash, Eye, FileCode, Download, Github, Trash2 } from "lucide-react";
+import {
+  Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2,
+  AlertCircle, Zap, ShieldCheck, Eye, FileCode, Download, Github,
+  Trash2, Play, Monitor, PanelLeft, RefreshCw, Maximize2, Minimize2,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
+import { prepareSandpackFiles, SANDPACK_THEME } from "@/lib/sandpack-utils";
 
 interface VerificationVerdictData {
   passed: boolean;
@@ -41,6 +55,152 @@ interface WorkspaceProps {
 }
 
 const API_BASE = import.meta.env.VITE_API_URL ?? `${window.location.origin}/api`;
+
+type PreviewMode = "sandpack" | "sandbox" | "static";
+
+function PreviewPane({
+  project,
+  previewMode,
+  setPreviewMode,
+  liveUrl,
+}: {
+  project: ProjectDetails;
+  previewMode: PreviewMode;
+  setPreviewMode: (m: PreviewMode) => void;
+  liveUrl: string | null;
+}) {
+  const [iframeKey, setIframeKey] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const sandboxPreviewUrl = liveUrl?.includes("csb.app")
+    ? liveUrl
+    : (project as unknown as { sandboxId?: string }).sandboxId
+      ? `https://${(project as unknown as { sandboxId?: string }).sandboxId}-3000.csb.app`
+      : null;
+
+  const hasLiveSandbox = !!sandboxPreviewUrl;
+
+  const staticHtml = useMemo(() => {
+    const files = (project.files ?? []) as Array<{ path: string; content: string }>;
+    return buildStaticPreview(files, project.prompt || "");
+  }, [project.files, project.prompt]);
+
+  return (
+    <div className={cn(
+      "flex flex-col h-full bg-zinc-950",
+      isExpanded && "fixed inset-0 z-50",
+    )}>
+      <div className="flex items-center justify-between px-2 py-1.5 bg-card border-b border-border/50 shrink-0">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPreviewMode("sandpack")}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-colors",
+              previewMode === "sandpack"
+                ? "bg-primary/15 text-primary"
+                : "text-zinc-500 hover:text-zinc-300",
+            )}
+          >
+            <Play className="w-3 h-3" />
+            App
+          </button>
+          {hasLiveSandbox && (
+            <button
+              onClick={() => setPreviewMode("sandbox")}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-colors",
+                previewMode === "sandbox"
+                  ? "bg-success/15 text-success"
+                  : "text-zinc-500 hover:text-zinc-300",
+              )}
+            >
+              <Zap className="w-3 h-3" />
+              Live
+            </button>
+          )}
+          <button
+            onClick={() => setPreviewMode("static")}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-colors",
+              previewMode === "static"
+                ? "bg-zinc-700 text-zinc-200"
+                : "text-zinc-500 hover:text-zinc-300",
+            )}
+          >
+            <Monitor className="w-3 h-3" />
+            Info
+          </button>
+        </div>
+        <div className="flex items-center gap-1">
+          {previewMode !== "sandpack" && (
+            <button
+              onClick={() => setIframeKey(k => k + 1)}
+              className="p-1 rounded hover:bg-zinc-800 text-zinc-500 transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className="w-3 h-3" />
+            </button>
+          )}
+          {sandboxPreviewUrl && previewMode === "sandbox" && (
+            <a
+              href={sandboxPreviewUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="p-1 rounded hover:bg-zinc-800 text-zinc-500 transition-colors"
+              title="Open in new tab"
+            >
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1 rounded hover:bg-zinc-800 text-zinc-500 transition-colors"
+            title={isExpanded ? "Minimize" : "Maximize"}
+          >
+            {isExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 min-h-0 relative">
+        {previewMode === "sandpack" && (
+          <SandpackPreview
+            showNavigator={false}
+            showRefreshButton={true}
+            style={{ height: "100%", border: "none" }}
+          />
+        )}
+        {previewMode === "sandbox" && sandboxPreviewUrl && (
+          <iframe
+            key={iframeKey}
+            src={sandboxPreviewUrl}
+            className="w-full h-full border-0"
+            title="Live Sandbox Preview"
+            allow="cross-origin-isolated"
+          />
+        )}
+        {previewMode === "static" && (
+          <iframe
+            key={`static-${iframeKey}`}
+            srcDoc={staticHtml}
+            className="w-full h-full border-0"
+            title="Project Info"
+            sandbox=""
+          />
+        )}
+        {previewMode === "sandbox" && !sandboxPreviewUrl && (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center p-6">
+              <AlertCircle className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
+              <p className="text-xs font-mono text-zinc-500">
+                Deploy to see the live sandbox
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function StatusPanel({ project, onDeploy, isDeploying, deployUrl, deployError, onDelete, isDeleting }: {
   project: ProjectDetails;
@@ -232,7 +392,7 @@ function ProjectActions({ projectId, onDelete, isDeleting }: {
   };
 
   return (
-    <div className="border-t border-border/50 p-4 space-y-2">
+    <div className="border-t border-border/50 pt-4 space-y-2">
       <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider mb-2">Export & Manage</p>
 
       <button
@@ -325,18 +485,92 @@ function ProjectActions({ projectId, onDelete, isDeleting }: {
   );
 }
 
-export function Workspace({ project, onReset }: WorkspaceProps) {
-  const [activeFile, setActiveFile] = useState<string | null>(
-    project.files.length > 0 ? project.files[0].path : null
-  );
-  const [rightPanel, setRightPanel] = useState<"status" | "preview">("status");
-  const [, navigate] = useLocation();
+function esc(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
-  useEffect(() => {
-    if (!activeFile && project.files.length > 0) {
-      setActiveFile(project.files[0].path);
-    }
-  }, [activeFile, project.files]);
+function buildStaticPreview(files: Array<{ path: string; content: string }>, prompt: string): string {
+  const clientFiles = files.filter((f) => f.path.startsWith("client/"));
+  const hasClient = clientFiles.length > 0;
+  const sourceFiles = hasClient ? clientFiles : files;
+  const basePrefix = hasClient ? "client/" : "";
+
+  const pkgFile = sourceFiles.find((f) => f.path === `${basePrefix}package.json`);
+  let pkgDeps: string[] = [];
+  if (pkgFile) {
+    try {
+      const pkg = JSON.parse(pkgFile.content);
+      pkgDeps = Object.keys(pkg.dependencies || {});
+    } catch {}
+  }
+
+  const serverFiles = files.filter((f) => f.path.startsWith("server/"));
+  const schemaFiles = files.filter((f) => f.path.includes("schema/"));
+  const componentFiles = sourceFiles.filter((f) =>
+    f.path.includes("components/") && (f.path.endsWith(".tsx") || f.path.endsWith(".jsx"))
+  );
+  const pageFiles = sourceFiles.filter((f) =>
+    f.path.includes("pages/") && (f.path.endsWith(".tsx") || f.path.endsWith(".jsx"))
+  );
+
+  const componentNames = componentFiles.map((f) =>
+    esc(f.path.split("/").pop()?.replace(/\.(tsx|jsx)$/, "") || "")
+  );
+  const pageNames = pageFiles.map((f) =>
+    esc(f.path.split("/").pop()?.replace(/\.(tsx|jsx)$/, "") || "")
+  );
+  const safeDeps = pkgDeps.filter((d) => !d.startsWith("@types/")).map(esc);
+  const safePrompt = esc(prompt.charAt(0).toUpperCase() + prompt.slice(1));
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #0f0f17; color: #e4e4e7; min-height: 100vh; }
+    .banner { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-bottom: 1px solid #22d3ee33; padding: 12px 20px; display: flex; align-items: center; gap: 8px; }
+    .badge { background: #22d3ee15; color: #22d3ee; border: 1px solid #22d3ee33; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-family: monospace; font-weight: 600; }
+    .container { max-width: 800px; margin: 0 auto; padding: 32px 24px; }
+    .title { font-size: 24px; font-weight: 700; color: #f4f4f5; margin-bottom: 4px; }
+    .subtitle { font-size: 14px; color: #71717a; margin-bottom: 24px; }
+    .section { background: #18182433; border: 1px solid #27272a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .section-title { font-size: 12px; font-weight: 600; color: #a1a1aa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+    .card { background: #1a1a2e; border: 1px solid #27272a; border-radius: 8px; padding: 10px 14px; font-size: 12px; font-family: monospace; color: #22d3ee; }
+    .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pill { background: #27272a; border: 1px solid #3f3f46; border-radius: 20px; padding: 4px 12px; font-size: 11px; color: #a1a1aa; }
+    .server { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1a1a2e; border-radius: 8px; border: 1px solid #27272a; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  </style>
+</head>
+<body>
+  <div class="banner"><span class="badge">INFO</span><span style="font-size:12px;color:#71717a;">Application architecture overview</span></div>
+  <div class="container">
+    <div class="title">${safePrompt}</div>
+    <div class="subtitle">Full-stack &middot; ${files.length} files</div>
+    ${pageNames.length > 0 ? `<div class="section"><div class="section-title">Pages</div><div class="grid">${pageNames.map(n => `<div class="card">${n}</div>`).join("")}</div></div>` : ""}
+    ${componentNames.length > 0 ? `<div class="section"><div class="section-title">Components</div><div class="grid">${componentNames.map(n => `<div class="card">${n}</div>`).join("")}</div></div>` : ""}
+    ${serverFiles.length > 0 ? `<div class="section"><div class="section-title">Backend</div><div class="server"><div class="dot"></div><span style="font-size:13px;color:#d4d4d8;">Express server &middot; ${serverFiles.length} files</span></div></div>` : ""}
+    ${schemaFiles.length > 0 ? `<div class="section"><div class="section-title">Database</div><div class="grid">${schemaFiles.map(f => `<div class="card">${esc(f.path.split("/").pop() || "")}</div>`).join("")}</div></div>` : ""}
+    ${safeDeps.length > 0 ? `<div class="section"><div class="section-title">Stack</div><div class="pills">${safeDeps.map(d => `<div class="pill">${d}</div>`).join("")}</div></div>` : ""}
+  </div>
+</body>
+</html>`;
+}
+
+export function Workspace({ project, onReset }: WorkspaceProps) {
+  const [rightPanel, setRightPanel] = useState<"status" | "preview">("status");
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("sandpack");
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [, navigate] = useLocation();
 
   const queryClient = useQueryClient();
   const deployMut = useDeployProject();
@@ -366,13 +600,21 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
   };
 
   const liveUrl = deployMut.data?.deployUrl || project.deployUrl || null;
-  const activeContent = project.files.find((f: { path: string; content: string }) => f.path === activeFile)?.content || "";
+
+  const sandpackFiles = useMemo(
+    () => prepareSandpackFiles(
+      (project.files ?? []) as Array<{ path: string; content: string }>
+    ).files,
+    [project.files]
+  );
+
+  const hasAnyFiles = Object.keys(sandpackFiles).length > 0;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="h-[calc(100vh-60px)] w-full max-w-[1600px] mx-auto p-4 flex flex-col"
+      className="h-[calc(100vh-60px)] w-full max-w-[1800px] mx-auto p-4 flex flex-col"
     >
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center space-x-3">
@@ -390,9 +632,9 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-zinc-100 flex items-center">
-              Generated Artifact
+              Workspace
               <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] uppercase font-mono tracking-wider bg-zinc-800 text-zinc-400 border border-zinc-700">
-                ID: {project.id.split("-")[0]}
+                {project.id.split("-")[0]}
               </span>
             </h2>
             <p className="text-xs text-zinc-500 font-mono truncate max-w-lg">
@@ -401,8 +643,20 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
           </div>
         </div>
 
-        {liveUrl && (
-          <div className="flex items-center gap-1 bg-zinc-900 rounded-lg border border-zinc-800 p-0.5">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSidebar(!showSidebar)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono transition-colors border",
+              showSidebar
+                ? "bg-zinc-800 text-zinc-200 border-zinc-700"
+                : "text-zinc-500 hover:text-zinc-300 border-zinc-800",
+            )}
+          >
+            <PanelLeft className="w-3.5 h-3.5" />
+            Panel
+          </button>
+          <div className="flex items-center bg-zinc-900 rounded-lg border border-zinc-800 p-0.5">
             <button
               onClick={() => setRightPanel("status")}
               className={cn(
@@ -410,7 +664,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
                 rightPanel === "status" ? "bg-zinc-800 text-zinc-200" : "text-zinc-500 hover:text-zinc-300",
               )}
             >
-              <FileCode className="w-3 h-3" />
+              <ShieldCheck className="w-3 h-3" />
               Status
             </button>
             <button
@@ -424,64 +678,114 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
               Preview
             </button>
           </div>
-        )}
+        </div>
       </div>
 
-      <div className="flex-1 bg-card border border-border shadow-2xl rounded-xl overflow-hidden flex min-h-0">
-        <div className="w-64 border-r border-border flex flex-col bg-zinc-950/50">
-          <div className="px-4 py-2 text-xs font-mono font-semibold text-zinc-500 border-b border-border/50 uppercase tracking-wider bg-card">
-            Explorer
-          </div>
-          {project.files.length > 0 ? (
-            <FileTree
-              files={project.files}
-              activeFile={activeFile}
-              onSelectFile={setActiveFile}
-            />
-          ) : (
-            <div className="flex-1 flex items-center justify-center p-4">
-              <p className="text-xs font-mono text-zinc-600 text-center">
-                Files will appear here once generation completes
+      <div className="flex-1 bg-card border border-border shadow-2xl rounded-xl overflow-hidden flex flex-col min-h-0">
+        {hasAnyFiles ? (
+          <SandpackProvider
+            template="react-ts"
+            files={sandpackFiles}
+            theme={SANDPACK_THEME}
+            options={{
+              recompileMode: "delayed",
+              recompileDelay: 500,
+            }}
+          >
+            <div className="flex-1 flex min-h-0">
+              <ResizablePanelGroup direction="horizontal" className="min-h-0">
+                <ResizablePanel defaultSize={55} minSize={30}>
+                  <SandpackLayout
+                    style={{
+                      height: "100%",
+                      border: "none",
+                      borderRadius: 0,
+                      background: "#0a0a0f",
+                    }}
+                  >
+                    <SandpackFileExplorer
+                      style={{
+                        height: "100%",
+                        minWidth: "180px",
+                        maxWidth: "220px",
+                      }}
+                    />
+                    <SandpackCodeEditor
+                      showLineNumbers
+                      showTabs
+                      wrapContent
+                      style={{
+                        height: "100%",
+                        flex: 1,
+                      }}
+                    />
+                  </SandpackLayout>
+                </ResizablePanel>
+
+                <ResizableHandle withHandle className="bg-border/50 hover:bg-primary/30 transition-colors" />
+
+                <ResizablePanel defaultSize={showSidebar ? 25 : 45} minSize={20}>
+                  {rightPanel === "preview" ? (
+                    <PreviewPane
+                      project={project}
+                      previewMode={previewMode}
+                      setPreviewMode={setPreviewMode}
+                      liveUrl={liveUrl}
+                    />
+                  ) : (
+                    <div className="h-full overflow-y-auto">
+                      <StatusPanel
+                        project={project}
+                        onDeploy={handleDeploy}
+                        isDeploying={deployMut.isPending}
+                        deployUrl={deployMut.data?.deployUrl || null}
+                        deployError={deployMut.isError}
+                        onDelete={handleDelete}
+                        isDeleting={deleteMut.isPending}
+                      />
+                    </div>
+                  )}
+                </ResizablePanel>
+
+                {showSidebar && rightPanel === "preview" && (
+                  <>
+                    <ResizableHandle withHandle className="bg-border/50 hover:bg-primary/30 transition-colors" />
+                    <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+                      <div className="h-full overflow-y-auto">
+                        <StatusPanel
+                          project={project}
+                          onDeploy={handleDeploy}
+                          isDeploying={deployMut.isPending}
+                          deployUrl={deployMut.data?.deployUrl || null}
+                          deployError={deployMut.isError}
+                          onDelete={handleDelete}
+                          isDeleting={deleteMut.isPending}
+                        />
+                      </div>
+                    </ResizablePanel>
+                  </>
+                )}
+              </ResizablePanelGroup>
+            </div>
+
+            {(project.status === "ready" || project.status === "deployed") && (
+              <RefinementChat
+                projectId={project.id}
+                refinements={project.refinements ?? []}
+                projectFiles={(project.files ?? []) as Array<{ path: string; content: string }>}
+              />
+            )}
+          </SandpackProvider>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center p-8">
+              <Code2 className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
+              <p className="text-sm font-mono text-zinc-500">
+                No files to display yet
               </p>
             </div>
-          )}
-        </div>
-
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-hidden relative bg-zinc-950">
-            <CodeViewer content={activeContent} path={activeFile || ""} />
           </div>
-          {(project.status === "ready" || project.status === "deployed") && (
-            <RefinementChat
-              projectId={project.id}
-              refinements={project.refinements ?? []}
-              projectFiles={(project.files ?? []) as Array<{ path: string; content: string }>}
-            />
-          )}
-        </div>
-
-        <div className="w-72 border-l border-border bg-zinc-950/50">
-          {rightPanel === "status" ? (
-            <StatusPanel
-              project={project}
-              onDeploy={handleDeploy}
-              isDeploying={deployMut.isPending}
-              deployUrl={deployMut.data?.deployUrl || null}
-              deployError={deployMut.isError}
-              onDelete={handleDelete}
-              isDeleting={deleteMut.isPending}
-            />
-          ) : (
-            <div className="flex flex-col h-full">
-              <div className="px-4 py-2 text-xs font-mono font-semibold text-zinc-500 border-b border-border/50 uppercase tracking-wider bg-card">
-                Live Preview
-              </div>
-              <div className="flex-1 p-2">
-                <SandboxPreview deployUrl={liveUrl} status={project.status} />
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </motion.div>
   );

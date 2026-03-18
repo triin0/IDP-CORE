@@ -26,6 +26,8 @@ The IDP is built as a pnpm workspace monorepo. It features an Express 5 API serv
 *   **Real-Time SSE:** `PipelineEventBus` emits structured events for real-time updates on pipeline status, verification, self-healing, and build output to the frontend.
 
 **Frontend (Observable UI):**
+*   **Sandpack-Powered Workspace:** The primary IDE view uses `@codesandbox/sandpack-react` for an embedded code editor with file explorer, line numbers, and syntax highlighting. The workspace uses `react-resizable-panels` for a split-pane layout (editor | preview | status). Shared utilities in `lib/sandpack-utils.ts` (theme + file preparation).
+*   **Preview Modes:** Three preview modes available: (1) Sandpack — hot-reloading client-side preview via SandpackPreview, (2) Live Sandbox — iframe embedding the CodeSandbox VM URL, (3) Info — static HTML overview showing pages, components, backend, and tech stack.
 *   **Live Pipeline Visualization:** A horizontal bar displays agent activity with neon glow and pulse animations.
 *   **Agent Trajectory Dashboard:** A vertical sidebar shows per-agent stage cards, self-healing indicators, and verification gates.
 *   **Live Terminal:** Displays colorized SSE output with auto-scroll and line numbers.
