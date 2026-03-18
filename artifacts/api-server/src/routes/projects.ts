@@ -666,7 +666,7 @@ ${featureList}`,
 
 router.post("/deconstruct", async (req: Request, res: Response) => {
   try {
-    const { idea } = req.body as { idea?: string };
+    const { idea, analogy } = req.body as { idea?: string; analogy?: string };
     if (!idea || typeof idea !== "string" || idea.trim().length < 3) {
       res.status(400).json({ error: "Please provide an app idea (at least 3 characters)" });
       return;
@@ -674,7 +674,48 @@ router.post("/deconstruct", async (req: Request, res: Response) => {
 
     const { callWithRetry } = await import("../lib/ai-retry");
 
-    const systemPrompt = `You are the "App Deconstructor" — a Creative Director for software products.
+    const hasAnalogy = analogy && typeof analogy === "string" && analogy.trim().length > 0;
+
+    const analogySection = hasAnalogy ? `
+
+ANALOGY HANDLING:
+The user has also provided a real-world analogy/metaphor for their idea. This is CRUCIAL context.
+Parse the analogy and include two extra fields in your response:
+
+"analogyTranslations": [
+  {
+    "metaphor": "string — a key concept from their analogy (e.g. 'Library', 'Books talk back')",
+    "techTranslation": "string — what this maps to technically, explained simply (e.g. 'Searchable database with categories', 'AI-powered chat responses')"
+  }
+]
+Extract 2-5 key metaphors from the analogy and translate each one.
+Use the analogy to DEEPLY influence which features you generate — if they say "farmers market" the features should feel like a marketplace, not a generic app.
+
+"magicSuggestions": [
+  {
+    "name": "string — suggested feature name",
+    "description": "string — non-technical explanation",
+    "category": "string — which category this belongs to",
+    "complexity": "low" | "medium" | "high",
+    "whyItHelps": "string — a 'whispered suggestion' explaining why users with this type of app love this feature"
+  }
+]
+Generate 2-4 magic suggestions — features the user probably hasn't thought of but would make their app feel professional and polished. Frame "whyItHelps" like a helpful friend: "Users with marketplace apps love this because..."` : `
+
+MAGIC SUGGESTIONS:
+Also include a "magicSuggestions" array with 2-4 bonus feature ideas the user probably hasn't considered:
+"magicSuggestions": [
+  {
+    "name": "string — suggested feature name",
+    "description": "string — non-technical explanation",
+    "category": "string — which category this belongs to",
+    "complexity": "low" | "medium" | "high",
+    "whyItHelps": "string — a friendly 'whispered suggestion' explaining why apps like this benefit from this feature"
+  }
+]
+These should feel like a creative partner finishing the user's sentences — professional polish ideas they didn't know were possible.`;
+
+    const systemPrompt = `You are the "App Deconstructor" — a Creative Director for software products who speaks the language of dreamers, not developers.
 
 Given a user's app idea (which may be vague, like "something like Airbnb" or "a fitness tracker"), break it down into a modular feature blueprint.
 
@@ -695,7 +736,9 @@ Return ONLY valid JSON matching this exact schema:
         }
       ]
     }
-  ]
+  ]${hasAnalogy ? `,
+  "analogyTranslations": [...],` : ""}
+  "magicSuggestions": [...]
 }
 
 Rules:
@@ -713,7 +756,11 @@ Rules:
 - Keep descriptions non-technical — the user may be a non-coder
 - "complexity" helps the user understand relative effort
 - If the user references a known app ("like Airbnb"), decompose that app's actual feature set
-- If the idea is unique, creatively fill in the logical feature modules`;
+- If the idea is unique, creatively fill in the logical feature modules${analogySection}`;
+
+    const userMessage = hasAnalogy
+      ? `Deconstruct this app idea: "${idea.trim()}"\n\nThe user describes it like this: "${analogy!.trim()}"`
+      : `Deconstruct this app idea: "${idea.trim()}"`;
 
     const raw = await callWithRetry(
       {
@@ -721,7 +768,7 @@ Rules:
         max_completion_tokens: 4096,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Deconstruct this app idea: "${idea.trim()}"` },
+          { role: "user", content: userMessage },
         ],
         response_format: { type: "json_object" },
       },

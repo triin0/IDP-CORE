@@ -13,6 +13,8 @@ import {
   Eye,
   Coins,
   Paintbrush,
+  Lightbulb,
+  Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -85,6 +87,19 @@ interface Category {
   expanded: boolean;
 }
 
+interface MagicSuggestion {
+  name: string;
+  description: string;
+  category: string;
+  complexity: "low" | "medium" | "high";
+  whyItHelps: string;
+}
+
+interface AnalogyTranslation {
+  metaphor: string;
+  techTranslation: string;
+}
+
 interface DeconstructResult {
   appName: string;
   tagline: string;
@@ -98,6 +113,8 @@ interface DeconstructResult {
       defaultOn: boolean;
     }>;
   }>;
+  magicSuggestions?: MagicSuggestion[];
+  analogyTranslations?: AnalogyTranslation[];
 }
 
 interface DeconstructorWizardProps {
@@ -265,6 +282,8 @@ root.render(React.createElement(_C));
 
 export function DeconstructorWizard({ onBuildPrompt }: DeconstructorWizardProps) {
   const [idea, setIdea] = useState("");
+  const [analogy, setAnalogy] = useState("");
+  const [showAnalogy, setShowAnalogy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DeconstructResult | null>(null);
@@ -272,6 +291,7 @@ export function DeconstructorWizard({ onBuildPrompt }: DeconstructorWizardProps)
   const [addingToCategory, setAddingToCategory] = useState<number | null>(null);
   const [newFeatureName, setNewFeatureName] = useState("");
   const [selectedPersona, setSelectedPersona] = useState<DesignPersonaId | null>(null);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
 
   const deconstruct = useCallback(async () => {
     if (!idea.trim() || loading) return;
@@ -282,7 +302,7 @@ export function DeconstructorWizard({ onBuildPrompt }: DeconstructorWizardProps)
       const res = await fetch("/api/deconstruct", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idea: idea.trim() }),
+        body: JSON.stringify({ idea: idea.trim(), ...(analogy.trim() ? { analogy: analogy.trim() } : {}) }),
       });
 
       if (!res.ok) {
@@ -304,7 +324,7 @@ export function DeconstructorWizard({ onBuildPrompt }: DeconstructorWizardProps)
     } finally {
       setLoading(false);
     }
-  }, [idea, loading]);
+  }, [idea, analogy, loading]);
 
   const toggleFeature = (catIdx: number, featIdx: number) => {
     setCategories((prev) =>
@@ -361,6 +381,40 @@ export function DeconstructorWizard({ onBuildPrompt }: DeconstructorWizardProps)
     );
     setNewFeatureName("");
     setAddingToCategory(null);
+  };
+
+  const acceptSuggestion = (suggestion: MagicSuggestion) => {
+    const targetCatIdx = categories.findIndex(
+      (cat) => cat.name.toLowerCase().includes(suggestion.category.toLowerCase()) ||
+               suggestion.category.toLowerCase().includes(cat.name.toLowerCase())
+    );
+    const catIdx = targetCatIdx >= 0 ? targetCatIdx : 0;
+    setCategories((prev) =>
+      prev.map((cat, ci) =>
+        ci === catIdx
+          ? {
+              ...cat,
+              expanded: true,
+              features: [
+                ...cat.features,
+                {
+                  name: suggestion.name,
+                  description: suggestion.description,
+                  complexity: suggestion.complexity,
+                  defaultOn: true,
+                  enabled: true,
+                  custom: true,
+                },
+              ],
+            }
+          : cat
+      )
+    );
+    setDismissedSuggestions((prev) => new Set([...prev, suggestion.name]));
+  };
+
+  const dismissSuggestion = (name: string) => {
+    setDismissedSuggestions((prev) => new Set([...prev, name]));
   };
 
   const buildEnrichedPrompt = () => {
@@ -424,53 +478,100 @@ Build this as a full-stack web application following all Golden Path standards.`
               <div>
                 <h3 className="text-sm font-semibold text-zinc-200">App Deconstructor</h3>
                 <p className="text-[11px] text-zinc-600 font-mono">
-                  Break your idea into building blocks before committing credits
+                  Describe your vision — we'll translate it into building blocks
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <input
-                id="deconstructor-input"
-                value={idea}
-                onChange={(e) => setIdea(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input
+                  id="deconstructor-input"
+                  value={idea}
+                  onChange={(e) => setIdea(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      deconstruct();
+                    }
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder='What do you want to build?'
+                  className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm font-mono text-zinc-300 placeholder:text-zinc-700 outline-none focus:border-primary/30 transition-colors"
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
                     deconstruct();
-                  }
-                }}
-                onClick={(e) => e.stopPropagation()}
-                placeholder='e.g. "Something like Airbnb but for power tools"'
-                className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm font-mono text-zinc-300 placeholder:text-zinc-700 outline-none focus:border-primary/30 transition-colors"
-                disabled={loading}
-              />
+                  }}
+                  disabled={!idea.trim() || loading}
+                  className={cn(
+                    "flex items-center gap-2 px-5 py-2.5 rounded-xl font-mono text-xs font-medium transition-all duration-300 whitespace-nowrap",
+                    !idea.trim() || loading
+                      ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
+                      : "bg-primary/15 text-primary border border-primary/20 hover:bg-primary/25"
+                  )}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ANALYZING
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      DECONSTRUCT
+                    </>
+                  )}
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deconstruct();
-                }}
-                disabled={!idea.trim() || loading}
-                className={cn(
-                  "flex items-center gap-2 px-5 py-2.5 rounded-xl font-mono text-xs font-medium transition-all duration-300 whitespace-nowrap",
-                  !idea.trim() || loading
-                    ? "bg-zinc-800/50 text-zinc-600 cursor-not-allowed"
-                    : "bg-primary/15 text-primary border border-primary/20 hover:bg-primary/25"
-                )}
+                onClick={(e) => { e.stopPropagation(); setShowAnalogy(!showAnalogy); }}
+                className="flex items-center gap-2 text-[11px] font-mono text-zinc-600 hover:text-primary transition-colors"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ANALYZING
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    DECONSTRUCT
-                  </>
-                )}
+                <Lightbulb className="w-3 h-3" />
+                {showAnalogy ? "Hide" : "Add"} a real-world analogy
+                <ChevronDown className={cn("w-3 h-3 transition-transform", showAnalogy && "rotate-180")} />
               </button>
+
+              <AnimatePresence>
+                {showAnalogy && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="relative">
+                      <textarea
+                        value={analogy}
+                        onChange={(e) => setAnalogy(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        placeholder={`Describe it like you'd explain it to a friend:\n"It's like a digital library where books talk back to you"\n"Imagine a farmers market, but online, and the vendors can deliver"`}
+                        className="w-full bg-amber-500/[0.03] border border-amber-500/10 rounded-xl px-4 py-3 text-sm font-mono text-zinc-300 placeholder:text-zinc-700 outline-none focus:border-amber-500/30 transition-colors resize-none h-[80px]"
+                        disabled={loading}
+                      />
+                      <div className="absolute top-2.5 right-3">
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-500/30" />
+                      </div>
+                    </div>
+                    {analogy.trim() && (
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="mt-1.5 text-[10px] font-mono text-amber-500/60"
+                      >
+                        Your analogy will help the AI understand the soul of your idea
+                      </motion.p>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {error && (
@@ -534,6 +635,76 @@ Build this as a full-stack web application following all Golden Path standards.`
             </div>
           </div>
         </div>
+
+        {result.analogyTranslations && result.analogyTranslations.length > 0 && (
+          <div className="px-6 py-3 border-b border-white/[0.04] bg-amber-500/[0.02]">
+            <div className="flex items-center gap-2 mb-2">
+              <Lightbulb className="w-3 h-3 text-amber-400" />
+              <span className="text-[10px] font-mono text-amber-400/80">ANALOGY DECODER</span>
+            </div>
+            <div className="space-y-1.5">
+              {result.analogyTranslations.map((t, i) => (
+                <div key={i} className="flex items-start gap-2 text-[11px]">
+                  <span className="text-zinc-500 font-mono shrink-0">&quot;{t.metaphor}&quot;</span>
+                  <ArrowRight className="w-3 h-3 text-amber-500/50 mt-0.5 shrink-0" />
+                  <span className="text-zinc-400 font-mono">{t.techTranslation}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(() => {
+          const activeSuggestions = (result.magicSuggestions ?? []).filter(
+            (s) => !dismissedSuggestions.has(s.name)
+          );
+          if (activeSuggestions.length === 0) return null;
+          return (
+            <div className="px-6 py-3 border-b border-white/[0.04] bg-violet-500/[0.02]">
+              <div className="flex items-center gap-2 mb-2.5">
+                <Wand2 className="w-3 h-3 text-violet-400" />
+                <span className="text-[10px] font-mono text-violet-400/80">MAGIC WAND — Ideas you might love</span>
+              </div>
+              <div className="space-y-2">
+                {activeSuggestions.map((s) => (
+                  <motion.div
+                    key={s.name}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 10 }}
+                    className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-white/[0.02] border border-violet-500/10 group"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm text-zinc-200">{s.name}</span>
+                        <ComplexityBars level={s.complexity} />
+                      </div>
+                      <p className="text-[11px] text-zinc-500 leading-relaxed">{s.description}</p>
+                      <p className="text-[10px] text-violet-400/60 mt-1 italic">{s.whyItHelps}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => acceptSuggestion(s)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-300 hover:bg-violet-500/20 transition-colors text-[10px] font-mono"
+                      >
+                        <Plus className="w-3 h-3" />
+                        ADD
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => dismissSuggestion(s.name)}
+                        className="p-1.5 rounded-lg hover:bg-white/5 text-zinc-700 hover:text-zinc-400 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="max-h-[60vh] overflow-y-auto">
           {categories.map((cat, catIdx) => (
