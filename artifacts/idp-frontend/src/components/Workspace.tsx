@@ -640,6 +640,7 @@ function SandpackWorkspaceInner({
   deployMut,
   handleDelete,
   deleteMut,
+  onSnapshotRestore,
 }: {
   project: ProjectDetails;
   rightPanel: "status" | "preview" | "anatomy" | "timeline" | "seeds";
@@ -652,6 +653,7 @@ function SandpackWorkspaceInner({
   deployMut: { isPending: boolean; data?: { deployUrl?: string } | undefined; isError: boolean };
   handleDelete: () => void;
   deleteMut: { isPending: boolean };
+  onSnapshotRestore: () => void;
 }) {
   const editorRef = useRef<{ getCodemirror: () => unknown } | null>(null);
   const { inspectActive, toggleInspect, lastSelected } = useXRayInspector(editorRef);
@@ -714,7 +716,7 @@ function SandpackWorkspaceInner({
             ) : rightPanel === "anatomy" ? (
               <AppAnatomy project={project} onSwitchToEditor={() => setRightPanel("status")} />
             ) : rightPanel === "timeline" ? (
-              <SnapshotTimeline project={project} />
+              <SnapshotTimeline project={project} onRestoreComplete={onSnapshotRestore} />
             ) : rightPanel === "seeds" ? (
               <SeedDataGenerator project={project} />
             ) : (
@@ -768,6 +770,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
   const [rightPanel, setRightPanel] = useState<"status" | "preview" | "anatomy" | "timeline" | "seeds">("status");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("sandpack");
   const [showSidebar, setShowSidebar] = useState(true);
+  const [snapshotVersion, setSnapshotVersion] = useState(0);
   const [, navigate] = useLocation();
 
   const queryClient = useQueryClient();
@@ -913,6 +916,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
       <div className="flex-1 bg-card border border-border shadow-2xl rounded-xl overflow-hidden flex flex-col min-h-0">
         {hasAnyFiles ? (
           <SandpackProvider
+            key={`sandpack-${Object.keys(sandpackFiles).length}-${snapshotVersion}`}
             template="react-ts"
             files={sandpackFiles}
             theme={SANDPACK_THEME}
@@ -933,6 +937,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
               deployMut={deployMut}
               handleDelete={handleDelete}
               deleteMut={deleteMut}
+              onSnapshotRestore={() => setSnapshotVersion((v) => v + 1)}
             />
           </SandpackProvider>
         ) : (

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db, projectsTable, type Project } from "@workspace/db";
 import { callWithRetry } from "./ai-retry";
 import { getActiveConfig, buildSystemPrompt } from "./golden-path";
+import { createSnapshot } from "./snapshots";
 import type { GoldenPathCheck } from "./golden-path";
 import {
   executeWithSelfHealing,
@@ -111,6 +112,8 @@ export async function refineProject(
   if (existingFiles.length === 0) {
     throw new Error("Project has no files to refine");
   }
+
+  await createSnapshot(projectId, existingFiles, "pre_refine", "Before refinement");
 
   const config = await getActiveConfig();
   const systemPrompt = buildSystemPrompt(config);

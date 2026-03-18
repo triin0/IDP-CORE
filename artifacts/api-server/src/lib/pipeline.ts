@@ -13,6 +13,7 @@ import type { ASTVerificationResult } from "./ast-verification";
 import type { GoldenPathConfigRules } from "@workspace/db";
 import { emitPipelineEvent } from "./pipeline-events";
 import { enforcePackageVersions } from "./version-enforcement";
+import { createSnapshot } from "./snapshots";
 
 function extractJSON(raw: string): unknown | null {
   const fenced = raw.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
@@ -699,6 +700,15 @@ export async function runPipeline(
   const pipeline = initPipelineStatus();
 
   try {
+    const [currentProject] = await db
+      .select({ files: projectsTable.files })
+      .from(projectsTable)
+      .where(eq(projectsTable.id, projectId));
+    const existingFiles = (currentProject?.files ?? []) as Array<{ path: string; content: string }>;
+    if (existingFiles.length > 0) {
+      await createSnapshot(projectId, existingFiles, "pre_generate", "Before code generation");
+    }
+
     await db
       .update(projectsTable)
       .set({ status: "generating", pipelineStatus: pipeline })

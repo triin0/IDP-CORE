@@ -908,6 +908,11 @@ router.post("/projects/:id/seed-data", requireAuth, async (req: Request, res: Re
       const serverSeedContent = generateServerSeedFile(seedData, spec.databaseTables);
       const currentFiles = (project.files ?? []) as Array<{ path: string; content: string }>;
 
+      if (currentFiles.length > 0) {
+        const { createSnapshot } = await import("../lib/snapshots");
+        await createSnapshot(id, currentFiles, "pre_inject", "Before seed data injection");
+      }
+
       const SEED_PATHS = ["client/src/data/seed-data.ts", "server/src/db/seed.ts"];
       const cleanedFiles = currentFiles.filter((f) => !SEED_PATHS.includes(f.path));
 
@@ -966,6 +971,11 @@ router.post("/projects/:id/wipe-seed-data", requireAuth, async (req: Request, re
     if (!clientSeedFile && !serverSeedFile) {
       res.status(400).json({ error: "No seed data files found in this project" });
       return;
+    }
+
+    if (currentFiles.length > 0) {
+      const { createSnapshot } = await import("../lib/snapshots");
+      await createSnapshot(id, currentFiles, "pre_wipe", "Before seed data wipe");
     }
 
     const { generateEmptyServerSeedFile } = await import("../lib/seed-generator");
@@ -1080,6 +1090,109 @@ router.post("/projects/:id/rollback", requireAuth, async (req: Request, res: Res
   } catch (err: unknown) {
     console.error("Rollback error:", err);
     res.status(500).json({ error: "Failed to rollback project" });
+  }
+});
+
+router.post("/projects/:id/snapshot", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { label = "Manual snapshot" } = req.body as { label?: string };
+
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
+
+    const files = (project.files ?? []) as Array<{ path: string; content: string }>;
+    if (files.length === 0) {
+      res.status(400).json({ error: "Cannot snapshot a project with no files" });
+      return;
+    }
+
+    const { createSnapshot } = await import("../lib/snapshots");
+    const snapshotId = await createSnapshot(id, files, "manual", label);
+
+    res.json({ id: snapshotId, trigger: "manual", label });
+  } catch (err: unknown) {
+    console.error("Snapshot create error:", err);
+    res.status(500).json({ error: "Failed to create snapshot" });
+  }
+});
+
+router.get("/projects/:id/snapshots", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
+
+    const { listSnapshots } = await import("../lib/snapshots");
+    const snapshots = await listSnapshots(id);
+
+    res.json({ snapshots });
+  } catch (err: unknown) {
+    console.error("Snapshot list error:", err);
+    res.status(500).json({ error: "Failed to list snapshots" });
+  }
+});
+
+router.post("/projects/:id/restore/:snapshotId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const snapshotId = req.params.snapshotId as string;
+
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
+
+    const currentFiles = (project.files ?? []) as Array<{ path: string; content: string }>;
+
+    const { createSnapshot, restoreSnapshot } = await import("../lib/snapshots");
+
+    if (currentFiles.length > 0) {
+      await createSnapshot(id, currentFiles, "pre_restore", "Before restoring snapshot");
+    }
+
+    const restoredFiles = await restoreSnapshot(id, snapshotId);
+
+    await db
+      .update(projectsTable)
+      .set({ files: restoredFiles })
+      .where(eq(projectsTable.id, id));
+
+    res.json({
+      restored: true,
+      snapshotId,
+      fileCount: restoredFiles.length,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to restore snapshot";
+    console.error("Snapshot restore error:", err);
+    if (message.includes("not found") || message.includes("corrupted")) {
+      res.status(404).json({ error: message });
+      return;
+    }
+    res.status(500).json({ error: message });
+  }
+});
+
+router.delete("/projects/:id/snapshots/:snapshotId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const snapshotId = req.params.snapshotId as string;
+
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
+
+    const { deleteSnapshot } = await import("../lib/snapshots");
+    const deleted = await deleteSnapshot(id, snapshotId);
+
+    if (!deleted) {
+      res.status(404).json({ error: "Snapshot not found" });
+      return;
+    }
+
+    res.json({ deleted: true });
+  } catch (err: unknown) {
+    console.error("Snapshot delete error:", err);
+    res.status(500).json({ error: "Failed to delete snapshot" });
   }
 });
 
