@@ -11,6 +11,7 @@ interface ChatCompletionParams {
   max_completion_tokens?: number;
   messages: ChatMessage[];
   response_format?: { type: string };
+  temperature?: number;
 }
 
 const MAX_RETRIES = 3;
@@ -43,7 +44,7 @@ async function callGemini(
     model: "gemini-2.5-pro",
     generationConfig: {
       maxOutputTokens: params.max_completion_tokens ?? 65536,
-      temperature: 0.2,
+      temperature: params.temperature ?? 0.2,
       responseMimeType: "application/json",
     },
   });
@@ -76,6 +77,7 @@ async function callGemini(
 async function callGeminiMultiturn(
   history: Content[],
   maxOutputTokens: number,
+  temperature?: number,
 ): Promise<{ content: string; finishReason: string }> {
   const gemini = getGeminiClient();
 
@@ -83,7 +85,7 @@ async function callGeminiMultiturn(
     model: "gemini-2.5-pro",
     generationConfig: {
       maxOutputTokens,
-      temperature: 0.2,
+      temperature: temperature ?? 0.2,
       responseMimeType: "text/plain",
     },
   });
@@ -106,6 +108,7 @@ async function callOpenAI(
   const response = await openai.chat.completions.create({
     model: params.model,
     max_completion_tokens: params.max_completion_tokens,
+    temperature: params.temperature,
     messages: params.messages as Array<{ role: "system" | "user" | "assistant"; content: string }>,
     response_format: params.response_format as { type: "json_object" } | undefined,
   });
@@ -123,10 +126,12 @@ async function callOpenAIMultiturn(
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
   model: string,
   maxTokens?: number,
+  temperature?: number,
 ): Promise<{ content: string; finishReason: string }> {
   const response = await openai.chat.completions.create({
     model,
     max_completion_tokens: maxTokens,
+    temperature,
     messages,
   });
   const choice = response.choices[0];
@@ -176,7 +181,7 @@ async function continueGemini(
       `[${label}] Continuation ${cont}/${MAX_CONTINUATIONS}, accumulated_length=${fullResponse.length}`,
     );
 
-    const { content, finishReason } = await callGeminiMultiturn(history, maxTokens);
+    const { content, finishReason } = await callGeminiMultiturn(history, maxTokens, params.temperature);
 
     if (!content || content.length === 0) {
       console.warn(`[${label}] Continuation ${cont} returned empty content`);
@@ -222,6 +227,7 @@ async function continueOpenAI(
       messages,
       params.model,
       params.max_completion_tokens,
+      params.temperature,
     );
 
     if (!content || content.length === 0) {

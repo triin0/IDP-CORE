@@ -873,21 +873,17 @@ Rules:
   }
 });
 
-router.post("/:id/seed-data", requireAuth, async (req: Request, res: Response) => {
+router.post("/projects/:id/seed-data", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const { rowsPerTable = 5, format = "json" } = req.body as { rowsPerTable?: number; format?: "json" | "sql" | "typescript" };
+    const id = req.params.id as string;
+    const { rowsPerTable = 5, format = "json", inject = false } = req.body as {
+      rowsPerTable?: number;
+      format?: "json" | "sql" | "typescript";
+      inject?: boolean;
+    };
 
-    const [project] = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.id, id))
-      .limit(1);
-
-    if (!project) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
 
     const spec = project.spec as { overview?: string; databaseTables?: Array<{ name: string; columns: string[] }> } | null;
     if (!spec?.databaseTables || spec.databaseTables.length === 0) {
@@ -895,12 +891,43 @@ router.post("/:id/seed-data", requireAuth, async (req: Request, res: Response) =
       return;
     }
 
-    const { generateSeedData, seedDataToSQL, seedDataToTypeScript } = await import("../lib/seed-generator");
+    const {
+      generateSeedData, seedDataToSQL, seedDataToTypeScript,
+      generateClientSeedFile, generateServerSeedFile,
+    } = await import("../lib/seed-generator");
+
     const seedData = await generateSeedData(
       spec.databaseTables,
       spec.overview || project.prompt,
       Math.min(rowsPerTable, 20),
+      id,
     );
+
+    if (inject) {
+      const clientSeedContent = generateClientSeedFile(seedData);
+      const serverSeedContent = generateServerSeedFile(seedData, spec.databaseTables);
+      const currentFiles = (project.files ?? []) as Array<{ path: string; content: string }>;
+
+      const SEED_PATHS = ["client/src/data/seed-data.ts", "server/src/db/seed.ts"];
+      const cleanedFiles = currentFiles.filter((f) => !SEED_PATHS.includes(f.path));
+
+      cleanedFiles.push(
+        { path: "client/src/data/seed-data.ts", content: clientSeedContent },
+        { path: "server/src/db/seed.ts", content: serverSeedContent },
+      );
+
+      await db
+        .update(projectsTable)
+        .set({ files: cleanedFiles })
+        .where(eq(projectsTable.id, id));
+
+      res.json({
+        tables: seedData,
+        injected: true,
+        filesAdded: SEED_PATHS,
+      });
+      return;
+    }
 
     if (format === "sql") {
       const sql = seedDataToSQL(seedData);
@@ -917,9 +944,70 @@ router.post("/:id/seed-data", requireAuth, async (req: Request, res: Response) =
   }
 });
 
-router.post("/:id/rollback", requireAuth, async (req: Request, res: Response) => {
+router.post("/projects/:id/wipe-seed-data", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
+
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
+
+    const currentFiles = (project.files ?? []) as Array<{ path: string; content: string }>;
+    const clientSeedFile = currentFiles.find((f) => f.path === "client/src/data/seed-data.ts");
+    const serverSeedFile = currentFiles.find((f) => f.path === "server/src/db/seed.ts");
+
+    if (!clientSeedFile && !serverSeedFile) {
+      res.status(400).json({ error: "No seed data files found in this project" });
+      return;
+    }
+
+    const { generateEmptyServerSeedFile } = await import("../lib/seed-generator");
+
+    let emptyClientContent: string;
+    if (clientSeedFile?.content) {
+      emptyClientContent = clientSeedFile.content
+        .replace(/^(\/\/ =+)$/m, "// ============================================================")
+        .replace(
+          /AUTO-GENERATED SEED DATA/,
+          "SEED DATA CLEARED",
+        )
+        .replace(
+          /This file provides realistic mock data for the Sandpack preview\./,
+          "All mock data has been wiped. Arrays are empty.",
+        )
+        .replace(
+          /export const (\w+): (\w+)\[\] = \[[\s\S]*?\];/g,
+          "export const $1: $2[] = [];",
+        );
+    } else {
+      emptyClientContent = "// Seed data cleared.\n";
+    }
+    const emptyServerContent = generateEmptyServerSeedFile();
+
+    const updatedFiles = currentFiles.map((f) => {
+      if (f.path === "client/src/data/seed-data.ts") {
+        return { path: f.path, content: emptyClientContent };
+      }
+      if (f.path === "server/src/db/seed.ts") {
+        return { path: f.path, content: emptyServerContent };
+      }
+      return f;
+    });
+
+    await db
+      .update(projectsTable)
+      .set({ files: updatedFiles })
+      .where(eq(projectsTable.id, id));
+
+    res.json({ wiped: true });
+  } catch (err: unknown) {
+    console.error("Wipe seed data error:", err);
+    res.status(500).json({ error: "Failed to wipe seed data" });
+  }
+});
+
+router.post("/projects/:id/rollback", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
     const { refinementIndex } = req.body as { refinementIndex: number };
 
     if (typeof refinementIndex !== "number" || refinementIndex < 0) {
@@ -927,16 +1015,8 @@ router.post("/:id/rollback", requireAuth, async (req: Request, res: Response) =>
       return;
     }
 
-    const [project] = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.id, id))
-      .limit(1);
-
-    if (!project) {
-      res.status(404).json({ error: "Project not found" });
-      return;
-    }
+    const project = await loadOwnedProject(req, res, id);
+    if (!project) return;
 
     const refinements = (project.refinements ?? []) as Array<{
       prompt: string;

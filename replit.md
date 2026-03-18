@@ -32,7 +32,7 @@ The IDP is built as a pnpm workspace monorepo. It features an Express 5 API serv
 *   **Preview Modes:** Three modes: Sandpack, Live Sandbox, and Info (static HTML overview).
 *   **App Anatomy Dashboard ("X-Ray" v2):** A visual metaphor view breaking the project into organs (UI, API, Database, Security, Architecture).
 *   **Snapshot Time Travel ("Timeline" tab):** A horizontal timeline UI showing version history.
-*   **Magic Seed Data Generator ("Seeds" tab):** AI-powered seed data generation for all database tables.
+*   **Magic Seed Data Generator ("Seeds" tab):** Schema-aware, deterministic seed engine with column type parsing (ColumnDef), Kahn's topological sort for FK-safe ordering, temperature 0.0 determinism with project fingerprint, two-tiered auto-injection (`client/src/data/seed-data.ts` typed arrays for Sandpack, `server/src/db/seed.ts` SQL INSERTs for deployment), and wipe mechanism that overwrites with empty arrays (preserving module imports).
 *   **Error Decryptor:** Translates raw technical errors into friendly, non-technical descriptions.
 *   **Live Pipeline Visualization:** Displays agent activity with animations.
 *   **Agent Trajectory Dashboard:** Vertical sidebar showing per-agent stage cards and verification gates.
