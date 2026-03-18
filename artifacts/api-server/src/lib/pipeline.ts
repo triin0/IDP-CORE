@@ -13,6 +13,19 @@ import type { ASTVerificationResult } from "./ast-verification";
 import type { GoldenPathConfigRules } from "@workspace/db";
 import { emitPipelineEvent } from "./pipeline-events";
 
+function extractJSON(raw: string): unknown | null {
+  const fenced = raw.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+  if (fenced) {
+    try { return JSON.parse(fenced[1].trim()); } catch {}
+  }
+  const braceStart = raw.indexOf("{");
+  const braceEnd = raw.lastIndexOf("}");
+  if (braceStart !== -1 && braceEnd > braceStart) {
+    try { return JSON.parse(raw.slice(braceStart, braceEnd + 1)); } catch {}
+  }
+  return null;
+}
+
 export type FailureCategory =
   | "golden_path_violation"
   | "dependency_hallucination"
@@ -109,7 +122,12 @@ async function runAgent(
   try {
     parsed = JSON.parse(rawContent) as { files: Array<{ path: string; content: string }>; notes?: string };
   } catch {
-    throw new Error(`${agent.label} returned invalid JSON`);
+    const extracted = extractJSON(rawContent);
+    if (extracted) {
+      parsed = extracted as typeof parsed;
+    } else {
+      throw new Error(`${agent.label} returned invalid JSON`);
+    }
   }
 
   if (!parsed.files || !Array.isArray(parsed.files)) {
@@ -501,7 +519,12 @@ async function runFixerAgent(
   try {
     parsed = JSON.parse(rawContent) as typeof parsed;
   } catch {
-    throw new Error("Fixer Agent returned invalid JSON");
+    const extracted = extractJSON(rawContent);
+    if (extracted) {
+      parsed = extracted as typeof parsed;
+    } else {
+      throw new Error("Fixer Agent returned invalid JSON");
+    }
   }
 
   if (!parsed.files || !Array.isArray(parsed.files) || parsed.files.length === 0) {

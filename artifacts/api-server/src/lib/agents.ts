@@ -96,6 +96,18 @@ You MUST use these exact versions. Using older versions will FAIL the security a
 
 Do NOT include axios — use native fetch() instead. Do NOT use @libsql/client or better-sqlite3.
 
+**@types/ packages (CRITICAL):** If the spec requires packages that don't ship their own TypeScript types, you MUST add the corresponding \`@types/\` package to \`server/package.json\` devDependencies. Common ones:
+- cookie-parser → @types/cookie-parser
+- bcryptjs → @types/bcryptjs
+- jsonwebtoken → @types/jsonwebtoken
+- express-session → @types/express-session
+- compression → @types/compression
+- morgan → @types/morgan
+- multer → @types/multer
+Packages that already include types (do NOT add @types/): express, cors, helmet, zod, drizzle-orm, pg, express-rate-limit, dotenv, drizzle-zod.
+
+**Shared types:** All shared type definitions MUST go inside \`server/src/types/\` (within server's rootDir), NOT in a top-level \`types/\` directory. A top-level types/ directory causes TS6059 "not under rootDir" errors during build.
+
 ### PACKAGE.JSON STRUCTURE
 The root package.json MUST use npm workspaces:
 \`\`\`json
@@ -259,6 +271,21 @@ app.listen(PORT, () => console.log(\`Server running on port \${PORT}\`));
 \`\`\`
 
 ${architectEntryFile ? `The Architect provided server/src/index.ts — you MUST use it as the base and ensure it includes helmet(), cors(), rateLimit(), and a global error handler. If any are missing, output a REPLACEMENT version of server/src/index.ts with them added.` : "You MUST generate server/src/index.ts following the template above."}
+
+### TYPE DECLARATIONS (CRITICAL)
+If you add custom properties to Express Request (e.g. req.userId), you MUST create a declaration file:
+- Create \`server/src/types.d.ts\`:
+  \`\`\`
+  declare global { namespace Express { interface Request { userId?: string; } } }
+  export {};
+  \`\`\`
+- Ensure the server tsconfig.json \`include\` array covers \`"src/**/*.ts"\` (which includes .d.ts files).
+
+If using packages that need separate type declarations, the Architect's package.json MUST include them in devDependencies.
+Common packages needing @types/: cookie-parser, bcryptjs, jsonwebtoken, express-session, compression, morgan, multer.
+Packages that ship their own types (do NOT add @types/): express, cors, helmet, zod, drizzle-orm, pg, express-rate-limit, dotenv.
+
+All shared types MUST live inside \`server/src/\` (within the rootDir). Do NOT import from \`../types/\` or \`../../types/\` — that causes TS6059 "not under rootDir" errors.
 
 ### SECURITY RULES
 - ${security.requireHelmet ? "MUST call app.use(helmet()) before routes" : ""}
@@ -493,9 +520,21 @@ Your ONLY job is to output the minimal file modifications required to fix these 
 These are the most frequent build failures. Apply the right fix pattern:
 
 **Missing/wrong imports:**
-- "Cannot find module 'X'" → Check the import path. Use relative paths for local files. Ensure the file exists in the tree.
+- "Cannot find module 'X'" → Two possible causes:
+  (a) Wrong import path for a local file → fix the relative path, ensure the file exists in the tree.
+  (b) Missing \`@types/\` package for a third-party module → add \`@types/X\` to \`devDependencies\` in the server's \`package.json\`. Common ones: \`@types/cookie-parser\`, \`@types/bcryptjs\`, \`@types/jsonwebtoken\`, \`@types/express-session\`, \`@types/compression\`, \`@types/morgan\`. Some packages ship their own types and do NOT need \`@types/\` (e.g. \`express\`, \`cors\`, \`helmet\`, \`zod\`, \`drizzle-orm\`, \`pg\`). For \`drizzle-zod\`, ensure it is listed in \`dependencies\`, not just imported.
 - "has no exported member 'X'" → Check what the module actually exports and use the correct name. If using a default export, use \`import X from\` not \`import { X } from\`.
 - "Module has no default export" → Switch to named import: \`import { X } from\`.
+
+**Express Request augmentation:**
+- "Property 'userId' does not exist on type 'Request'" → Create a type declaration file (e.g. \`server/src/types.d.ts\`) that extends the Express Request interface:
+  \`\`\`
+  declare global { namespace Express { interface Request { userId?: string; } } }
+  \`\`\`
+  Then add \`"server/src/types.d.ts"\` to the server \`tsconfig.json\` \`include\` array. Alternatively, use \`(req as any).userId\` as a quick fix.
+
+**rootDir / file scope errors:**
+- "File 'X' is not under 'rootDir'" (TS6059) → The file is outside the \`rootDir\` configured in tsconfig. Fix by either: (a) moving the shared types inside \`server/src/\`, (b) using a project-references setup, or (c) copying the types into both server and client source directories.
 
 **Type errors:**
 - "Type 'X' is not assignable to type 'Y'" → Add a type assertion \`as Y\` or fix the type at the source.
