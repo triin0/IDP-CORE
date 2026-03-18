@@ -61,7 +61,7 @@ export function SnapshotTimeline({ project, onRestoreComplete }: SnapshotTimelin
   const snapshotsQuery = useQuery<{ snapshots: Snapshot[] }>({
     queryKey: ["snapshots", project.id],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/projects/${project.id}/snapshots`);
+      const res = await fetch(`${API_BASE}/projects/${project.id}/snapshots`);
       if (!res.ok) throw new Error("Failed to load snapshots");
       return res.json();
     },
@@ -70,7 +70,7 @@ export function SnapshotTimeline({ project, onRestoreComplete }: SnapshotTimelin
 
   const manualSnapshotMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${API_BASE}/api/projects/${project.id}/snapshot`, {
+      const res = await fetch(`${API_BASE}/projects/${project.id}/snapshot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ label: "Manual snapshot" }),
@@ -88,7 +88,7 @@ export function SnapshotTimeline({ project, onRestoreComplete }: SnapshotTimelin
 
   const restoreMutation = useMutation({
     mutationFn: async (snapshotId: string) => {
-      const res = await fetch(`${API_BASE}/api/projects/${project.id}/restore/${snapshotId}`, {
+      const res = await fetch(`${API_BASE}/projects/${project.id}/restore/${snapshotId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -99,7 +99,7 @@ export function SnapshotTimeline({ project, onRestoreComplete }: SnapshotTimelin
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["project", project.id] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}`] });
       queryClient.invalidateQueries({ queryKey: ["snapshots", project.id] });
       setConfirmRestoreId(null);
       onRestoreComplete?.();
@@ -108,7 +108,7 @@ export function SnapshotTimeline({ project, onRestoreComplete }: SnapshotTimelin
 
   const deleteMutation = useMutation({
     mutationFn: async (snapshotId: string) => {
-      const res = await fetch(`${API_BASE}/api/projects/${project.id}/snapshots/${snapshotId}`, {
+      const res = await fetch(`${API_BASE}/projects/${project.id}/snapshots/${snapshotId}`, {
         method: "DELETE",
       });
       if (!res.ok) {
