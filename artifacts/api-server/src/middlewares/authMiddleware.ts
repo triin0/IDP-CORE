@@ -9,6 +9,7 @@ import {
   updateSession,
   type SessionData,
 } from "../lib/auth";
+import { db, usersTable } from "@workspace/db";
 
 declare global {
   namespace Express {
@@ -63,6 +64,22 @@ const DEV_USER: AuthUser = {
 
 const AUTH_DISABLED = true;
 
+let devUserSeeded = false;
+async function ensureDevUserExists() {
+  if (devUserSeeded) return;
+  try {
+    await db.insert(usersTable).values({
+      id: DEV_USER.id,
+      email: DEV_USER.email,
+      firstName: DEV_USER.firstName,
+      lastName: DEV_USER.lastName,
+    }).onConflictDoNothing();
+    devUserSeeded = true;
+  } catch {
+    devUserSeeded = true;
+  }
+}
+
 export async function authMiddleware(
   req: Request,
   res: Response,
@@ -73,6 +90,7 @@ export async function authMiddleware(
   } as Request["isAuthenticated"];
 
   if (AUTH_DISABLED) {
+    await ensureDevUserExists();
     req.user = DEV_USER;
     next();
     return;
