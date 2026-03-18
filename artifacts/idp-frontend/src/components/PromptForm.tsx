@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useCreateProject } from "@workspace/api-client-react";
 import { Terminal, Sparkles, ArrowRight, Loader2, Cpu, Shield, Boxes } from "lucide-react";
 import { motion } from "framer-motion";
@@ -6,10 +6,22 @@ import { cn } from "@/lib/utils";
 
 interface PromptFormProps {
   onProjectCreated: (id: string) => void;
+  initialPrompt?: string | null;
 }
 
-export function PromptForm({ onProjectCreated }: PromptFormProps) {
+export function PromptForm({ onProjectCreated, initialPrompt }: PromptFormProps) {
   const [prompt, setPrompt] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (initialPrompt) {
+      setPrompt(initialPrompt);
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [initialPrompt]);
   const createProject = useCreateProject();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -31,7 +43,7 @@ export function PromptForm({ onProjectCreated }: PromptFormProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className="w-full max-w-3xl mx-auto px-4"
+      className="w-full"
     >
       <div className="text-center mb-14">
         <motion.div
@@ -67,6 +79,7 @@ export function PromptForm({ onProjectCreated }: PromptFormProps) {
           </div>
 
           <textarea
+            ref={textareaRef}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Build a task management app with user auth, real-time updates, and a dashboard..."

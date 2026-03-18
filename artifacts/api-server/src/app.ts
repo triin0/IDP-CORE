@@ -35,6 +35,15 @@ const apiLimiter = rateLimit({
 
 app.use("/api/projects", apiLimiter);
 
+const deconstructLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { error: "Deconstructor rate limit exceeded. Try again in an hour." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/deconstruct", deconstructLimiter);
+
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));

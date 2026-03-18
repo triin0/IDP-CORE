@@ -576,4 +576,99 @@ router.delete("/projects/:id", requireAuth, async (req, res) => {
   }
 });
 
+router.post("/deconstruct", async (req: Request, res: Response) => {
+  try {
+    const { idea } = req.body as { idea?: string };
+    if (!idea || typeof idea !== "string" || idea.trim().length < 3) {
+      res.status(400).json({ error: "Please provide an app idea (at least 3 characters)" });
+      return;
+    }
+
+    const { callWithRetry } = await import("../lib/ai-retry");
+
+    const systemPrompt = `You are the "App Deconstructor" — a Creative Director for software products.
+
+Given a user's app idea (which may be vague, like "something like Airbnb" or "a fitness tracker"), break it down into a modular feature blueprint.
+
+Return ONLY valid JSON matching this exact schema:
+{
+  "appName": "string — a concise product name suggestion",
+  "tagline": "string — one-line elevator pitch",
+  "categories": [
+    {
+      "name": "string — category name (e.g. 'Identity & Auth', 'Core Features', 'Data & Storage')",
+      "icon": "string — a single emoji representing this category",
+      "features": [
+        {
+          "name": "string — feature name",
+          "description": "string — one-sentence non-technical explanation",
+          "complexity": "low" | "medium" | "high",
+          "defaultOn": true | false
+        }
+      ]
+    }
+  ]
+}
+
+Rules:
+- Generate 4-7 categories
+- Each category should have 2-5 features
+- "defaultOn" should be true for essential features, false for nice-to-haves
+- Categories should follow this general pattern:
+  1. Identity & Auth (user accounts, profiles, roles)
+  2. Core Features (the main functionality that defines the app)
+  3. Data & Storage (database tables, file uploads, media)
+  4. UI & Experience (dashboard, search, filters, responsive design)
+  5. Trust & Safety (reviews, moderation, reporting)
+  6. Integrations (payments, email, maps, third-party APIs)
+  7. Growth (analytics, notifications, sharing, SEO)
+- Keep descriptions non-technical — the user may be a non-coder
+- "complexity" helps the user understand relative effort
+- If the user references a known app ("like Airbnb"), decompose that app's actual feature set
+- If the idea is unique, creatively fill in the logical feature modules`;
+
+    const raw = await callWithRetry(
+      {
+        model: "gemini-2.5-pro",
+        max_completion_tokens: 4096,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Deconstruct this app idea: "${idea.trim()}"` },
+        ],
+        response_format: { type: "json_object" },
+      },
+      "Deconstructor",
+    );
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+      } else {
+        throw new Error("AI returned invalid JSON");
+      }
+    }
+
+    if (!parsed.appName || !parsed.tagline || !Array.isArray(parsed.categories) || parsed.categories.length === 0) {
+      throw new Error("AI returned incomplete response — please try again");
+    }
+
+    res.json(parsed);
+  } catch (err: unknown) {
+    const internal = err instanceof Error ? err.message : "Unknown error";
+    console.error("Deconstructor error:", internal);
+    const safeMessages = [
+      "AI returned invalid JSON",
+      "AI returned incomplete response — please try again",
+      "Please provide an app idea (at least 3 characters)",
+    ];
+    const userMessage = safeMessages.find(m => internal.includes(m))
+      ?? "Something went wrong while analyzing your idea. Please try again.";
+    res.status(500).json({ error: userMessage });
+  }
+});
+
 export default router;
