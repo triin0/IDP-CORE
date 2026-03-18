@@ -74,6 +74,10 @@ export const CreateProjectBody = zod.object({
   prompt: zod
     .string()
     .describe("Natural language description of the application to build"),
+  designPersona: zod
+    .enum(["cupertino", "terminal", "startup", "editorial", "brutalist"])
+    .optional()
+    .describe("Visual design persona to guide the generated UI style"),
 });
 
 /**

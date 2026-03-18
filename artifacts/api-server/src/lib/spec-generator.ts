@@ -3,6 +3,7 @@ import { db, projectsTable } from "@workspace/db";
 import type { GoldenPathConfigRules } from "@workspace/db";
 import { callWithRetry } from "./ai-retry";
 import { getActiveConfig } from "./golden-path";
+import { getPersonaStyleTokens } from "./design-personas";
 
 function buildSpecPrompt(config: GoldenPathConfigRules): string {
   const { techStack, folderStructure, security, codeQuality, database } = config;
@@ -60,6 +61,7 @@ interface ProjectSpec {
 export async function generateProjectSpec(
   projectId: string,
   prompt: string,
+  designPersona?: string,
 ): Promise<void> {
   try {
     await db
@@ -70,6 +72,11 @@ export async function generateProjectSpec(
     const config = await getActiveConfig();
     const specPrompt = buildSpecPrompt(config);
 
+    const personaTokens = getPersonaStyleTokens(designPersona);
+    const userContent = personaTokens
+      ? `Create an architectural specification for: ${prompt}\n\n${personaTokens}\n\nInclude the design persona name "${designPersona}" in your architecturalDecisions so downstream agents can reference it.`
+      : `Create an architectural specification for: ${prompt}`;
+
     const rawContent = await callWithRetry(
       {
         model: "gpt-5.2",
@@ -78,7 +85,7 @@ export async function generateProjectSpec(
           { role: "system", content: specPrompt },
           {
             role: "user",
-            content: `Create an architectural specification for: ${prompt}`,
+            content: userContent,
           },
         ],
         response_format: { type: "json_object" },

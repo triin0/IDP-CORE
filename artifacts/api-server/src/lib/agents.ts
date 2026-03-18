@@ -1,4 +1,5 @@
 import type { GoldenPathConfigRules } from "@workspace/db";
+import { getPersonaStyleTokens } from "./design-personas";
 
 export type AgentRole = "architect" | "backend" | "frontend" | "security" | "verification";
 
@@ -11,6 +12,7 @@ export interface AgentDefinition {
 
 export interface AgentContext {
   prompt: string;
+  designPersona?: string;
   spec?: {
     overview: string;
     fileStructure: string[];
@@ -376,7 +378,12 @@ Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes":
 Do NOT include any text before or after the JSON.
 
 ### SPEC
-${ctx.spec ? `Overview: ${ctx.spec.overview}\nEndpoints to consume: ${ctx.spec.apiEndpoints.map(e => `${e.method} ${e.path} — ${e.description}`).join("\n")}` : ""}`;
+${ctx.spec ? `Overview: ${ctx.spec.overview}\nEndpoints to consume: ${ctx.spec.apiEndpoints.map(e => `${e.method} ${e.path} — ${e.description}`).join("\n")}` : ""}
+
+${(() => {
+  const tokens = getPersonaStyleTokens(ctx.designPersona);
+  return tokens ? `### VISUAL DESIGN REQUIREMENTS (MANDATORY)\n${tokens}\n\nYou MUST follow this design directive precisely. Every component, page, and layout must reflect this visual style. This is not optional — the user selected this design persona and expects the output to match it exactly.` : "";
+})()}`;
 }
 
 function buildSecurityPrompt(_config: GoldenPathConfigRules, ctx: AgentContext): string {

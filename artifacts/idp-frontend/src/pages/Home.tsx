@@ -6,6 +6,7 @@ import { DeconstructorWizard } from "@/components/DeconstructorWizard";
 export function Home() {
   const [, navigate] = useLocation();
   const [enrichedPrompt, setEnrichedPrompt] = useState<string | null>(null);
+  const [designPersona, setDesignPersona] = useState<string | undefined>();
 
   return (
     <div className="flex-1 flex items-center justify-center py-12">
@@ -13,8 +14,14 @@ export function Home() {
         <PromptForm
           onProjectCreated={(id) => navigate(`/project/${id}`)}
           initialPrompt={enrichedPrompt}
+          designPersona={designPersona}
         />
-        <DeconstructorWizard onBuildPrompt={setEnrichedPrompt} />
+        <DeconstructorWizard
+          onBuildPrompt={(prompt, persona) => {
+            setEnrichedPrompt(prompt);
+            setDesignPersona(persona);
+          }}
+        />
       </div>
     </div>
   );

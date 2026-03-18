@@ -11,6 +11,7 @@ export async function generateProjectCode(
     middleware: string[];
     architecturalDecisions: string[];
   },
+  designPersona?: string,
 ): Promise<void> {
-  await runPipeline(projectId, prompt, spec);
+  await runPipeline(projectId, prompt, spec, designPersona);
 }

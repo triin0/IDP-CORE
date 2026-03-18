@@ -12,8 +12,62 @@ import {
   Sparkles,
   Eye,
   Coins,
+  Paintbrush,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type DesignPersonaId = "cupertino" | "terminal" | "startup" | "editorial" | "brutalist";
+
+interface PersonaOption {
+  id: DesignPersonaId;
+  name: string;
+  tagline: string;
+  emoji: string;
+  preview: {
+    bg: string;
+    accent: string;
+    text: string;
+    border: string;
+  };
+}
+
+const PERSONA_OPTIONS: PersonaOption[] = [
+  {
+    id: "cupertino",
+    name: "Cupertino",
+    tagline: "Clean & elegant",
+    emoji: "🍎",
+    preview: { bg: "bg-white", accent: "bg-blue-500", text: "text-gray-900", border: "border-gray-200" },
+  },
+  {
+    id: "terminal",
+    name: "Terminal",
+    tagline: "Dark & hacker",
+    emoji: "💻",
+    preview: { bg: "bg-[#0A0A0F]", accent: "bg-green-400", text: "text-green-400", border: "border-green-900" },
+  },
+  {
+    id: "startup",
+    name: "Startup",
+    tagline: "Bold & vibrant",
+    emoji: "🚀",
+    preview: { bg: "bg-[#0F172A]", accent: "bg-gradient-to-r from-purple-500 to-pink-500", text: "text-white", border: "border-purple-500/30" },
+  },
+  {
+    id: "editorial",
+    name: "Editorial",
+    tagline: "Refined & typographic",
+    emoji: "📰",
+    preview: { bg: "bg-[#FAF8F5]", accent: "bg-[#C45D3E]", text: "text-[#3D3D3D]", border: "border-[#E5E2DB]" },
+  },
+  {
+    id: "brutalist",
+    name: "Brutalist",
+    tagline: "Raw & loud",
+    emoji: "🏗️",
+    preview: { bg: "bg-white", accent: "bg-black", text: "text-black", border: "border-black border-2" },
+  },
+];
 
 interface Feature {
   name: string;
@@ -47,7 +101,7 @@ interface DeconstructResult {
 }
 
 interface DeconstructorWizardProps {
-  onBuildPrompt: (enrichedPrompt: string) => void;
+  onBuildPrompt: (enrichedPrompt: string, designPersona?: DesignPersonaId) => void;
 }
 
 const COMPLEXITY_CONFIG = {
@@ -217,6 +271,7 @@ export function DeconstructorWizard({ onBuildPrompt }: DeconstructorWizardProps)
   const [categories, setCategories] = useState<Category[]>([]);
   const [addingToCategory, setAddingToCategory] = useState<number | null>(null);
   const [newFeatureName, setNewFeatureName] = useState("");
+  const [selectedPersona, setSelectedPersona] = useState<DesignPersonaId | null>(null);
 
   const deconstruct = useCallback(async () => {
     if (!idea.trim() || loading) return;
@@ -319,16 +374,20 @@ export function DeconstructorWizard({ onBuildPrompt }: DeconstructorWizardProps)
       )
       .join("\n");
 
+    const personaLine = selectedPersona
+      ? `\nDesign Style: ${PERSONA_OPTIONS.find(p => p.id === selectedPersona)?.name ?? selectedPersona}`
+      : "";
+
     const prompt = `Build "${result.appName}" — ${result.tagline}
 
-Original idea: ${idea}
+Original idea: ${idea}${personaLine}
 
 Required features:
 ${enabledFeatures}
 
 Build this as a full-stack web application following all Golden Path standards.`;
 
-    onBuildPrompt(prompt);
+    onBuildPrompt(prompt, selectedPersona ?? undefined);
   };
 
   const totalFeatures = categories.reduce((sum, cat) => sum + cat.features.length, 0);
@@ -608,8 +667,65 @@ Build this as a full-stack web application following all Golden Path standards.`
           ))}
         </div>
 
-        <div className="px-6 py-4 border-t border-white/[0.04] bg-white/[0.01]">
-          <div className="flex items-center justify-between mb-3">
+        <div className="px-6 py-4 border-t border-white/[0.04] bg-white/[0.01] space-y-4">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Paintbrush className="w-3.5 h-3.5 text-primary" />
+              <span className="text-[11px] font-mono text-zinc-500">DESIGN PERSONA</span>
+              {selectedPersona && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedPersona(null)}
+                  className="ml-auto text-[9px] font-mono text-zinc-700 hover:text-zinc-400 transition-colors"
+                >
+                  CLEAR
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-5 gap-2">
+              {PERSONA_OPTIONS.map((persona) => (
+                <button
+                  key={persona.id}
+                  type="button"
+                  onClick={() => setSelectedPersona(selectedPersona === persona.id ? null : persona.id)}
+                  className={cn(
+                    "group relative flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all duration-200",
+                    selectedPersona === persona.id
+                      ? "border-primary/40 bg-primary/[0.06] ring-1 ring-primary/20"
+                      : "border-white/[0.04] bg-white/[0.02] hover:border-white/[0.08] hover:bg-white/[0.04]"
+                  )}
+                >
+                  <div className={cn(
+                    "w-full h-8 rounded-md flex items-center justify-center overflow-hidden border",
+                    persona.preview.bg,
+                    persona.preview.border
+                  )}>
+                    <div className={cn("w-10 h-1.5 rounded-full", persona.preview.accent)} />
+                  </div>
+                  <span className="text-lg leading-none">{persona.emoji}</span>
+                  <span className={cn(
+                    "text-[10px] font-mono font-medium",
+                    selectedPersona === persona.id ? "text-primary" : "text-zinc-400"
+                  )}>
+                    {persona.name}
+                  </span>
+                  <span className="text-[8px] font-mono text-zinc-600 leading-tight">
+                    {persona.tagline}
+                  </span>
+                  {selectedPersona === persona.id && (
+                    <motion.div
+                      layoutId="persona-check"
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center"
+                    >
+                      <Check className="w-2.5 h-2.5 text-black" />
+                    </motion.div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="text-[11px] font-mono text-zinc-600">
                 {enabledCount} feature{enabledCount !== 1 ? "s" : ""} selected

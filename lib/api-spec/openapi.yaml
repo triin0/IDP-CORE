@@ -488,6 +488,10 @@ components:
         prompt:
           type: string
           description: Natural language description of the application to build
+        designPersona:
+          type: string
+          description: Visual design persona to guide the generated UI style
+          enum: [cupertino, terminal, startup, editorial, brutalist]
       required:
         - prompt
     CreateProjectResponse:

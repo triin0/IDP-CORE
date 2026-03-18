@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils";
 interface PromptFormProps {
   onProjectCreated: (id: string) => void;
   initialPrompt?: string | null;
+  designPersona?: string;
 }
 
-export function PromptForm({ onProjectCreated, initialPrompt }: PromptFormProps) {
+export function PromptForm({ onProjectCreated, initialPrompt, designPersona }: PromptFormProps) {
   const [prompt, setPrompt] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -29,7 +30,7 @@ export function PromptForm({ onProjectCreated, initialPrompt }: PromptFormProps)
     if (!prompt.trim() || createProject.isPending) return;
 
     createProject.mutate(
-      { data: { prompt } },
+      { data: { prompt, ...(designPersona ? { designPersona: designPersona as "cupertino" | "terminal" | "startup" | "editorial" | "brutalist" } : {}) } },
       {
         onSuccess: (data) => {
           onProjectCreated(data.id);

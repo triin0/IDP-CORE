@@ -694,6 +694,7 @@ export async function runPipeline(
   projectId: string,
   prompt: string,
   spec?: AgentContext["spec"],
+  designPersona?: string,
 ): Promise<void> {
   const pipeline = initPipelineStatus();
 
@@ -706,6 +707,7 @@ export async function runPipeline(
     const config = await getActiveConfig();
     const context: AgentContext = {
       prompt,
+      designPersona,
       spec,
       priorOutputs: {},
     };

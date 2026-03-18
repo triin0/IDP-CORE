@@ -184,10 +184,10 @@ router.post("/projects", requireAuth, async (req, res) => {
 
     const [project] = await db
       .insert(projectsTable)
-      .values({ prompt: body.prompt, userId: req.user!.id })
+      .values({ prompt: body.prompt, userId: req.user!.id, designPersona: body.designPersona ?? null })
       .returning();
 
-    generateProjectSpec(project.id, body.prompt).catch((err: unknown) => {
+    generateProjectSpec(project.id, body.prompt, body.designPersona).catch((err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`Spec generation failed for project ${project.id}:`, message);
     });
@@ -300,7 +300,7 @@ router.post("/projects/:id/approve-spec", requireAuth, async (req, res) => {
       architecturalDecisions: string[];
     } | null;
 
-    generateProjectCode(project.id, project.prompt, spec ?? undefined)
+    generateProjectCode(project.id, project.prompt, spec ?? undefined, project.designPersona ?? undefined)
       .then(() => {
         const r = pendingReservations.get(id);
         if (r) {
@@ -347,7 +347,7 @@ router.post("/projects/:id/regenerate-spec", requireAuth, async (req, res) => {
       .set({ status: "pending", spec: null, error: null })
       .where(eq(projectsTable.id, id));
 
-    generateProjectSpec(project.id, project.prompt).catch((err: unknown) => {
+    generateProjectSpec(project.id, project.prompt, project.designPersona ?? undefined).catch((err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`Spec regeneration failed for project ${project.id}:`, message);
     });

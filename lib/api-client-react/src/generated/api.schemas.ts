@@ -12,6 +12,8 @@ export interface HealthStatus {
 export interface CreateProjectBody {
   /** Natural language description of the application to build */
   prompt: string;
+  /** Visual design persona to guide the generated UI style */
+  designPersona?: 'cupertino' | 'terminal' | 'startup' | 'editorial' | 'brutalist';
 }
 
 export type CreateProjectResponseStatus =
