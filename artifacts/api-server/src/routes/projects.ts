@@ -858,4 +858,126 @@ Rules:
   }
 });
 
+router.post("/:id/seed-data", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { rowsPerTable = 5, format = "json" } = req.body as { rowsPerTable?: number; format?: "json" | "sql" | "typescript" };
+
+    const [project] = await db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.id, id))
+      .limit(1);
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const spec = project.spec as { overview?: string; databaseTables?: Array<{ name: string; columns: string[] }> } | null;
+    if (!spec?.databaseTables || spec.databaseTables.length === 0) {
+      res.status(400).json({ error: "This project has no database tables to generate seed data for" });
+      return;
+    }
+
+    const { generateSeedData, seedDataToSQL, seedDataToTypeScript } = await import("../lib/seed-generator");
+    const seedData = await generateSeedData(
+      spec.databaseTables,
+      spec.overview || project.prompt,
+      Math.min(rowsPerTable, 20),
+    );
+
+    if (format === "sql") {
+      const sql = seedDataToSQL(seedData);
+      res.json({ tables: seedData, sql });
+    } else if (format === "typescript") {
+      const ts = seedDataToTypeScript(seedData);
+      res.json({ tables: seedData, typescript: ts });
+    } else {
+      res.json({ tables: seedData });
+    }
+  } catch (err: unknown) {
+    console.error("Seed data error:", err);
+    res.status(500).json({ error: "Failed to generate seed data" });
+  }
+});
+
+router.post("/:id/rollback", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { refinementIndex } = req.body as { refinementIndex: number };
+
+    if (typeof refinementIndex !== "number" || refinementIndex < 0) {
+      res.status(400).json({ error: "Invalid refinement index" });
+      return;
+    }
+
+    const [project] = await db
+      .select()
+      .from(projectsTable)
+      .where(eq(projectsTable.id, id))
+      .limit(1);
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const refinements = (project.refinements ?? []) as Array<{
+      prompt: string;
+      response: string;
+      timestamp: string;
+      filesChanged: string[];
+      goldenPathScore?: string;
+      previousFiles?: Array<{ path: string; content: string }>;
+    }>;
+
+    if (refinementIndex >= refinements.length) {
+      res.status(400).json({ error: "Refinement index out of range" });
+      return;
+    }
+
+    let restoredFiles = project.files ? [...project.files] : [];
+
+    for (let i = refinements.length - 1; i > refinementIndex; i--) {
+      const ref = refinements[i];
+      if (ref.previousFiles && ref.previousFiles.length > 0) {
+        for (const prev of ref.previousFiles) {
+          const idx = restoredFiles.findIndex((f) => f.path === prev.path);
+          if (idx >= 0) {
+            restoredFiles[idx] = { path: prev.path, content: prev.content };
+          } else {
+            restoredFiles.push({ path: prev.path, content: prev.content });
+          }
+        }
+
+        for (const changed of ref.filesChanged ?? []) {
+          if (!ref.previousFiles.some((p) => p.path === changed)) {
+            restoredFiles = restoredFiles.filter((f) => f.path !== changed);
+          }
+        }
+      }
+    }
+
+    const trimmedRefinements = refinements.slice(0, refinementIndex + 1);
+
+    await db.update(projectsTable).set({
+      files: restoredFiles,
+      refinements: trimmedRefinements,
+      status: "ready",
+    }).where(eq(projectsTable.id, id));
+
+    res.json({
+      id,
+      status: "ready",
+      fileCount: restoredFiles.length,
+      restoredToIndex: refinementIndex,
+      message: `Rolled back to version ${refinementIndex + 1}`,
+    });
+  } catch (err: unknown) {
+    console.error("Rollback error:", err);
+    res.status(500).json({ error: "Failed to rollback project" });
+  }
+});
+
 export default router;

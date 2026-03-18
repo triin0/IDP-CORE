@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { ShieldCheck, CheckCircle2, XCircle, AlertTriangle, Hash, Package, Hammer, FileCheck, Shield, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { decryptError } from "@/lib/error-decryptor";
 
 interface VerificationVerdictData {
   passed: boolean;
@@ -131,17 +132,24 @@ export function BuildGate({ verdict, isValidating, status }: BuildGateProps) {
         })}
       </div>
 
-      {verdict?.buildStderr && (
-        <details className="group mt-2">
-          <summary className="flex items-center gap-2 text-[10px] font-mono text-red-400/70 cursor-pointer hover:text-red-400 transition-colors">
-            <AlertTriangle className="w-3 h-3" />
-            Build stderr ({verdict.buildStderr.split("\n").length} lines)
-          </summary>
-          <pre className="mt-1 p-2 rounded bg-zinc-950 border border-zinc-800 text-[10px] font-mono text-zinc-500 max-h-24 overflow-y-auto whitespace-pre-wrap">
-            {verdict.buildStderr}
-          </pre>
-        </details>
-      )}
+      {verdict?.buildStderr && (() => {
+        const decoded = decryptError(verdict.buildStderr);
+        return (
+          <details className="group mt-2">
+            <summary className="flex items-center gap-2 text-[10px] font-mono text-red-400/70 cursor-pointer hover:text-red-400 transition-colors">
+              <AlertTriangle className="w-3 h-3" />
+              Build stderr ({verdict.buildStderr.split("\n").length} lines)
+            </summary>
+            <div className="mt-1 p-2 rounded border border-amber-500/20 bg-amber-500/5 text-xs text-zinc-300">
+              <span className="mr-1">{decoded.emoji}</span>
+              {decoded.friendly}
+            </div>
+            <pre className="mt-1 p-2 rounded bg-zinc-950 border border-zinc-800 text-[10px] font-mono text-zinc-500 max-h-24 overflow-y-auto whitespace-pre-wrap">
+              {verdict.buildStderr}
+            </pre>
+          </details>
+        );
+      })()}
 
       {verdict?.dependencyErrors && verdict.dependencyErrors.length > 0 && (
         <details className="group">

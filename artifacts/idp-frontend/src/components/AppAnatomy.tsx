@@ -1,14 +1,16 @@
 import { useState, useMemo } from "react";
 import type { ProjectDetails } from "@workspace/api-client-react";
+import { useSandpack } from "@codesandbox/sandpack-react";
 import {
   Eye, Brain, Database, Shield, Layers, ChevronDown,
-  FileCode2, Globe, Server, Layout, Lock, Cpu,
+  FileCode2, Globe, Layout, Cpu, ExternalLink, Table2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface AppAnatomyProps {
   project: ProjectDetails;
+  onSwitchToEditor?: () => void;
 }
 
 interface OrganSection {
@@ -20,6 +22,7 @@ interface OrganSection {
   borderColor: string;
   description: string;
   items: OrganItem[];
+  customContent?: React.ReactNode;
 }
 
 interface OrganItem {
@@ -27,37 +30,82 @@ interface OrganItem {
   detail?: string;
   badge?: string;
   badgeColor?: string;
+  filePath?: string;
+  linkedTable?: string;
+}
+
+interface ClassifiedFile {
+  name: string;
+  fullPath: string;
 }
 
 function classifyFiles(files: string[]) {
-  const pages: string[] = [];
-  const components: string[] = [];
-  const serverRoutes: string[] = [];
-  const serverLogic: string[] = [];
-  const schemas: string[] = [];
-  const configs: string[] = [];
+  const pages: ClassifiedFile[] = [];
+  const components: ClassifiedFile[] = [];
+  const serverRoutes: ClassifiedFile[] = [];
+  const serverLogic: ClassifiedFile[] = [];
+  const schemas: ClassifiedFile[] = [];
+  const configs: ClassifiedFile[] = [];
 
   for (const f of files) {
     const name = f.split("/").pop() || f;
     if (f.includes("pages/") || f.includes("Pages/") || name === "App.tsx") {
-      pages.push(name);
+      pages.push({ name, fullPath: f });
     } else if (f.includes("components/") || f.includes("Components/")) {
-      components.push(name);
+      components.push({ name, fullPath: f });
     } else if (f.includes("routes/") || f.includes("Routes/")) {
-      serverRoutes.push(name);
+      serverRoutes.push({ name, fullPath: f });
     } else if (f.includes("schema") || f.includes("migration") || f.includes("drizzle")) {
-      schemas.push(name);
+      schemas.push({ name, fullPath: f });
     } else if (f.includes("server/") && !f.includes("schema")) {
-      serverLogic.push(name);
+      serverLogic.push({ name, fullPath: f });
     } else if (name.includes("config") || name.includes("tsconfig") || name === "package.json" || name === ".env.example") {
-      configs.push(name);
+      configs.push({ name, fullPath: f });
     }
   }
 
   return { pages, components, serverRoutes, serverLogic, schemas, configs };
 }
 
-function OrganCard({ section }: { section: OrganSection }) {
+function toSandpackPath(fullPath: string): string {
+  let p = fullPath;
+  if (p.startsWith("client/")) p = p.slice(7);
+  if (p.startsWith("src/")) p = p.slice(4);
+  return `/${p}`;
+}
+
+function parseColumn(col: string): { name: string; type: string; constraints: string } {
+  const parts = col.trim().split(/\s+/);
+  const name = parts[0] || col;
+  const type = parts[1] || "";
+  const constraints = parts.slice(2).join(" ");
+  return { name, type, constraints };
+}
+
+function inferTableFromPath(path: string, tableNames: string[]): string | undefined {
+  const segment = path.split("/").pop() || "";
+  const cleaned = segment.replace(/^:/, "").toLowerCase();
+  for (const table of tableNames) {
+    const singular = table.endsWith("s") ? table.slice(0, -1) : table;
+    if (
+      path.toLowerCase().includes(`/${table}`) ||
+      path.toLowerCase().includes(`/${singular}`) ||
+      cleaned === table ||
+      cleaned === singular
+    ) {
+      return table;
+    }
+  }
+  return undefined;
+}
+
+function OrganCard({
+  section,
+  onClickFile,
+}: {
+  section: OrganSection;
+  onClickFile?: (path: string) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const itemCount = section.items.length;
 
@@ -111,13 +159,28 @@ function OrganCard({ section }: { section: OrganSection }) {
               {section.items.map((item, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-zinc-800/30 transition-colors"
+                  className={cn(
+                    "flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors",
+                    item.filePath && onClickFile
+                      ? "hover:bg-zinc-800/50 cursor-pointer"
+                      : "hover:bg-zinc-800/30",
+                  )}
+                  onClick={item.filePath && onClickFile ? () => onClickFile(item.filePath!) : undefined}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", section.color.replace("text-", "bg-"))} />
                     <span className="text-xs text-zinc-300 truncate">{item.label}</span>
+                    {item.filePath && onClickFile && (
+                      <ExternalLink className="w-2.5 h-2.5 text-zinc-600 shrink-0" />
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {item.linkedTable && (
+                      <span className="flex items-center gap-0.5 text-[9px] font-mono text-emerald-500/60">
+                        <Database className="w-2.5 h-2.5" />
+                        {item.linkedTable}
+                      </span>
+                    )}
                     {item.detail && (
                       <span className="text-[10px] font-mono text-zinc-600">{item.detail}</span>
                     )}
@@ -132,6 +195,7 @@ function OrganCard({ section }: { section: OrganSection }) {
                   </div>
                 </div>
               ))}
+              {section.customContent}
             </div>
           </motion.div>
         )}
@@ -140,11 +204,29 @@ function OrganCard({ section }: { section: OrganSection }) {
   );
 }
 
+function ColumnGrid({ columns }: { columns: string[] }) {
+  const parsed = columns.map(parseColumn);
+  return (
+    <div className="mt-2 rounded-lg border border-zinc-800/50 overflow-hidden">
+      <div className="grid grid-cols-3 gap-px bg-zinc-800/30 text-[9px] font-mono uppercase tracking-wider text-zinc-600 px-2 py-1">
+        <span>Column</span>
+        <span>Type</span>
+        <span>Info</span>
+      </div>
+      {parsed.map((col, i) => (
+        <div key={i} className="grid grid-cols-3 gap-px px-2 py-1 text-[10px] font-mono border-t border-zinc-800/30 hover:bg-zinc-800/20 transition-colors">
+          <span className="text-zinc-300 truncate">{col.name}</span>
+          <span className="text-cyan-400/70 truncate">{col.type}</span>
+          <span className="text-zinc-600 truncate">{col.constraints || "—"}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StatBubble({ icon, value, label, color }: { icon: React.ReactNode; value: number | string; label: string; color: string }) {
   return (
-    <div className={cn(
-      "flex flex-col items-center gap-1 p-3 rounded-xl border border-zinc-800/50 bg-zinc-900/30",
-    )}>
+    <div className="flex flex-col items-center gap-1 p-3 rounded-xl border border-zinc-800/50 bg-zinc-900/30">
       <div className={cn("p-1.5 rounded-lg", color)}>
         {icon}
       </div>
@@ -154,24 +236,47 @@ function StatBubble({ icon, value, label, color }: { icon: React.ReactNode; valu
   );
 }
 
-export function AppAnatomy({ project }: AppAnatomyProps) {
+export function AppAnatomy({ project, onSwitchToEditor }: AppAnatomyProps) {
   const spec = project.spec;
   const files = useMemo(() => spec?.fileStructure ?? [], [spec]);
   const classified = useMemo(() => classifyFiles(files), [files]);
+
+  let sandpack: ReturnType<typeof useSandpack>["sandpack"] | null = null;
+  try {
+    const ctx = useSandpack();
+    sandpack = ctx.sandpack;
+  } catch {
+    // not inside SandpackProvider
+  }
+
+  const handleOpenFile = (fullPath: string) => {
+    if (!sandpack) return;
+    const spPath = toSandpackPath(fullPath);
+    try {
+      sandpack.openFile(spPath);
+      onSwitchToEditor?.();
+    } catch {
+      // file not in sandpack
+    }
+  };
+
+  const tableNames = useMemo(() => (spec?.databaseTables ?? []).map((t) => t.name), [spec]);
 
   const sections: OrganSection[] = useMemo(() => {
     const result: OrganSection[] = [];
 
     const uiItems: OrganItem[] = [
       ...classified.pages.map((p) => ({
-        label: p.replace(/\.(tsx|jsx|ts|js)$/, ""),
+        label: p.name.replace(/\.(tsx|jsx|ts|js)$/, ""),
         badge: "Page",
         badgeColor: "bg-violet-500/10 text-violet-400",
+        filePath: p.fullPath,
       })),
       ...classified.components.map((c) => ({
-        label: c.replace(/\.(tsx|jsx|ts|js)$/, ""),
+        label: c.name.replace(/\.(tsx|jsx|ts|js)$/, ""),
         badge: "Component",
         badgeColor: "bg-blue-500/10 text-blue-400",
+        filePath: c.fullPath,
       })),
     ];
     if (uiItems.length > 0) {
@@ -182,25 +287,24 @@ export function AppAnatomy({ project }: AppAnatomyProps) {
         color: "text-violet-400",
         bgColor: "bg-violet-500/[0.06]",
         borderColor: "border-violet-500/10",
-        description: "What your users see — pages and visual components",
+        description: "What your users see — click to open in editor",
         items: uiItems,
       });
     }
 
-    const brainItems: OrganItem[] = [
-      ...(spec?.apiEndpoints ?? []).map((ep) => ({
-        label: `${ep.path}`,
-        detail: ep.description.length > 40 ? ep.description.slice(0, 37) + "..." : ep.description,
-        badge: ep.method,
-        badgeColor: ep.method === "GET"
-          ? "bg-emerald-500/10 text-emerald-400"
-          : ep.method === "POST"
-            ? "bg-blue-500/10 text-blue-400"
-            : ep.method === "PUT" || ep.method === "PATCH"
-              ? "bg-amber-500/10 text-amber-400"
-              : "bg-red-500/10 text-red-400",
-      })),
-    ];
+    const brainItems: OrganItem[] = (spec?.apiEndpoints ?? []).map((ep) => ({
+      label: ep.path,
+      detail: ep.description.length > 35 ? ep.description.slice(0, 32) + "..." : ep.description,
+      badge: ep.method,
+      badgeColor: ep.method === "GET"
+        ? "bg-emerald-500/10 text-emerald-400"
+        : ep.method === "POST"
+          ? "bg-blue-500/10 text-blue-400"
+          : ep.method === "PUT" || ep.method === "PATCH"
+            ? "bg-amber-500/10 text-amber-400"
+            : "bg-red-500/10 text-red-400",
+      linkedTable: inferTableFromPath(ep.path, tableNames),
+    }));
     if (brainItems.length > 0) {
       result.push({
         id: "brain",
@@ -209,12 +313,13 @@ export function AppAnatomy({ project }: AppAnatomyProps) {
         color: "text-cyan-400",
         bgColor: "bg-cyan-500/[0.06]",
         borderColor: "border-cyan-500/10",
-        description: "How your app thinks — API endpoints and server logic",
+        description: "How your app thinks — API endpoints and data flow",
         items: brainItems,
       });
     }
 
-    const memoryItems: OrganItem[] = (spec?.databaseTables ?? []).map((t) => ({
+    const tables = spec?.databaseTables ?? [];
+    const memoryItems: OrganItem[] = tables.map((t) => ({
       label: t.name,
       detail: `${t.columns.length} columns`,
       badge: "Table",
@@ -228,8 +333,21 @@ export function AppAnatomy({ project }: AppAnatomyProps) {
         color: "text-emerald-400",
         bgColor: "bg-emerald-500/[0.06]",
         borderColor: "border-emerald-500/10",
-        description: "Where your data lives — database tables and storage",
+        description: "Where your data lives — tables shown as spreadsheets",
         items: memoryItems,
+        customContent: (
+          <div className="space-y-3 mt-2">
+            {tables.map((t) => (
+              <div key={t.name}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Table2 className="w-3 h-3 text-emerald-400/60" />
+                  <span className="text-[10px] font-mono text-emerald-400/80 uppercase tracking-wider">{t.name}</span>
+                </div>
+                <ColumnGrid columns={t.columns} />
+              </div>
+            ))}
+          </div>
+        ),
       });
     }
 
@@ -268,7 +386,7 @@ export function AppAnatomy({ project }: AppAnatomyProps) {
     }
 
     return result;
-  }, [spec, classified]);
+  }, [spec, classified, tableNames]);
 
   const totalPages = classified.pages.length;
   const totalEndpoints = spec?.apiEndpoints?.length ?? 0;
@@ -341,7 +459,10 @@ export function AppAnatomy({ project }: AppAnatomyProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
             >
-              <OrganCard section={section} />
+              <OrganCard
+                section={section}
+                onClickFile={sandpack ? handleOpenFile : undefined}
+              />
             </motion.div>
           ))}
         </div>

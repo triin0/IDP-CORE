@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDeployProject, useDeleteProject } from "@workspace/api-client-react";
+import { decryptError } from "@/lib/error-decryptor";
 import type { ProjectDetails } from "@workspace/api-client-react";
 import {
   SandpackProvider,
@@ -18,10 +19,12 @@ import { GoldenPath } from "./GoldenPath";
 import { RefinementChat } from "./RefinementChat";
 import { BuildGate } from "./BuildGate";
 import { AppAnatomy } from "./AppAnatomy";
+import { SnapshotTimeline } from "./SnapshotTimeline";
+import { SeedDataGenerator } from "./SeedDataGenerator";
 import {
   Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2,
   AlertCircle, Zap, ShieldCheck, Eye, FileCode, Download, Github,
-  Trash2, Play, Monitor, PanelLeft, RefreshCw, Maximize2, Minimize2,
+  Trash2, Play, Monitor, PanelLeft, RefreshCw, Maximize2, Minimize2, Clock, Sparkles,
   Cpu,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -253,7 +256,27 @@ function StatusPanel({ project, onDeploy, isDeploying, deployUrl, deployError, o
               <AlertCircle className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
               <div>
                 <div className="text-sm font-mono font-semibold text-destructive">FAILED</div>
-                <div className="text-xs text-zinc-500 mt-1">{project.error || "An unexpected error occurred"}</div>
+                {(() => {
+                  const decoded = decryptError(project.error || "");
+                  return (
+                    <>
+                      <div className="text-xs text-zinc-300 mt-1">
+                        <span className="mr-1">{decoded.emoji}</span>
+                        {decoded.friendly}
+                      </div>
+                      {project.error && (
+                        <details className="mt-1.5">
+                          <summary className="text-[10px] font-mono text-zinc-600 cursor-pointer hover:text-zinc-400 transition-colors">
+                            Technical details
+                          </summary>
+                          <div className="text-[10px] font-mono text-zinc-600 mt-1 p-1.5 rounded bg-zinc-950 border border-zinc-800 max-h-20 overflow-y-auto">
+                            {project.error}
+                          </div>
+                        </details>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </>
           )}
@@ -584,7 +607,7 @@ function buildStaticPreview(files: Array<{ path: string; content: string }>, pro
 }
 
 export function Workspace({ project, onReset }: WorkspaceProps) {
-  const [rightPanel, setRightPanel] = useState<"status" | "preview" | "anatomy">("status");
+  const [rightPanel, setRightPanel] = useState<"status" | "preview" | "anatomy" | "timeline" | "seeds">("status");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("sandpack");
   const [showSidebar, setShowSidebar] = useState(true);
   const [, navigate] = useLocation();
@@ -704,6 +727,26 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
               <Cpu className="w-3 h-3" />
               X-Ray
             </button>
+            <button
+              onClick={() => setRightPanel("timeline")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono transition-colors",
+                rightPanel === "timeline" ? "bg-zinc-800 text-zinc-200" : "text-zinc-500 hover:text-zinc-300",
+              )}
+            >
+              <Clock className="w-3 h-3" />
+              Timeline
+            </button>
+            <button
+              onClick={() => setRightPanel("seeds")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono transition-colors",
+                rightPanel === "seeds" ? "bg-zinc-800 text-zinc-200" : "text-zinc-500 hover:text-zinc-300",
+              )}
+            >
+              <Sparkles className="w-3 h-3" />
+              Seeds
+            </button>
           </div>
         </div>
       </div>
@@ -760,7 +803,11 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
                       liveUrl={liveUrl}
                     />
                   ) : rightPanel === "anatomy" ? (
-                    <AppAnatomy project={project} />
+                    <AppAnatomy project={project} onSwitchToEditor={() => setRightPanel("status")} />
+                  ) : rightPanel === "timeline" ? (
+                    <SnapshotTimeline project={project} />
+                  ) : rightPanel === "seeds" ? (
+                    <SeedDataGenerator project={project} />
                   ) : (
                     <div className="h-full overflow-y-auto">
                       <StatusPanel

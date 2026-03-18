@@ -58,6 +58,7 @@ export const projectsTable = pgTable("projects", {
     timestamp: string;
     filesChanged: string[];
     goldenPathScore?: string;
+    previousFiles?: Array<{ path: string; content: string }>;
   }>>().default([]),
   payloadHash: text("payload_hash"),
   error: text("error"),
