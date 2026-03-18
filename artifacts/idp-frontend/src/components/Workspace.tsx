@@ -590,37 +590,240 @@ function esc(str: string): string {
 }
 
 function buildSwaggerPreview(mainPyContent: string, prompt: string): string {
-  const safePrompt = esc(prompt.slice(0, 120));
+  const safePrompt = esc(prompt.slice(0, 200));
 
-  const routeRegex = /@(?:app|router)\.(get|post|put|patch|delete)\(\s*["']([^"']+)["']/gi;
-  const routes: Array<{ method: string; path: string }> = [];
+  interface RouteInfo {
+    method: string;
+    path: string;
+    docstring: string;
+    responseModel: string;
+    requestBody: string;
+    statusCode: string;
+    tags: string;
+  }
+
+  const routes: RouteInfo[] = [];
+  const routeBlockRegex = /@(?:app|router)\.(get|post|put|patch|delete)\(\s*["']([^"']+)["']([^)]*)\)\s*\nasync\s+def\s+\w+\([^)]*\)[^:]*:\s*\n\s*"""([^"]*)"""/gi;
   let match;
-  while ((match = routeRegex.exec(mainPyContent)) !== null) {
-    routes.push({ method: match[1].toUpperCase(), path: match[2] });
+  while ((match = routeBlockRegex.exec(mainPyContent)) !== null) {
+    const decoratorArgs = match[3] || "";
+    const responseModelMatch = decoratorArgs.match(/response_model\s*=\s*(\w+(?:\[\w+\])?)/);
+    const statusCodeMatch = decoratorArgs.match(/status_code\s*=\s*(?:status\.)?(\w+)/);
+    const tagsMatch = decoratorArgs.match(/tags\s*=\s*\["([^"]+)"\]/);
+    routes.push({
+      method: match[1].toUpperCase(),
+      path: match[2],
+      docstring: match[4].trim(),
+      responseModel: responseModelMatch ? responseModelMatch[1] : "",
+      requestBody: "",
+      statusCode: statusCodeMatch ? statusCodeMatch[1] : "",
+      tags: tagsMatch ? tagsMatch[1] : "",
+    });
   }
 
-  const modelRegex = /class\s+(\w+)\((?:BaseModel|Base)\)/g;
-  const models: string[] = [];
-  while ((match = modelRegex.exec(mainPyContent)) !== null) {
-    models.push(match[1]);
+  if (routes.length === 0) {
+    const simpleRouteRegex = /@(?:app|router)\.(get|post|put|patch|delete)\(\s*["']([^"']+)["']([^)]*)\)/gi;
+    while ((match = simpleRouteRegex.exec(mainPyContent)) !== null) {
+      const decoratorArgs = match[3] || "";
+      const responseModelMatch = decoratorArgs.match(/response_model\s*=\s*(\w+(?:\[\w+\])?)/);
+      const statusCodeMatch = decoratorArgs.match(/status_code\s*=\s*(?:status\.)?(\w+)/);
+      const tagsMatch = decoratorArgs.match(/tags\s*=\s*\["([^"]+)"\]/);
+      routes.push({
+        method: match[1].toUpperCase(),
+        path: match[2],
+        docstring: "",
+        responseModel: responseModelMatch ? responseModelMatch[1] : "",
+        requestBody: "",
+        statusCode: statusCodeMatch ? statusCodeMatch[1] : "",
+        tags: tagsMatch ? tagsMatch[1] : "",
+      });
+    }
   }
 
-  const methodColors: Record<string, string> = {
-    GET: "#61affe", POST: "#49cc90", PUT: "#fca130",
-    PATCH: "#50e3c2", DELETE: "#f93e3e",
+  const funcSignatureRegex = /async\s+def\s+\w+\(([^)]*)\)/g;
+  const funcBodies: string[] = [];
+  while ((match = funcSignatureRegex.exec(mainPyContent)) !== null) {
+    funcBodies.push(match[1]);
+  }
+  for (let i = 0; i < routes.length && i < funcBodies.length; i++) {
+    const bodyModelMatch = funcBodies[i]?.match(/(\w+):\s*(\w+(?:Create|Update|Base))/);
+    if (bodyModelMatch) {
+      routes[i].requestBody = bodyModelMatch[2];
+    }
+  }
+
+  interface ModelField {
+    name: string;
+    type: string;
+    default: string;
+    description: string;
+  }
+  interface ModelInfo {
+    name: string;
+    parent: string;
+    fields: ModelField[];
+    config: string;
+  }
+
+  const models: ModelInfo[] = [];
+  const classBlockRegex = /class\s+(\w+)\((\w+(?:,\s*\w+)*)\):\s*\n((?:\s+.*\n)*?)(?=\nclass\s|\n[^\s]|\n*$)/g;
+  while ((match = classBlockRegex.exec(mainPyContent)) !== null) {
+    const name = match[1];
+    const parent = match[2].trim();
+    const body = match[3] || "";
+    const fields: ModelField[] = [];
+    let config = "";
+
+    const fieldRegex = /^\s+(\w+):\s*(.+?)(?:\s*=\s*(.+))?$/gm;
+    let fieldMatch;
+    while ((fieldMatch = fieldRegex.exec(body)) !== null) {
+      const fieldName = fieldMatch[1];
+      if (fieldName === "model_config" || fieldName === "__tablename__") {
+        if (fieldName === "model_config") {
+          config = fieldMatch[3] || fieldMatch[2];
+        }
+        continue;
+      }
+      const fieldType = fieldMatch[2].replace(/\s*=\s*$/, "").trim();
+      const fieldDefault = fieldMatch[3]?.trim() || "";
+      const descMatch = fieldDefault.match(/description\s*=\s*"([^"]+)"/);
+      fields.push({
+        name: fieldName,
+        type: fieldType,
+        default: fieldDefault.replace(/Field\(.*\)/, "").trim(),
+        description: descMatch ? descMatch[1] : "",
+      });
+    }
+
+    if (parent.includes("BaseModel") || parent.includes("Base") || parent === "DeclarativeBase" ||
+        name.endsWith("Create") || name.endsWith("Update") || name.endsWith("Response") || name.endsWith("Base")) {
+      models.push({ name, parent, fields, config });
+    }
+  }
+
+  const pydanticModels = models.filter((m) =>
+    m.parent.includes("BaseModel") || m.parent.includes("Base") && !m.parent.includes("Declarative") &&
+    (m.name.endsWith("Base") || m.name.endsWith("Create") || m.name.endsWith("Update") || m.name.endsWith("Response"))
+  );
+  const dbModels = models.filter((m) =>
+    m.parent === "Base" && m.fields.some((f) => f.type.includes("Mapped"))
+  );
+
+  const methodColors: Record<string, { bg: string; border: string; text: string; bgHover: string }> = {
+    GET:    { bg: "#61affe12", border: "#61affe40", text: "#61affe", bgHover: "#61affe22" },
+    POST:   { bg: "#49cc9012", border: "#49cc9040", text: "#49cc90", bgHover: "#49cc9022" },
+    PUT:    { bg: "#fca13012", border: "#fca13040", text: "#fca130", bgHover: "#fca13022" },
+    PATCH:  { bg: "#50e3c212", border: "#50e3c240", text: "#50e3c2", bgHover: "#50e3c222" },
+    DELETE: { bg: "#f93e3e12", border: "#f93e3e40", text: "#f93e3e", bgHover: "#f93e3e22" },
   };
 
-  const routeHtml = routes.map((r) => {
-    const color = methodColors[r.method] || "#999";
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#1c1c1e;border-radius:6px;border-left:3px solid ${color};margin-bottom:6px;">
-      <span style="font-weight:700;font-size:11px;color:${color};min-width:55px;text-transform:uppercase;">${esc(r.method)}</span>
-      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#e0e0e0;">${esc(r.path)}</span>
+  const tagGroups = new Map<string, RouteInfo[]>();
+  for (const r of routes) {
+    const tag = r.tags || "Default";
+    if (!tagGroups.has(tag)) tagGroups.set(tag, []);
+    tagGroups.get(tag)!.push(r);
+  }
+
+  let routeIndex = 0;
+  const groupsHtml = Array.from(tagGroups.entries()).map(([tag, groupRoutes]) => {
+    const routesHtml = groupRoutes.map((r) => {
+      const c = methodColors[r.method] || methodColors.GET;
+      const idx = routeIndex++;
+      const pathParams = r.path.match(/\{(\w+)\}/g)?.map((p) => p.slice(1, -1)) || [];
+      const hasPathParams = pathParams.length > 0;
+      const statusCodeDisplay = r.statusCode
+        ? r.statusCode.replace("HTTP_", "").replace(/_/g, " ")
+        : (r.method === "POST" ? "201 Created" : r.method === "DELETE" ? "204 No Content" : "200 OK");
+
+      return `<div class="route-card" data-idx="${idx}" style="border:1px solid ${c.border};border-radius:8px;margin-bottom:8px;overflow:hidden;background:${c.bg};">
+        <div class="route-header" onclick="toggleRoute(${idx})" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='${c.bgHover}'" onmouseout="this.style.background='transparent'">
+          <span class="method-badge" style="font-weight:700;font-size:11px;color:#fff;background:${c.text};min-width:60px;text-align:center;padding:4px 0;border-radius:4px;text-transform:uppercase;letter-spacing:0.5px;">${esc(r.method)}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#e0e0e0;flex:1;">${esc(r.path)}</span>
+          ${r.docstring ? `<span style="font-size:11px;color:#888;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.docstring)}</span>` : ""}
+          <svg class="chevron chevron-${idx}" style="width:14px;height:14px;fill:#555;transition:transform 0.2s;flex-shrink:0;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+        </div>
+        <div class="route-body route-body-${idx}" style="display:none;border-top:1px solid ${c.border};padding:14px;background:#0d0d12;">
+          ${r.docstring ? `<div style="font-size:12px;color:#aaa;margin-bottom:12px;">${esc(r.docstring)}</div>` : ""}
+          ${hasPathParams ? `
+            <div class="detail-section">
+              <div class="detail-title">Path Parameters</div>
+              ${pathParams.map((p) => `<div class="param-row"><span class="param-name">${esc(p)}</span><span class="param-type">string</span><span class="param-required">required</span></div>`).join("")}
+            </div>` : ""}
+          ${r.requestBody ? `
+            <div class="detail-section">
+              <div class="detail-title">Request Body</div>
+              <div class="schema-ref" onclick="scrollToModel('${esc(r.requestBody)}')" style="cursor:pointer;">
+                <span style="color:#888;">application/json</span>
+                <span style="color:${c.text};font-family:'JetBrains Mono',monospace;font-size:12px;text-decoration:underline;">${esc(r.requestBody)}</span>
+              </div>
+            </div>` : ""}
+          <div class="detail-section">
+            <div class="detail-title">Response</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="status-badge">${esc(statusCodeDisplay)}</span>
+              ${r.responseModel ? `<span style="color:${c.text};font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;text-decoration:underline;" onclick="scrollToModel('${esc(r.responseModel)}')">${esc(r.responseModel)}</span>` : ""}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join("\n");
+
+    return `<div class="tag-group">
+      <div class="tag-header" onclick="toggleTag('${esc(tag)}')" style="cursor:pointer;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <svg class="tag-chevron tag-chevron-${esc(tag)}" style="width:12px;height:12px;fill:#22d3ee;transition:transform 0.2s;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+          <span style="font-size:13px;font-weight:600;color:#e4e4e7;">${esc(tag)}</span>
+          <span style="font-size:10px;color:#555;font-family:'JetBrains Mono',monospace;">${groupRoutes.length} endpoint${groupRoutes.length !== 1 ? "s" : ""}</span>
+        </div>
+      </div>
+      <div class="tag-body tag-body-${esc(tag)}" style="margin-top:8px;">
+        ${routesHtml}
+      </div>
     </div>`;
   }).join("\n");
 
-  const modelHtml = models.map((m) =>
-    `<span style="display:inline-block;padding:3px 10px;background:#2a2a2e;border:1px solid #444;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#81d4fa;margin:3px;">${esc(m)}</span>`
-  ).join("\n");
+  const schemasHtml = pydanticModels.length > 0 ? pydanticModels.map((m) => {
+    const isCreate = m.name.endsWith("Create");
+    const isResponse = m.name.endsWith("Response");
+    const schemaColor = isCreate ? "#49cc90" : isResponse ? "#61affe" : "#fca130";
+    const schemaLabel = isCreate ? "Input" : isResponse ? "Output" : "Base";
+
+    return `<div class="model-card" id="model-${esc(m.name)}" style="border:1px solid #27272a;border-radius:8px;margin-bottom:10px;overflow:hidden;background:#111118;">
+      <div class="model-header" onclick="toggleModel('${esc(m.name)}')" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;border-bottom:1px solid transparent;" onmouseover="this.style.background='#161622'" onmouseout="this.style.background='transparent'">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#e4e4e7;flex:1;">${esc(m.name)}</span>
+        <span style="font-size:9px;font-weight:600;color:${schemaColor};background:${schemaColor}15;border:1px solid ${schemaColor}30;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;">${schemaLabel}</span>
+        ${m.config.includes("forbid") ? `<span style="font-size:9px;color:#f93e3e;background:#f93e3e12;border:1px solid #f93e3e30;padding:2px 6px;border-radius:10px;">strict</span>` : ""}
+        <svg class="model-chevron model-chevron-${esc(m.name)}" style="width:14px;height:14px;fill:#555;transition:transform 0.2s;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+      </div>
+      <div class="model-body model-body-${esc(m.name)}" style="display:none;border-top:1px solid #27272a;padding:0;">
+        ${m.fields.length > 0 ? m.fields.map((f, fi) => `
+          <div style="display:flex;align-items:flex-start;gap:10px;padding:8px 14px;${fi < m.fields.length - 1 ? "border-bottom:1px solid #1a1a22;" : ""}">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#e4e4e7;min-width:100px;">${esc(f.name)}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#22d3ee;min-width:80px;">${esc(f.type.replace(/Mapped\[/, "").replace(/\]$/, ""))}</span>
+            ${f.description ? `<span style="font-size:11px;color:#666;flex:1;">${esc(f.description)}</span>` : ""}
+          </div>
+        `).join("") : `<div style="padding:10px 14px;font-size:11px;color:#555;">Inherits fields from parent</div>`}
+      </div>
+    </div>`;
+  }).join("\n") : "";
+
+  const dbModelsHtml = dbModels.length > 0 ? dbModels.map((m) => {
+    return `<div class="model-card" id="model-${esc(m.name)}" style="border:1px solid #27272a;border-radius:8px;margin-bottom:10px;overflow:hidden;background:#111118;">
+      <div class="model-header" onclick="toggleModel('${esc(m.name)}')" style="display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;" onmouseover="this.style.background='#161622'" onmouseout="this.style.background='transparent'">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#e4e4e7;flex:1;">${esc(m.name)}</span>
+        <span style="font-size:9px;font-weight:600;color:#4ade80;background:#4ade8015;border:1px solid #4ade8030;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;">Table</span>
+        <svg class="model-chevron model-chevron-${esc(m.name)}" style="width:14px;height:14px;fill:#555;transition:transform 0.2s;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+      </div>
+      <div class="model-body model-body-${esc(m.name)}" style="display:none;border-top:1px solid #27272a;padding:0;">
+        ${m.fields.map((f, fi) => `
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;${fi < m.fields.length - 1 ? "border-bottom:1px solid #1a1a22;" : ""}">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#e4e4e7;min-width:120px;">${esc(f.name)}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#a78bfa;">${esc(f.type)}</span>
+          </div>
+        `).join("")}
+      </div>
+    </div>`;
+  }).join("\n") : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -628,39 +831,190 @@ function buildSwaggerPreview(mainPyContent: string, prompt: string): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, 'Inter', sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 20px; }
-    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #222; }
-    .logo { width: 32px; height: 32px; background: #009688; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; color: white; }
-    h1 { font-size: 18px; font-weight: 600; color: #fff; }
-    .badge { display: inline-block; padding: 2px 8px; background: #009688; color: white; border-radius: 10px; font-size: 10px; font-weight: 600; margin-left: 8px; }
-    .section { margin-bottom: 20px; }
-    .section-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
-    .prompt { font-size: 13px; color: #aaa; font-style: italic; margin-bottom: 20px; }
-    .note { font-size: 11px; color: #666; margin-top: 16px; padding: 10px; background: #111; border-radius: 6px; border: 1px solid #222; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #08080d; color: #e4e4e7; min-height: 100vh; }
+    .topbar {
+      background: linear-gradient(180deg, #0f0f18 0%, #0a0a12 100%);
+      border-bottom: 1px solid #1a1a2e;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(12px);
+    }
+    .topbar-logo {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #009688 0%, #00796b 100%);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 16px; color: white;
+      box-shadow: 0 2px 8px #00968833;
+    }
+    .topbar-info { flex: 1; }
+    .topbar-title { font-size: 16px; font-weight: 600; color: #f4f4f5; display: flex; align-items: center; gap: 8px; }
+    .topbar-version {
+      font-size: 10px; font-weight: 600; color: #22d3ee;
+      background: #22d3ee12; border: 1px solid #22d3ee25;
+      padding: 2px 8px; border-radius: 10px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .topbar-desc { font-size: 12px; color: #71717a; margin-top: 2px; max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topbar-stats { display: flex; gap: 16px; }
+    .stat { text-align: center; }
+    .stat-val { font-size: 18px; font-weight: 700; color: #22d3ee; font-family: 'JetBrains Mono', monospace; }
+    .stat-label { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+    .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+    .server-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; margin-bottom: 24px;
+      background: #111118; border: 1px solid #1e1e2e; border-radius: 8px;
+    }
+    .server-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    .section-header {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 14px; margin-top: 28px;
+      padding-bottom: 8px; border-bottom: 1px solid #1a1a22;
+    }
+    .section-icon { width: 18px; height: 18px; fill: #22d3ee; }
+    .section-label { font-size: 14px; font-weight: 600; color: #e4e4e7; }
+    .tag-group { margin-bottom: 20px; }
+    .tag-header {
+      padding: 8px 12px; background: #0f0f18; border: 1px solid #1e1e2e;
+      border-radius: 6px; margin-bottom: 4px;
+    }
+    .detail-section { margin-bottom: 12px; }
+    .detail-title { font-size: 10px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+    .param-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 5px 10px; background: #0a0a0f; border-radius: 4px; margin-bottom: 3px;
+    }
+    .param-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #e4e4e7; min-width: 80px; }
+    .param-type { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #a78bfa; }
+    .param-required { font-size: 9px; color: #f93e3e; font-weight: 600; text-transform: uppercase; }
+    .schema-ref { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #0a0a0f; border-radius: 4px; }
+    .status-badge {
+      font-size: 11px; font-weight: 600; color: #4ade80;
+      background: #4ade8012; border: 1px solid #4ade8025;
+      padding: 3px 10px; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .footer {
+      margin-top: 32px; padding: 14px 16px;
+      background: #0d0d14; border: 1px solid #1a1a22; border-radius: 8px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .footer-icon { width: 16px; height: 16px; fill: #555; }
+    .footer-text { font-size: 11px; color: #555; }
+    .footer-text strong { color: #22d3ee; }
+    .expanded .chevron { transform: rotate(180deg); }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="logo">F</div>
-    <div>
-      <h1>FastAPI Backend <span class="badge">Python</span></h1>
-      <div class="prompt">${safePrompt}</div>
+  <div class="topbar">
+    <div class="topbar-logo">F</div>
+    <div class="topbar-info">
+      <div class="topbar-title">
+        FastAPI Backend
+        <span class="topbar-version">v1.0.0</span>
+        <span style="font-size:10px;color:#4ade80;background:#4ade8012;border:1px solid #4ade8025;padding:2px 8px;border-radius:10px;font-family:'JetBrains Mono',monospace;">Python 3.12+</span>
+      </div>
+      <div class="topbar-desc">${safePrompt}</div>
+    </div>
+    <div class="topbar-stats">
+      <div class="stat"><div class="stat-val">${routes.length}</div><div class="stat-label">Endpoints</div></div>
+      <div class="stat"><div class="stat-val">${pydanticModels.length}</div><div class="stat-label">Schemas</div></div>
+      <div class="stat"><div class="stat-val">${dbModels.length}</div><div class="stat-label">Tables</div></div>
     </div>
   </div>
-  <div class="section">
-    <div class="section-title">API Endpoints (${routes.length})</div>
-    ${routeHtml || '<div style="color:#555;font-size:12px;">No routes detected</div>'}
-  </div>
-  <div class="section">
-    <div class="section-title">Pydantic & SQLAlchemy Models (${models.length})</div>
-    <div style="display:flex;flex-wrap:wrap;gap:4px;">
-      ${modelHtml || '<span style="color:#555;font-size:12px;">No models detected</span>'}
+
+  <div class="container">
+    <div class="server-bar">
+      <div class="server-dot"></div>
+      <span style="font-size:12px;color:#aaa;">Base URL</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#22d3ee;">http://localhost:8000</span>
+      <span style="margin-left:auto;font-size:10px;color:#555;font-family:'JetBrains Mono',monospace;">/api/v1/docs</span>
+    </div>
+
+    <div class="section-header">
+      <svg class="section-icon" viewBox="0 0 24 24"><path d="M21 12.22C21 6.73 16.74 3 12 3c-4.69 0-9 3.65-9 9.28-.6.34-1 .98-1 1.72v2c0 1.1.9 2 2 2h1v-6.1c0-3.87 3.13-7 7-7s7 3.13 7 7V19h-8v2h8c1.1 0 2-.9 2-2v-1.22c.59-.31 1-.92 1-1.64v-2.3c0-.7-.41-1.31-1-1.62z"/></svg>
+      <span class="section-label">API Endpoints</span>
+    </div>
+
+    ${groupsHtml || '<div style="color:#555;font-size:12px;padding:12px;">No endpoints detected in source</div>'}
+
+    ${pydanticModels.length > 0 ? `
+    <div class="section-header">
+      <svg class="section-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+      <span class="section-label">Schemas (Pydantic v2)</span>
+    </div>
+    ${schemasHtml}
+    ` : ""}
+
+    ${dbModels.length > 0 ? `
+    <div class="section-header">
+      <svg class="section-icon" style="fill:#4ade80;" viewBox="0 0 24 24"><path d="M12 3C7.58 3 4 4.79 4 7v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm0 2c3.87 0 6 1.5 6 2s-2.13 2-6 2-6-1.5-6-2 2.13-2 6-2zM6 17V9.27C7.52 10.04 9.62 10.5 12 10.5s4.48-.46 6-1.23V17c0 .5-2.13 2-6 2s-6-1.5-6-2z"/></svg>
+      <span class="section-label">Database Models (SQLAlchemy 2.0)</span>
+    </div>
+    ${dbModelsHtml}
+    ` : ""}
+
+    <div class="footer">
+      <svg class="footer-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+      <span class="footer-text">
+        Generated by <strong>IDP.CORE</strong> FastAPI Engine.
+        Deploy with <strong>uvicorn main:app --reload</strong> to access interactive Swagger docs at <strong>/api/v1/docs</strong>.
+      </span>
     </div>
   </div>
-  <div class="note">
-    This is a Python/FastAPI backend. The Swagger UI interactive documentation would be available at <strong>/docs</strong> once deployed with uvicorn.
-  </div>
+
+  <script>
+    function toggleRoute(idx) {
+      const body = document.querySelector('.route-body-' + idx);
+      const chevron = document.querySelector('.chevron-' + idx);
+      if (!body) return;
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      if (chevron) chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+    function toggleTag(tag) {
+      const body = document.querySelector('.tag-body-' + CSS.escape(tag));
+      const chevron = document.querySelector('.tag-chevron-' + CSS.escape(tag));
+      if (!body) return;
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      if (chevron) chevron.style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
+    }
+    function toggleModel(name) {
+      const body = document.querySelector('.model-body-' + CSS.escape(name));
+      const chevron = document.querySelector('.model-chevron-' + CSS.escape(name));
+      if (!body) return;
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      if (chevron) chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+    function scrollToModel(name) {
+      const el = document.getElementById('model-' + name);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const body = el.querySelector('[class*="model-body"]');
+      const chevron = el.querySelector('[class*="model-chevron"]');
+      if (body && body.style.display === 'none') {
+        body.style.display = 'block';
+        if (chevron) chevron.style.transform = 'rotate(180deg)';
+      }
+      el.style.transition = 'box-shadow 0.3s';
+      el.style.boxShadow = '0 0 0 2px #22d3ee44';
+      setTimeout(() => { el.style.boxShadow = 'none'; }, 1500);
+    }
+  </script>
 </body>
 </html>`;
 }
