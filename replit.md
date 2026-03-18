@@ -13,14 +13,19 @@ The IDP is built as a pnpm workspace monorepo with a **Strategy Pattern engine a
 *   **`lib/engine-common/`** (`@workspace/engine-common`): Shared engine utilities — `ai-retry.ts` (LLM call infrastructure with retry + continuation), `snapshots.ts` (CAS snapshot engine), `pipeline-events.ts` (SSE event bus), `types.ts` (EngineInterface contract).
 *   **`lib/engine-react/`** (`@workspace/engine-react`): React/Express generation engine — extracted from api-server. Contains `pipeline.ts`, `agents.ts`, `golden-path.ts`, `spec-generator.ts`, `refine.ts`, `seed-generator.ts`, `deploy.ts`, `sandbox.ts`, `design-personas.ts`, `source-annotator.ts`, and all verification modules (AST, build, dependency audit, hash integrity, version enforcement).
 *   **`artifacts/api-server/src/lib/`**: Now contains thin re-export shims that delegate to `@workspace/engine-common` and `@workspace/engine-react`. Engine-agnostic code (`auth.ts`, `credits.ts`, `github.ts`) remains in api-server. This preserves all existing dynamic `await import()` paths in routes.
-*   **`artifacts/api-server/src/lib/engine-router.ts`**: Engine dispatcher — `getEngine()` returns the correct engine implementation based on a project's `engine` column. FastAPI engine is a stub (throws "not yet implemented") until Phase 2C.
-*   **Future:** `lib/engine-fastapi/` will implement the same `EngineInterface` for Python/FastAPI generation (Phase 2C).
+*   **`artifacts/api-server/src/lib/engine-router.ts`**: Engine dispatcher — `getEngine()` returns the correct engine implementation based on a project's `engine` column. Supports `react` and `fastapi` engines.
 
-**Phase 2B — Dispatcher (IN PROGRESS):**
+**Phase 2B — Dispatcher (COMPLETE):**
 *   **DB:** `engine TEXT NOT NULL DEFAULT 'react'` column added to `projectsTable`.
 *   **API:** `CreateProjectBody` accepts optional `engine` field (`"react"` | `"fastapi"`, default `"react"`). All routes (`POST /projects`, `POST /projects/:id/approve-spec`, `POST /projects/:id/regenerate-spec`, `POST /projects/:id/refine`) dispatch through `getEngine()`.
-*   **Frontend:** Engine selector toggle in `PromptForm.tsx` (React selected by default, FastAPI shows "BETA" badge and is disabled). `DeconstructorWizard` (design persona) conditionally hidden when engine !== react.
+*   **Frontend:** Engine selector toggle in `PromptForm.tsx` (React selected by default, FastAPI fully enabled). `DeconstructorWizard` (design persona) conditionally hidden when engine !== react.
 *   **Response:** `engine` field included in both project list and detail GET responses.
+
+**Phase 2C — FastAPI Engine (COMPLETE):**
+*   **`lib/engine-fastapi/`** (`@workspace/engine-fastapi`): Full Python/FastAPI generation engine implementing `EngineInterface`. Contains `pipeline.ts` (generateSpec + runPipeline with Gemini), `prompts.ts` (audited Python Architect system prompt with 3 surgical refinements), `golden-path.ts` (11 Python-specific compliance rules), `refine.ts` (delta refinement), and `index.ts` barrel.
+*   **Golden Path Rules (11):** pydantic-v2-models, schema-triad, sqlalchemy-2-mapped, async-routes, response-model-declared, health-endpoint, env-database-url, cors-middleware, type-hints, extra-forbid, requirements-pinned.
+*   **Frontend:** FastAPI projects use a plain Python code editor (bypasses Sandpack), file browser sidebar, and Swagger preview mode (`buildSwaggerPreview()` HTML renderer). `AppAnatomy.tsx` classifies Python files (main.py → serverRoutes, models → schemas, requirements.txt → configs). `useXRayInspector` hook made safe outside SandpackProvider context.
+*   **Engine Router:** `engine-router.ts` wired to real `@workspace/engine-fastapi` functions (no stubs).
 
 **Core Architectural Decisions:**
 *   **Orchestration API:** An Express 5 server manages the project lifecycle, including `pending` through `deployed` (or `failed`) states.

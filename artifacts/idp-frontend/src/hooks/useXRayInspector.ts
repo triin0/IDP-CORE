@@ -41,10 +41,19 @@ function toSandpackPath(filePath: string): string {
   return `/${p}`;
 }
 
+function useSandpackSafe() {
+  try {
+    return useSandpack();
+  } catch {
+    return null;
+  }
+}
+
 export function useXRayInspector(editorRef: React.RefObject<CodeMirrorRef | null>) {
   const [inspectActive, setInspectActive] = useState(false);
   const [lastSelected, setLastSelected] = useState<string | null>(null);
-  const { sandpack } = useSandpack();
+  const sandpackCtx = useSandpackSafe();
+  const sandpack = sandpackCtx?.sandpack ?? null;
   const pendingScroll = useRef<{ line: number; col: number } | null>(null);
 
   const sendToPreviewIframe = useCallback((type: string) => {
@@ -93,7 +102,7 @@ export function useXRayInspector(editorRef: React.RefObject<CodeMirrorRef | null
   }, [editorRef]);
 
   useEffect(() => {
-    if (!pendingScroll.current) return;
+    if (!pendingScroll.current || !sandpack) return;
 
     const { line, col } = pendingScroll.current;
     const timer = setTimeout(() => {
@@ -104,9 +113,11 @@ export function useXRayInspector(editorRef: React.RefObject<CodeMirrorRef | null
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [sandpack.activeFile, scrollEditorToLine]);
+  }, [sandpack?.activeFile, scrollEditorToLine, sandpack]);
 
   useEffect(() => {
+    if (!sandpack) return;
+
     function handleMessage(event: MessageEvent) {
       if (!event.data || event.data.type !== "idp-xray-select") return;
 
@@ -120,12 +131,12 @@ export function useXRayInspector(editorRef: React.RefObject<CodeMirrorRef | null
 
       const spPath = toSandpackPath(parsed.file);
 
-      const availableFiles = Object.keys(sandpack.files);
+      const availableFiles = Object.keys(sandpack!.files);
       if (!availableFiles.includes(spPath)) return;
 
-      sandpack.openFile(spPath);
+      sandpack!.openFile(spPath);
 
-      if (sandpack.activeFile === spPath) {
+      if (sandpack!.activeFile === spPath) {
         setTimeout(() => scrollEditorToLine(parsed.line, parsed.col), 80);
       } else {
         pendingScroll.current = { line: parsed.line, col: parsed.col };

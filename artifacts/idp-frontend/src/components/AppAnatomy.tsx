@@ -39,7 +39,7 @@ interface ClassifiedFile {
   fullPath: string;
 }
 
-function classifyFiles(files: string[]) {
+function classifyFiles(files: string[], engine?: string) {
   const pages: ClassifiedFile[] = [];
   const components: ClassifiedFile[] = [];
   const serverRoutes: ClassifiedFile[] = [];
@@ -49,18 +49,31 @@ function classifyFiles(files: string[]) {
 
   for (const f of files) {
     const name = f.split("/").pop() || f;
-    if (f.includes("pages/") || f.includes("Pages/") || name === "App.tsx") {
-      pages.push({ name, fullPath: f });
-    } else if (f.includes("components/") || f.includes("Components/")) {
-      components.push({ name, fullPath: f });
-    } else if (f.includes("routes/") || f.includes("Routes/")) {
-      serverRoutes.push({ name, fullPath: f });
-    } else if (f.includes("schema") || f.includes("migration") || f.includes("drizzle")) {
-      schemas.push({ name, fullPath: f });
-    } else if (f.includes("server/") && !f.includes("schema")) {
-      serverLogic.push({ name, fullPath: f });
-    } else if (name.includes("config") || name.includes("tsconfig") || name === "package.json" || name === ".env.example") {
-      configs.push({ name, fullPath: f });
+
+    if (engine === "fastapi") {
+      if (name === "main.py" || f.includes("api/") || f.includes("routes/")) {
+        serverRoutes.push({ name, fullPath: f });
+      } else if (name.includes("model") || name.includes("schema")) {
+        schemas.push({ name, fullPath: f });
+      } else if (name === "requirements.txt" || name.includes("config") || name === ".env") {
+        configs.push({ name, fullPath: f });
+      } else {
+        serverLogic.push({ name, fullPath: f });
+      }
+    } else {
+      if (f.includes("pages/") || f.includes("Pages/") || name === "App.tsx") {
+        pages.push({ name, fullPath: f });
+      } else if (f.includes("components/") || f.includes("Components/")) {
+        components.push({ name, fullPath: f });
+      } else if (f.includes("routes/") || f.includes("Routes/")) {
+        serverRoutes.push({ name, fullPath: f });
+      } else if (f.includes("schema") || f.includes("migration") || f.includes("drizzle")) {
+        schemas.push({ name, fullPath: f });
+      } else if (f.includes("server/") && !f.includes("schema")) {
+        serverLogic.push({ name, fullPath: f });
+      } else if (name.includes("config") || name.includes("tsconfig") || name === "package.json" || name === ".env.example") {
+        configs.push({ name, fullPath: f });
+      }
     }
   }
 
@@ -239,7 +252,8 @@ function StatBubble({ icon, value, label, color }: { icon: React.ReactNode; valu
 export function AppAnatomy({ project, onSwitchToEditor }: AppAnatomyProps) {
   const spec = project.spec;
   const files = useMemo(() => spec?.fileStructure ?? [], [spec]);
-  const classified = useMemo(() => classifyFiles(files), [files]);
+  const engine = (project as unknown as { engine?: string }).engine;
+  const classified = useMemo(() => classifyFiles(files, engine), [files, engine]);
 
   let sandpack: ReturnType<typeof useSandpack>["sandpack"] | null = null;
   try {

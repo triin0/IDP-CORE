@@ -63,7 +63,7 @@ interface WorkspaceProps {
 
 const API_BASE = import.meta.env.VITE_API_URL ?? `${window.location.origin}/api`;
 
-type PreviewMode = "sandpack" | "sandbox" | "static";
+type PreviewMode = "sandpack" | "sandbox" | "static" | "swagger";
 
 function PreviewPane({
   project,
@@ -93,10 +93,19 @@ function PreviewPane({
 
   const hasLiveSandbox = !!sandboxPreviewUrl;
 
+  const isFastAPI = (project as unknown as { engine?: string }).engine === "fastapi";
+
   const staticHtml = useMemo(() => {
     const files = (project.files ?? []) as Array<{ path: string; content: string }>;
     return buildStaticPreview(files, project.prompt || "");
   }, [project.files, project.prompt]);
+
+  const swaggerHtml = useMemo(() => {
+    if (!isFastAPI) return "";
+    const files = (project.files ?? []) as Array<{ path: string; content: string }>;
+    const mainPy = files.find((f) => f.path === "main.py");
+    return buildSwaggerPreview(mainPy?.content ?? "", project.prompt || "");
+  }, [isFastAPI, project.files, project.prompt]);
 
   return (
     <div className={cn(
@@ -105,18 +114,33 @@ function PreviewPane({
     )}>
       <div className="flex items-center justify-between px-2 py-1.5 bg-card border-b border-border/50 shrink-0">
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => setPreviewMode("sandpack")}
-            className={cn(
-              "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-colors",
-              previewMode === "sandpack"
-                ? "bg-primary/15 text-primary"
-                : "text-zinc-500 hover:text-zinc-300",
-            )}
-          >
-            <Play className="w-3 h-3" />
-            App
-          </button>
+          {isFastAPI ? (
+            <button
+              onClick={() => setPreviewMode("swagger")}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-colors",
+                previewMode === "swagger"
+                  ? "bg-primary/15 text-primary"
+                  : "text-zinc-500 hover:text-zinc-300",
+              )}
+            >
+              <FileCode className="w-3 h-3" />
+              Swagger
+            </button>
+          ) : (
+            <button
+              onClick={() => setPreviewMode("sandpack")}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-colors",
+                previewMode === "sandpack"
+                  ? "bg-primary/15 text-primary"
+                  : "text-zinc-500 hover:text-zinc-300",
+              )}
+            >
+              <Play className="w-3 h-3" />
+              App
+            </button>
+          )}
           {hasLiveSandbox && (
             <button
               onClick={() => setPreviewMode("sandbox")}
@@ -213,6 +237,15 @@ function PreviewPane({
             className="w-full h-full border-0"
             title="Project Info"
             sandbox=""
+          />
+        )}
+        {previewMode === "swagger" && isFastAPI && (
+          <iframe
+            key={`swagger-${iframeKey}`}
+            srcDoc={swaggerHtml}
+            className="w-full h-full border-0"
+            title="Swagger UI Preview"
+            sandbox="allow-scripts allow-same-origin"
           />
         )}
         {previewMode === "sandbox" && !sandboxPreviewUrl && (
@@ -556,6 +589,82 @@ function esc(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function buildSwaggerPreview(mainPyContent: string, prompt: string): string {
+  const safePrompt = esc(prompt.slice(0, 120));
+
+  const routeRegex = /@(?:app|router)\.(get|post|put|patch|delete)\(\s*["']([^"']+)["']/gi;
+  const routes: Array<{ method: string; path: string }> = [];
+  let match;
+  while ((match = routeRegex.exec(mainPyContent)) !== null) {
+    routes.push({ method: match[1].toUpperCase(), path: match[2] });
+  }
+
+  const modelRegex = /class\s+(\w+)\((?:BaseModel|Base)\)/g;
+  const models: string[] = [];
+  while ((match = modelRegex.exec(mainPyContent)) !== null) {
+    models.push(match[1]);
+  }
+
+  const methodColors: Record<string, string> = {
+    GET: "#61affe", POST: "#49cc90", PUT: "#fca130",
+    PATCH: "#50e3c2", DELETE: "#f93e3e",
+  };
+
+  const routeHtml = routes.map((r) => {
+    const color = methodColors[r.method] || "#999";
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#1c1c1e;border-radius:6px;border-left:3px solid ${color};margin-bottom:6px;">
+      <span style="font-weight:700;font-size:11px;color:${color};min-width:55px;text-transform:uppercase;">${esc(r.method)}</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#e0e0e0;">${esc(r.path)}</span>
+    </div>`;
+  }).join("\n");
+
+  const modelHtml = models.map((m) =>
+    `<span style="display:inline-block;padding:3px 10px;background:#2a2a2e;border:1px solid #444;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#81d4fa;margin:3px;">${esc(m)}</span>`
+  ).join("\n");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, 'Inter', sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 20px; }
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #222; }
+    .logo { width: 32px; height: 32px; background: #009688; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; color: white; }
+    h1 { font-size: 18px; font-weight: 600; color: #fff; }
+    .badge { display: inline-block; padding: 2px 8px; background: #009688; color: white; border-radius: 10px; font-size: 10px; font-weight: 600; margin-left: 8px; }
+    .section { margin-bottom: 20px; }
+    .section-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    .prompt { font-size: 13px; color: #aaa; font-style: italic; margin-bottom: 20px; }
+    .note { font-size: 11px; color: #666; margin-top: 16px; padding: 10px; background: #111; border-radius: 6px; border: 1px solid #222; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">F</div>
+    <div>
+      <h1>FastAPI Backend <span class="badge">Python</span></h1>
+      <div class="prompt">${safePrompt}</div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">API Endpoints (${routes.length})</div>
+    ${routeHtml || '<div style="color:#555;font-size:12px;">No routes detected</div>'}
+  </div>
+  <div class="section">
+    <div class="section-title">Pydantic & SQLAlchemy Models (${models.length})</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+      ${modelHtml || '<span style="color:#555;font-size:12px;">No models detected</span>'}
+    </div>
+  </div>
+  <div class="note">
+    This is a Python/FastAPI backend. The Swagger UI interactive documentation would be available at <strong>/docs</strong> once deployed with uvicorn.
+  </div>
+</body>
+</html>`;
+}
+
 function buildStaticPreview(files: Array<{ path: string; content: string }>, prompt: string): string {
   const clientFiles = files.filter((f) => f.path.startsWith("client/"));
   const hasClient = clientFiles.length > 0;
@@ -660,56 +769,97 @@ function SandpackWorkspaceInner({
   const editorRef = useRef<{ getCodemirror: () => unknown } | null>(null);
   const { inspectActive, toggleInspect, lastSelected } = useXRayInspector(editorRef);
   const hasAnnotations = Array.isArray(project.annotatedFiles) && project.annotatedFiles.length > 0;
+  const isFastAPIInner = (project as unknown as { engine?: string }).engine === "fastapi";
+  const [activeFile, setActiveFile] = useState<string | null>(null);
+
+  const projectFiles = useMemo(() => {
+    return ((project.files ?? []) as Array<{ path: string; content: string }>);
+  }, [project.files]);
+
+  const displayFile = activeFile ?? (projectFiles.length > 0 ? projectFiles[0].path : null);
+  const displayContent = projectFiles.find((f) => f.path === displayFile)?.content ?? "";
 
   return (
     <>
       <div className="flex-1 flex min-h-0">
         <ResizablePanelGroup direction="horizontal" className="min-h-0">
           <ResizablePanel defaultSize={55} minSize={30}>
-            <SandpackLayout
-              style={{
-                height: "100%",
-                border: "none",
-                borderRadius: 0,
-                background: "#0a0a0f",
-                overflow: "hidden",
-              }}
-            >
-              <SandpackFileExplorer
+            {isFastAPIInner ? (
+              <div className="flex h-full" style={{ background: "#0a0a0f" }}>
+                <div className="flex flex-col border-r border-zinc-800 overflow-auto" style={{ minWidth: 160, maxWidth: 200 }}>
+                  <div className="px-3 py-2 text-[10px] font-mono text-zinc-600 uppercase tracking-wider border-b border-zinc-800">
+                    Files
+                  </div>
+                  {projectFiles.map((f) => (
+                    <button
+                      key={f.path}
+                      onClick={() => setActiveFile(f.path)}
+                      className={cn(
+                        "w-full text-left px-3 py-1.5 text-[11px] font-mono transition-colors",
+                        displayFile === f.path
+                          ? "bg-primary/10 text-primary"
+                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900",
+                      )}
+                    >
+                      {f.path}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex-1 overflow-auto">
+                  <div className="flex items-center gap-2 px-3 py-1.5 border-b border-zinc-800 bg-zinc-950">
+                    <FileCode className="w-3 h-3 text-zinc-600" />
+                    <span className="text-[11px] font-mono text-zinc-400">{displayFile}</span>
+                    <span className="ml-auto text-[9px] font-mono text-zinc-700 bg-zinc-900 px-1.5 py-0.5 rounded">PYTHON</span>
+                  </div>
+                  <pre className="p-4 text-[12px] font-mono text-zinc-300 leading-relaxed whitespace-pre-wrap">{displayContent}</pre>
+                </div>
+              </div>
+            ) : (
+              <SandpackLayout
                 style={{
                   height: "100%",
-                  minWidth: "180px",
-                  maxWidth: "220px",
-                  overflow: "auto",
+                  border: "none",
+                  borderRadius: 0,
+                  background: "#0a0a0f",
+                  overflow: "hidden",
                 }}
-              />
-              <div className="relative flex-1 h-full flex flex-col">
-                <SandpackCodeEditor
-                  ref={editorRef as React.Ref<never>}
-                  showLineNumbers
-                  showTabs
-                  wrapContent
+              >
+                <SandpackFileExplorer
                   style={{
                     height: "100%",
-                    flex: 1,
+                    minWidth: "180px",
+                    maxWidth: "220px",
+                    overflow: "auto",
                   }}
                 />
-                {lastSelected && inspectActive && (
-                  <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 px-2 py-1 rounded bg-primary/10 border border-primary/20 text-[10px] font-mono text-primary pointer-events-none z-10">
-                    <Crosshair className="w-3 h-3 shrink-0" />
-                    <span className="truncate">{lastSelected}</span>
-                  </div>
-                )}
-                <ErrorDecryptorOverlay
-                  projectId={project.id}
-                  onFixApplied={() => {
-                    queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}`] });
-                    queryClient.invalidateQueries({ queryKey: ["snapshots", project.id] });
-                    onSnapshotRestore();
-                  }}
-                />
-              </div>
-            </SandpackLayout>
+                <div className="relative flex-1 h-full flex flex-col">
+                  <SandpackCodeEditor
+                    ref={editorRef as React.Ref<never>}
+                    showLineNumbers
+                    showTabs
+                    wrapContent
+                    style={{
+                      height: "100%",
+                      flex: 1,
+                    }}
+                  />
+                  {lastSelected && inspectActive && (
+                    <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 px-2 py-1 rounded bg-primary/10 border border-primary/20 text-[10px] font-mono text-primary pointer-events-none z-10">
+                      <Crosshair className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{lastSelected}</span>
+                    </div>
+                  )}
+                  <ErrorDecryptorOverlay
+                    projectId={project.id}
+                    onFixApplied={() => {
+                      queryClient.invalidateQueries({ queryKey: [`/api/projects/${project.id}`] });
+                      queryClient.invalidateQueries({ queryKey: ["snapshots", project.id] });
+                      onSnapshotRestore();
+                    }}
+                  />
+                </div>
+              </SandpackLayout>
+            )}
           </ResizablePanel>
 
           <ResizableHandle withHandle className="bg-border/50 hover:bg-primary/30 transition-colors" />
@@ -780,7 +930,8 @@ function SandpackWorkspaceInner({
 
 export function Workspace({ project, onReset }: WorkspaceProps) {
   const [rightPanel, setRightPanel] = useState<"status" | "preview" | "anatomy" | "timeline" | "seeds">("status");
-  const [previewMode, setPreviewMode] = useState<PreviewMode>("sandpack");
+  const isFastAPIProject = (project as unknown as { engine?: string }).engine === "fastapi";
+  const [previewMode, setPreviewMode] = useState<PreviewMode>(isFastAPIProject ? "swagger" : "sandpack");
   const [showSidebar, setShowSidebar] = useState(true);
   const [snapshotVersion, setSnapshotVersion] = useState(0);
   const [, navigate] = useLocation();
@@ -927,16 +1078,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
 
       <div className="flex-1 bg-card border border-border shadow-2xl rounded-xl overflow-hidden flex flex-col min-h-0">
         {hasAnyFiles ? (
-          <SandpackProvider
-            key={`sandpack-${Object.keys(sandpackFiles).length}-${snapshotVersion}`}
-            template="react-ts"
-            files={sandpackFiles}
-            theme={SANDPACK_THEME}
-            options={{
-              recompileMode: "delayed",
-              recompileDelay: 500,
-            }}
-          >
+          isFastAPIProject ? (
             <SandpackWorkspaceInner
               project={project}
               rightPanel={rightPanel}
@@ -951,7 +1093,33 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
               deleteMut={deleteMut}
               onSnapshotRestore={() => setSnapshotVersion((v) => v + 1)}
             />
-          </SandpackProvider>
+          ) : (
+            <SandpackProvider
+              key={`sandpack-${Object.keys(sandpackFiles).length}-${snapshotVersion}`}
+              template="react-ts"
+              files={sandpackFiles}
+              theme={SANDPACK_THEME}
+              options={{
+                recompileMode: "delayed",
+                recompileDelay: 500,
+              }}
+            >
+              <SandpackWorkspaceInner
+                project={project}
+                rightPanel={rightPanel}
+                setRightPanel={setRightPanel}
+                previewMode={previewMode}
+                setPreviewMode={setPreviewMode}
+                liveUrl={liveUrl}
+                showSidebar={showSidebar}
+                handleDeploy={handleDeploy}
+                deployMut={deployMut}
+                handleDelete={handleDelete}
+                deleteMut={deleteMut}
+                onSnapshotRestore={() => setSnapshotVersion((v) => v + 1)}
+              />
+            </SandpackProvider>
+          )
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center p-8">

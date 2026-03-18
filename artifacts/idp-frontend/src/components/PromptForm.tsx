@@ -8,7 +8,7 @@ type EngineId = "react" | "fastapi";
 
 const ENGINE_OPTIONS: Array<{ id: EngineId; label: string; sublabel: string; available: boolean }> = [
   { id: "react", label: "React", sublabel: "Express + Drizzle + TS", available: true },
-  { id: "fastapi", label: "FastAPI", sublabel: "SQLAlchemy + Pydantic", available: false },
+  { id: "fastapi", label: "FastAPI", sublabel: "SQLAlchemy + Pydantic", available: true },
 ];
 
 interface PromptFormProps {

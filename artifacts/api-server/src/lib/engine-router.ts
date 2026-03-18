@@ -4,6 +4,12 @@ import {
   generateProjectCode as reactRunPipeline,
   refineProject as reactRefineProject,
 } from "@workspace/engine-react";
+import {
+  generateSpec as fastapiGenerateSpec,
+  runPipeline as fastapiRunPipeline,
+  refineProject as fastapiRefineProject,
+  FASTAPI_GOLDEN_PATH_RULES,
+} from "@workspace/engine-fastapi";
 
 type EngineId = "react" | "fastapi";
 
@@ -30,20 +36,20 @@ const reactEngine: EngineInterface = {
 const fastapiEngine: EngineInterface = {
   id: "fastapi",
   label: "FastAPI + SQLAlchemy",
-  async generateSpec(_projectId, _prompt, _persona?) {
-    throw new Error("FastAPI engine is not yet implemented. Coming in Phase 2C.");
+  async generateSpec(projectId, prompt, _persona?) {
+    await fastapiGenerateSpec(projectId, prompt);
   },
-  async runPipeline(_projectId, _prompt, _spec?, _persona?) {
-    throw new Error("FastAPI engine is not yet implemented. Coming in Phase 2C.");
+  async runPipeline(projectId, prompt, spec?, _persona?) {
+    await fastapiRunPipeline(projectId, prompt, spec);
   },
-  async refineProject(_projectId, _prompt) {
-    throw new Error("FastAPI engine is not yet implemented. Coming in Phase 2C.");
+  async refineProject(projectId, prompt) {
+    return fastapiRefineProject(projectId, prompt);
   },
   getSandpackSupport() {
     return false;
   },
   getGoldenPathRules() {
-    return [];
+    return FASTAPI_GOLDEN_PATH_RULES;
   },
 };
 
@@ -67,6 +73,6 @@ export function isValidEngine(value: string): value is EngineId {
 export function getAvailableEngines(): Array<{ id: EngineId; label: string; available: boolean }> {
   return [
     { id: "react", label: "React + Express", available: true },
-    { id: "fastapi", label: "FastAPI + SQLAlchemy", available: false },
+    { id: "fastapi", label: "FastAPI + SQLAlchemy", available: true },
   ];
 }

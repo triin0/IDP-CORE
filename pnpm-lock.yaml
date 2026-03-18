@@ -211,6 +211,9 @@ importers:
       '@workspace/engine-common':
         specifier: workspace:*
         version: link:../../lib/engine-common
+      '@workspace/engine-fastapi':
+        specifier: workspace:*
+        version: link:../../lib/engine-fastapi
       '@workspace/engine-react':
         specifier: workspace:*
         version: link:../../lib/engine-react
@@ -734,6 +737,28 @@ importers:
         specifier: 'catalog:'
         version: 0.45.1(@opentelemetry/api@1.9.0)(@types/pg@8.18.0)(pg@8.20.0)
     devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  lib/engine-fastapi:
+    dependencies:
+      '@google/generative-ai':
+        specifier: 'catalog:'
+        version: 0.24.1
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../db
+      '@workspace/engine-common':
+        specifier: workspace:*
+        version: link:../engine-common
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.1(@opentelemetry/api@1.9.0)(@types/pg@8.18.0)(pg@8.20.0)
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.3.5
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

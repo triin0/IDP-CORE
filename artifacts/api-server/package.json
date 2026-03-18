@@ -23,6 +23,7 @@
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/engine-common": "workspace:*",
+    "@workspace/engine-fastapi": "workspace:*",
     "@workspace/engine-react": "workspace:*",
     "@workspace/integrations-openai-ai-server": "workspace:*",
     "archiver": "^7.0.1",
