@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { eq, desc, count, and } from "drizzle-orm";
-import { db, projectsTable, CREDIT_COSTS } from "@workspace/db";
+import { db, projectsTable, creditLedgerTable, CREDIT_COSTS } from "@workspace/db";
 import {
   CreateProjectBody,
   GetProjectParams,
@@ -555,9 +555,16 @@ router.delete("/projects/:id", requireAuth, async (req, res) => {
       }
     }
 
-    await db
-      .delete(projectsTable)
-      .where(eq(projectsTable.id, id));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(creditLedgerTable)
+        .set({ projectId: null })
+        .where(eq(creditLedgerTable.projectId, id));
+
+      await tx
+        .delete(projectsTable)
+        .where(eq(projectsTable.id, id));
+    });
 
     console.log(`[projects] Deleted project ${id.slice(0, 8)} (sandbox: ${project.sandboxId || "none"})`);
 
