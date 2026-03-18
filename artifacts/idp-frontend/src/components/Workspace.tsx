@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDeployProject, useDeleteProject } from "@workspace/api-client-react";
 import { decryptError } from "@/lib/error-decryptor";
@@ -21,11 +21,12 @@ import { BuildGate } from "./BuildGate";
 import { AppAnatomy } from "./AppAnatomy";
 import { SnapshotTimeline } from "./SnapshotTimeline";
 import { SeedDataGenerator } from "./SeedDataGenerator";
+import { useXRayInspector } from "@/hooks/useXRayInspector";
 import {
   Rocket, ExternalLink, Loader2, Code2, ArrowLeft, CheckCircle2,
   AlertCircle, Zap, ShieldCheck, Eye, FileCode, Download, Github,
   Trash2, Play, Monitor, PanelLeft, RefreshCw, Maximize2, Minimize2, Clock, Sparkles,
-  Cpu,
+  Cpu, Crosshair,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -68,11 +69,17 @@ function PreviewPane({
   previewMode,
   setPreviewMode,
   liveUrl,
+  inspectActive,
+  onToggleInspect,
+  hasAnnotations,
 }: {
   project: ProjectDetails;
   previewMode: PreviewMode;
   setPreviewMode: (m: PreviewMode) => void;
   liveUrl: string | null;
+  inspectActive?: boolean;
+  onToggleInspect?: () => void;
+  hasAnnotations?: boolean;
 }) {
   const [iframeKey, setIframeKey] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -137,6 +144,21 @@ function PreviewPane({
           </button>
         </div>
         <div className="flex items-center gap-1">
+          {previewMode === "sandpack" && hasAnnotations && onToggleInspect && (
+            <button
+              onClick={onToggleInspect}
+              className={cn(
+                "flex items-center gap-1 px-1.5 py-1 rounded text-[10px] font-mono transition-all",
+                inspectActive
+                  ? "bg-primary/20 text-primary ring-1 ring-primary/40 shadow-[0_0_8px_rgba(34,211,238,0.15)]"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800",
+              )}
+              title={inspectActive ? "Deactivate X-Ray Inspector" : "Activate X-Ray Inspector"}
+            >
+              <Crosshair className={cn("w-3 h-3", inspectActive && "animate-pulse")} />
+              {inspectActive && <span>Inspect</span>}
+            </button>
+          )}
           {previewMode !== "sandpack" && (
             <button
               onClick={() => setIframeKey(k => k + 1)}
@@ -606,6 +628,142 @@ function buildStaticPreview(files: Array<{ path: string; content: string }>, pro
 </html>`;
 }
 
+function SandpackWorkspaceInner({
+  project,
+  rightPanel,
+  setRightPanel,
+  previewMode,
+  setPreviewMode,
+  liveUrl,
+  showSidebar,
+  handleDeploy,
+  deployMut,
+  handleDelete,
+  deleteMut,
+}: {
+  project: ProjectDetails;
+  rightPanel: "status" | "preview" | "anatomy" | "timeline" | "seeds";
+  setRightPanel: (p: "status" | "preview" | "anatomy" | "timeline" | "seeds") => void;
+  previewMode: PreviewMode;
+  setPreviewMode: (m: PreviewMode) => void;
+  liveUrl: string | null;
+  showSidebar: boolean;
+  handleDeploy: () => void;
+  deployMut: { isPending: boolean; data?: { deployUrl?: string } | undefined; isError: boolean };
+  handleDelete: () => void;
+  deleteMut: { isPending: boolean };
+}) {
+  const editorRef = useRef<{ getCodemirror: () => unknown } | null>(null);
+  const { inspectActive, toggleInspect, lastSelected } = useXRayInspector(editorRef);
+  const hasAnnotations = Array.isArray(project.annotatedFiles) && project.annotatedFiles.length > 0;
+
+  return (
+    <>
+      <div className="flex-1 flex min-h-0">
+        <ResizablePanelGroup direction="horizontal" className="min-h-0">
+          <ResizablePanel defaultSize={55} minSize={30}>
+            <SandpackLayout
+              style={{
+                height: "100%",
+                border: "none",
+                borderRadius: 0,
+                background: "#0a0a0f",
+              }}
+            >
+              <SandpackFileExplorer
+                style={{
+                  height: "100%",
+                  minWidth: "180px",
+                  maxWidth: "220px",
+                }}
+              />
+              <div className="relative flex-1 h-full flex flex-col">
+                <SandpackCodeEditor
+                  ref={editorRef as React.Ref<never>}
+                  showLineNumbers
+                  showTabs
+                  wrapContent
+                  style={{
+                    height: "100%",
+                    flex: 1,
+                  }}
+                />
+                {lastSelected && inspectActive && (
+                  <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 px-2 py-1 rounded bg-primary/10 border border-primary/20 text-[10px] font-mono text-primary pointer-events-none z-10">
+                    <Crosshair className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{lastSelected}</span>
+                  </div>
+                )}
+              </div>
+            </SandpackLayout>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle className="bg-border/50 hover:bg-primary/30 transition-colors" />
+
+          <ResizablePanel defaultSize={showSidebar ? 25 : 45} minSize={20}>
+            {rightPanel === "preview" ? (
+              <PreviewPane
+                project={project}
+                previewMode={previewMode}
+                setPreviewMode={setPreviewMode}
+                liveUrl={liveUrl}
+                inspectActive={inspectActive}
+                onToggleInspect={toggleInspect}
+                hasAnnotations={hasAnnotations}
+              />
+            ) : rightPanel === "anatomy" ? (
+              <AppAnatomy project={project} onSwitchToEditor={() => setRightPanel("status")} />
+            ) : rightPanel === "timeline" ? (
+              <SnapshotTimeline project={project} />
+            ) : rightPanel === "seeds" ? (
+              <SeedDataGenerator project={project} />
+            ) : (
+              <div className="h-full overflow-y-auto">
+                <StatusPanel
+                  project={project}
+                  onDeploy={handleDeploy}
+                  isDeploying={deployMut.isPending}
+                  deployUrl={deployMut.data?.deployUrl || null}
+                  deployError={deployMut.isError}
+                  onDelete={handleDelete}
+                  isDeleting={deleteMut.isPending}
+                />
+              </div>
+            )}
+          </ResizablePanel>
+
+          {showSidebar && rightPanel === "preview" && (
+            <>
+              <ResizableHandle withHandle className="bg-border/50 hover:bg-primary/30 transition-colors" />
+              <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+                <div className="h-full overflow-y-auto">
+                  <StatusPanel
+                    project={project}
+                    onDeploy={handleDeploy}
+                    isDeploying={deployMut.isPending}
+                    deployUrl={deployMut.data?.deployUrl || null}
+                    deployError={deployMut.isError}
+                    onDelete={handleDelete}
+                    isDeleting={deleteMut.isPending}
+                  />
+                </div>
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+      </div>
+
+      {(project.status === "ready" || project.status === "deployed") && (
+        <RefinementChat
+          projectId={project.id}
+          refinements={project.refinements ?? []}
+          projectFiles={(project.files ?? []) as Array<{ path: string; content: string }>}
+        />
+      )}
+    </>
+  );
+}
+
 export function Workspace({ project, onReset }: WorkspaceProps) {
   const [rightPanel, setRightPanel] = useState<"status" | "preview" | "anatomy" | "timeline" | "seeds">("status");
   const [previewMode, setPreviewMode] = useState<PreviewMode>("sandpack");
@@ -763,95 +921,19 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
               recompileDelay: 500,
             }}
           >
-            <div className="flex-1 flex min-h-0">
-              <ResizablePanelGroup direction="horizontal" className="min-h-0">
-                <ResizablePanel defaultSize={55} minSize={30}>
-                  <SandpackLayout
-                    style={{
-                      height: "100%",
-                      border: "none",
-                      borderRadius: 0,
-                      background: "#0a0a0f",
-                    }}
-                  >
-                    <SandpackFileExplorer
-                      style={{
-                        height: "100%",
-                        minWidth: "180px",
-                        maxWidth: "220px",
-                      }}
-                    />
-                    <SandpackCodeEditor
-                      showLineNumbers
-                      showTabs
-                      wrapContent
-                      style={{
-                        height: "100%",
-                        flex: 1,
-                      }}
-                    />
-                  </SandpackLayout>
-                </ResizablePanel>
-
-                <ResizableHandle withHandle className="bg-border/50 hover:bg-primary/30 transition-colors" />
-
-                <ResizablePanel defaultSize={showSidebar ? 25 : 45} minSize={20}>
-                  {rightPanel === "preview" ? (
-                    <PreviewPane
-                      project={project}
-                      previewMode={previewMode}
-                      setPreviewMode={setPreviewMode}
-                      liveUrl={liveUrl}
-                    />
-                  ) : rightPanel === "anatomy" ? (
-                    <AppAnatomy project={project} onSwitchToEditor={() => setRightPanel("status")} />
-                  ) : rightPanel === "timeline" ? (
-                    <SnapshotTimeline project={project} />
-                  ) : rightPanel === "seeds" ? (
-                    <SeedDataGenerator project={project} />
-                  ) : (
-                    <div className="h-full overflow-y-auto">
-                      <StatusPanel
-                        project={project}
-                        onDeploy={handleDeploy}
-                        isDeploying={deployMut.isPending}
-                        deployUrl={deployMut.data?.deployUrl || null}
-                        deployError={deployMut.isError}
-                        onDelete={handleDelete}
-                        isDeleting={deleteMut.isPending}
-                      />
-                    </div>
-                  )}
-                </ResizablePanel>
-
-                {showSidebar && rightPanel === "preview" && (
-                  <>
-                    <ResizableHandle withHandle className="bg-border/50 hover:bg-primary/30 transition-colors" />
-                    <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
-                      <div className="h-full overflow-y-auto">
-                        <StatusPanel
-                          project={project}
-                          onDeploy={handleDeploy}
-                          isDeploying={deployMut.isPending}
-                          deployUrl={deployMut.data?.deployUrl || null}
-                          deployError={deployMut.isError}
-                          onDelete={handleDelete}
-                          isDeleting={deleteMut.isPending}
-                        />
-                      </div>
-                    </ResizablePanel>
-                  </>
-                )}
-              </ResizablePanelGroup>
-            </div>
-
-            {(project.status === "ready" || project.status === "deployed") && (
-              <RefinementChat
-                projectId={project.id}
-                refinements={project.refinements ?? []}
-                projectFiles={(project.files ?? []) as Array<{ path: string; content: string }>}
-              />
-            )}
+            <SandpackWorkspaceInner
+              project={project}
+              rightPanel={rightPanel}
+              setRightPanel={setRightPanel}
+              previewMode={previewMode}
+              setPreviewMode={setPreviewMode}
+              liveUrl={liveUrl}
+              showSidebar={showSidebar}
+              handleDeploy={handleDeploy}
+              deployMut={deployMut}
+              handleDelete={handleDelete}
+              deleteMut={deleteMut}
+            />
           </SandpackProvider>
         ) : (
           <div className="flex-1 flex items-center justify-center">
