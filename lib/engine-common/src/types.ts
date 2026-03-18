@@ -10,7 +10,7 @@ export interface EngineSpec {
 export interface RefineResult {
   status: string;
   filesChanged: string[];
-  previousFiles: Array<{ path: string; content: string }>;
+  previousFiles?: Array<{ path: string; content: string }>;
   files: Array<{ path: string; content: string }>;
   goldenPathChecks: Array<{ name: string; passed: boolean; description: string; critical?: boolean }>;
   refinement: {
@@ -18,8 +18,8 @@ export interface RefineResult {
     response: string;
     timestamp: string;
     filesChanged: string[];
-    goldenPathScore: string;
-    previousFiles: Array<{ path: string; content: string }>;
+    goldenPathScore?: string;
+    previousFiles?: Array<{ path: string; content: string }>;
   };
   verificationVerdict?: unknown;
 }
@@ -42,7 +42,7 @@ export interface GoldenPathRule {
 }
 
 export interface EngineInterface {
-  id: "react" | "fastapi";
+  id: "react" | "fastapi" | "mobile-expo";
   label: string;
   generateSpec(projectId: string, prompt: string, persona?: string): Promise<void>;
   runPipeline(projectId: string, prompt: string, spec?: EngineSpec, persona?: string): Promise<void>;

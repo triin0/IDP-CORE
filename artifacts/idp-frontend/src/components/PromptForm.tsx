@@ -4,18 +4,19 @@ import { Terminal, Sparkles, ArrowRight, Loader2, Cpu, Shield, Boxes, Zap } from
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-type EngineId = "react" | "fastapi";
+type EngineId = "react" | "fastapi" | "mobile-expo";
 
 const ENGINE_OPTIONS: Array<{ id: EngineId; label: string; sublabel: string; available: boolean }> = [
   { id: "react", label: "React", sublabel: "Express + Drizzle + TS", available: true },
   { id: "fastapi", label: "FastAPI", sublabel: "SQLAlchemy + Pydantic", available: true },
+  { id: "mobile-expo", label: "Mobile", sublabel: "Expo + NativeWind", available: true },
 ];
 
 interface PromptFormProps {
   onProjectCreated: (id: string) => void;
   initialPrompt?: string | null;
   designPersona?: string;
-  onEngineChange?: (engine: "react" | "fastapi") => void;
+  onEngineChange?: (engine: "react" | "fastapi" | "mobile-expo") => void;
 }
 
 export function PromptForm({ onProjectCreated, initialPrompt, designPersona, onEngineChange }: PromptFormProps) {

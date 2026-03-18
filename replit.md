@@ -27,6 +27,14 @@ The IDP is built as a pnpm workspace monorepo with a **Strategy Pattern engine a
 *   **Frontend:** FastAPI projects use a plain Python code editor (bypasses Sandpack), file browser sidebar, and Swagger preview mode (`buildSwaggerPreview()` HTML renderer). `AppAnatomy.tsx` classifies Python files (main.py → serverRoutes, models → schemas, requirements.txt → configs). `useXRayInspector` hook made safe outside SandpackProvider context.
 *   **Engine Router:** `engine-router.ts` wired to real `@workspace/engine-fastapi` functions (no stubs).
 
+**Phase 3A — Mobile Engine (COMPLETE):**
+*   **`lib/engine-mobile/`** (`@workspace/engine-mobile`): React Native/Expo generation engine implementing `EngineInterface`. Contains `pipeline.ts` (generateSpec + runPipeline with Gemini), `prompts.ts` (Mobile Architect system prompt with Expo Router, NativeWind, dark-first design system), `golden-path.ts` (11 mobile-specific compliance rules), `refine.ts` (delta refinement preserving mobile constraints), and `index.ts` barrel.
+*   **Golden Path Rules (11):** expo-router, nativewind-styling, typed-navigation, safe-area-provider, lucide-icons, async-storage-state, typescript-strict, platform-adaptive, haptic-feedback, app-json-config, package-json-pinned.
+*   **Mobile Constraints:** Expo SDK 52+, Expo Router (file-based `app/` dir), NativeWind (className, never StyleSheet.create), lucide-react-native icons, expo-haptics, AsyncStorage, SafeAreaProvider, react-native-reanimated, dark-first design (zinc-950 backgrounds, cyan-400 accents).
+*   **Frontend:** Mobile engine option in PromptForm ("Mobile — Expo + NativeWind"). `AppAnatomy.tsx` classifies RN files (app/*.tsx → pages, components/ → components, hooks/lib → serverLogic, types/constants → schemas, app.json/babel.config.js → configs). Mobile projects default to "static" preview mode (no Sandpack/Swagger).
+*   **Engine Router:** `engine-router.ts` wired to real `@workspace/engine-mobile` functions.
+*   **Type System:** `engine` field added to `ProjectDetails`, `ProjectSummary`, `CreateProjectBody` types across all layers (DB, Zod, api-client-react, frontend). Removed all `as unknown as` casts for engine field. `RefineResult` interface made compatible (optional `previousFiles` and `goldenPathScore`).
+
 **Core Architectural Decisions:**
 *   **Orchestration API:** An Express 5 server manages the project lifecycle, including `pending` through `deployed` (or `failed`) states.
 *   **Multi-Agent AI Pipeline:** A sequential 6-agent pipeline (Architect, Backend, Frontend, Security Reviewer, Verification & Audit Agent, Fixer Agent) drives application generation. A **Self-Healing Loop** triggers the Fixer Agent with error evidence on failure, retrying up to 3 times. **Version Enforcement** post-processes `package.json` versions and performs package substitution. A **Source-Code Post-Processor** rewrites import statements and API usage in `.ts` files when packages are substituted.

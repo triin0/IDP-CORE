@@ -187,7 +187,7 @@ router.post("/projects", requireAuth, async (req, res) => {
       .values({ prompt: body.prompt, userId: req.user!.id, engine: engineId, designPersona: body.designPersona ?? null })
       .returning();
 
-    const engine = getEngine(engineId as "react" | "fastapi");
+    const engine = getEngine(engineId as "react" | "fastapi" | "mobile-expo");
     engine.generateSpec(project.id, body.prompt, body.designPersona).catch(async (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[${engine.id}] Spec generation failed for project ${project.id}:`, message);
@@ -318,7 +318,7 @@ router.post("/projects/:id/approve-spec", requireAuth, async (req, res) => {
       architecturalDecisions: string[];
     } | null;
 
-    const engine = getEngine((project.engine ?? "react") as "react" | "fastapi");
+    const engine = getEngine((project.engine ?? "react") as "react" | "fastapi" | "mobile-expo");
     engine.runPipeline(project.id, project.prompt, spec ?? undefined, project.designPersona ?? undefined)
       .then(() => {
         const r = pendingReservations.get(id);
@@ -366,7 +366,7 @@ router.post("/projects/:id/regenerate-spec", requireAuth, async (req, res) => {
       .set({ status: "pending", spec: null, error: null })
       .where(eq(projectsTable.id, id));
 
-    const engine = getEngine((project.engine ?? "react") as "react" | "fastapi");
+    const engine = getEngine((project.engine ?? "react") as "react" | "fastapi" | "mobile-expo");
     engine.generateSpec(project.id, project.prompt, project.designPersona ?? undefined).catch(async (err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[${engine.id}] Spec regeneration failed for project ${project.id}:`, message);
@@ -482,7 +482,7 @@ router.post("/projects/:id/refine", requireAuth, async (req, res) => {
     }
 
     try {
-      const engine = getEngine((project.engine ?? "react") as "react" | "fastapi");
+      const engine = getEngine((project.engine ?? "react") as "react" | "fastapi" | "mobile-expo");
       const result = await engine.refineProject(id, body.prompt);
 
       await settleCredits(reservation);

@@ -93,7 +93,7 @@ function PreviewPane({
 
   const hasLiveSandbox = !!sandboxPreviewUrl;
 
-  const isFastAPI = (project as unknown as { engine?: string }).engine === "fastapi";
+  const isFastAPI = project.engine === "fastapi";
 
   const staticHtml = useMemo(() => {
     const files = (project.files ?? []) as Array<{ path: string; content: string }>;
@@ -1123,7 +1123,7 @@ function SandpackWorkspaceInner({
   const editorRef = useRef<{ getCodemirror: () => unknown } | null>(null);
   const { inspectActive, toggleInspect, lastSelected } = useXRayInspector(editorRef);
   const hasAnnotations = Array.isArray(project.annotatedFiles) && project.annotatedFiles.length > 0;
-  const isFastAPIInner = (project as unknown as { engine?: string }).engine === "fastapi";
+  const isFastAPIInner = project.engine === "fastapi";
   const [activeFile, setActiveFile] = useState<string | null>(null);
 
   const projectFiles = useMemo(() => {
@@ -1284,8 +1284,10 @@ function SandpackWorkspaceInner({
 
 export function Workspace({ project, onReset }: WorkspaceProps) {
   const [rightPanel, setRightPanel] = useState<"status" | "preview" | "anatomy" | "timeline" | "seeds">("status");
-  const isFastAPIProject = (project as unknown as { engine?: string }).engine === "fastapi";
-  const [previewMode, setPreviewMode] = useState<PreviewMode>(isFastAPIProject ? "swagger" : "sandpack");
+  const projectEngine = project.engine;
+  const isFastAPIProject = projectEngine === "fastapi";
+  const isMobileProject = projectEngine === "mobile-expo";
+  const [previewMode, setPreviewMode] = useState<PreviewMode>(isFastAPIProject ? "swagger" : isMobileProject ? "static" : "sandpack");
   const [showSidebar, setShowSidebar] = useState(true);
   const [snapshotVersion, setSnapshotVersion] = useState(0);
   const [, navigate] = useLocation();

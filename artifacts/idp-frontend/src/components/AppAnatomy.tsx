@@ -50,7 +50,21 @@ function classifyFiles(files: string[], engine?: string) {
   for (const f of files) {
     const name = f.split("/").pop() || f;
 
-    if (engine === "fastapi") {
+    if (engine === "mobile-expo") {
+      if (f.startsWith("app/") && name.endsWith(".tsx")) {
+        pages.push({ name, fullPath: f });
+      } else if (f.includes("components/")) {
+        components.push({ name, fullPath: f });
+      } else if (f.includes("hooks/") || f.includes("lib/") || f.includes("utils/")) {
+        serverLogic.push({ name, fullPath: f });
+      } else if (f.includes("types/") || f.includes("constants/")) {
+        schemas.push({ name, fullPath: f });
+      } else if (name === "app.json" || name === "package.json" || name === "babel.config.js" || name === "tailwind.config.js" || name === "global.css") {
+        configs.push({ name, fullPath: f });
+      } else {
+        serverLogic.push({ name, fullPath: f });
+      }
+    } else if (engine === "fastapi") {
       if (name === "main.py" || f.includes("api/") || f.includes("routes/")) {
         serverRoutes.push({ name, fullPath: f });
       } else if (name.includes("model") || name.includes("schema")) {
@@ -252,7 +266,7 @@ function StatBubble({ icon, value, label, color }: { icon: React.ReactNode; valu
 export function AppAnatomy({ project, onSwitchToEditor }: AppAnatomyProps) {
   const spec = project.spec;
   const files = useMemo(() => spec?.fileStructure ?? [], [spec]);
-  const engine = (project as unknown as { engine?: string }).engine;
+  const engine = project.engine;
   const classified = useMemo(() => classifyFiles(files, engine), [files, engine]);
 
   let sandpack: ReturnType<typeof useSandpack>["sandpack"] | null = null;

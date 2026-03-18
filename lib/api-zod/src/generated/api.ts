@@ -75,10 +75,10 @@ export const CreateProjectBody = zod.object({
     .string()
     .describe("Natural language description of the application to build"),
   engine: zod
-    .enum(["react", "fastapi"])
+    .enum(["react", "fastapi", "mobile-expo"])
     .optional()
     .default("react")
-    .describe("Generation engine: react for React/Express, fastapi for Python/FastAPI"),
+    .describe("Generation engine: react for React/Express, fastapi for Python/FastAPI, mobile-expo for React Native/Expo"),
   designPersona: zod
     .enum(["cupertino", "terminal", "startup", "editorial", "brutalist"])
     .optional()

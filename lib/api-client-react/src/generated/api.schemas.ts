@@ -12,6 +12,8 @@ export interface HealthStatus {
 export interface CreateProjectBody {
   /** Natural language description of the application to build */
   prompt: string;
+  /** Generation engine: react for React/Express, fastapi for Python/FastAPI, mobile-expo for React Native/Expo */
+  engine?: 'react' | 'fastapi' | 'mobile-expo';
   /** Visual design persona to guide the generated UI style */
   designPersona?: 'cupertino' | 'terminal' | 'startup' | 'editorial' | 'brutalist';
 }
@@ -181,6 +183,7 @@ export interface ProjectRefinement {
 export interface ProjectDetails {
   id: string;
   prompt: string;
+  engine?: 'react' | 'fastapi' | 'mobile-expo';
   status: ProjectDetailsStatus;
   spec?: ProjectSpec;
   files: ProjectFile[];
@@ -240,6 +243,7 @@ export const ProjectSummaryStatus = {
 export interface ProjectSummary {
   id: string;
   prompt: string;
+  engine?: 'react' | 'fastapi' | 'mobile-expo';
   status: ProjectSummaryStatus;
   fileCount: number;
   /** Pass rate like '9/9' */

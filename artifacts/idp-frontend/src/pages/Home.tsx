@@ -7,7 +7,7 @@ export function Home() {
   const [, navigate] = useLocation();
   const [enrichedPrompt, setEnrichedPrompt] = useState<string | null>(null);
   const [designPersona, setDesignPersona] = useState<string | undefined>();
-  const [selectedEngine, setSelectedEngine] = useState<"react" | "fastapi">("react");
+  const [selectedEngine, setSelectedEngine] = useState<"react" | "fastapi" | "mobile-expo">("react");
 
   return (
     <div className="flex-1 flex items-center justify-center py-12">

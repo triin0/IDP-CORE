@@ -10,8 +10,14 @@ import {
   refineProject as fastapiRefineProject,
   FASTAPI_GOLDEN_PATH_RULES,
 } from "@workspace/engine-fastapi";
+import {
+  generateSpec as mobileGenerateSpec,
+  runPipeline as mobileRunPipeline,
+  refineProject as mobileRefineProject,
+  MOBILE_GOLDEN_PATH_RULES,
+} from "@workspace/engine-mobile";
 
-type EngineId = "react" | "fastapi";
+type EngineId = "react" | "fastapi" | "mobile-expo";
 
 const reactEngine: EngineInterface = {
   id: "react",
@@ -53,9 +59,30 @@ const fastapiEngine: EngineInterface = {
   },
 };
 
+const mobileExpoEngine: EngineInterface = {
+  id: "mobile-expo",
+  label: "React Native + Expo",
+  async generateSpec(projectId, prompt, _persona?) {
+    await mobileGenerateSpec(projectId, prompt);
+  },
+  async runPipeline(projectId, prompt, spec?, _persona?) {
+    await mobileRunPipeline(projectId, prompt, spec);
+  },
+  async refineProject(projectId, prompt) {
+    return mobileRefineProject(projectId, prompt);
+  },
+  getSandpackSupport() {
+    return false;
+  },
+  getGoldenPathRules() {
+    return MOBILE_GOLDEN_PATH_RULES;
+  },
+};
+
 const engines: Record<EngineId, EngineInterface> = {
   react: reactEngine,
   fastapi: fastapiEngine,
+  "mobile-expo": mobileExpoEngine,
 };
 
 export function getEngine(engineId: EngineId): EngineInterface {
@@ -67,12 +94,13 @@ export function getEngine(engineId: EngineId): EngineInterface {
 }
 
 export function isValidEngine(value: string): value is EngineId {
-  return value === "react" || value === "fastapi";
+  return value === "react" || value === "fastapi" || value === "mobile-expo";
 }
 
 export function getAvailableEngines(): Array<{ id: EngineId; label: string; available: boolean }> {
   return [
     { id: "react", label: "React + Express", available: true },
     { id: "fastapi", label: "FastAPI + SQLAlchemy", available: true },
+    { id: "mobile-expo", label: "React Native + Expo", available: true },
   ];
 }
