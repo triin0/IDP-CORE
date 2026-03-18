@@ -150,18 +150,72 @@ function ComplexityBars({ level }: { level: "low" | "medium" | "high" }) {
   );
 }
 
+interface UserPersona {
+  name: string;
+  age: string;
+  role: string;
+  emoji: string;
+  story: string;
+  painPoint: string;
+  delight: string;
+}
+
+function UserPersonaCards({ personas }: { personas: UserPersona[] }) {
+  return (
+    <div className="px-4 py-3 space-y-2">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-[10px] font-mono text-violet-400/80">WHO IS THIS FOR?</span>
+      </div>
+      <div className="grid grid-cols-1 gap-2">
+        {personas.map((p, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="flex gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.04]"
+          >
+            <div className="text-2xl shrink-0">{p.emoji}</div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-medium text-zinc-200">{p.name}</span>
+                <span className="text-[9px] font-mono text-zinc-600">{p.age} · {p.role}</span>
+              </div>
+              <p className="text-[11px] text-zinc-400 leading-relaxed mb-1.5">{p.story}</p>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <span className="text-[9px] font-mono text-rose-400/60">PAIN POINT</span>
+                  <p className="text-[10px] text-zinc-500 leading-relaxed">{p.painPoint}</p>
+                </div>
+                <div className="flex-1">
+                  <span className="text-[9px] font-mono text-emerald-400/60">DELIGHT</span>
+                  <p className="text-[10px] text-zinc-500 leading-relaxed">{p.delight}</p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function GhostPreview({
   appName,
   tagline,
   features,
+  designPersona,
 }: {
   appName: string;
   tagline: string;
   features: Array<{ category: string; name: string; description: string }>;
+  designPersona?: string | null;
 }) {
   const [code, setCode] = useState<string | null>(null);
+  const [personas, setPersonas] = useState<UserPersona[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPersonas, setShowPersonas] = useState(true);
 
   const generate = useCallback(async () => {
     setLoading(true);
@@ -170,7 +224,7 @@ function GhostPreview({
       const res = await fetch("/api/ghost-preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appName, tagline, features }),
+        body: JSON.stringify({ appName, tagline, features, ...(designPersona ? { designPersona } : {}) }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: "Request failed" }));
@@ -178,12 +232,15 @@ function GhostPreview({
       }
       const data = await res.json();
       setCode(data.code);
+      if (data.userPersonas && Array.isArray(data.userPersonas)) {
+        setPersonas(data.userPersonas);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate preview");
     } finally {
       setLoading(false);
     }
-  }, [appName, tagline, features]);
+  }, [appName, tagline, features, designPersona]);
 
   if (!code && !loading) {
     return (
@@ -273,6 +330,36 @@ root.render(React.createElement(_C));
           className="w-full h-[400px] bg-[#0a0a12]"
           title="Ghost Preview"
         />
+
+        {personas.length > 0 && (
+          <div className="border-t border-white/[0.04]">
+            <button
+              type="button"
+              onClick={() => setShowPersonas(!showPersonas)}
+              className="w-full flex items-center justify-between px-4 py-2 bg-white/[0.01] hover:bg-white/[0.02] transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-violet-400/80">
+                  {personas.length} USER PERSONA{personas.length !== 1 ? "S" : ""} GENERATED
+                </span>
+              </div>
+              <ChevronDown className={cn("w-3 h-3 text-zinc-600 transition-transform", showPersonas && "rotate-180")} />
+            </button>
+            <AnimatePresence>
+              {showPersonas && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <UserPersonaCards personas={personas} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     );
   }
@@ -936,6 +1023,7 @@ Build this as a full-stack web application following all Golden Path standards.`
           appName={result.appName}
           tagline={result.tagline}
           features={ghostFeatures}
+          designPersona={selectedPersona}
         />
       )}
     </motion.div>

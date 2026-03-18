@@ -578,10 +578,11 @@ router.delete("/projects/:id", requireAuth, async (req, res) => {
 
 router.post("/ghost-preview", async (req: Request, res: Response) => {
   try {
-    const { appName, tagline, features } = req.body as {
+    const { appName, tagline, features, designPersona } = req.body as {
       appName?: string;
       tagline?: string;
       features?: Array<{ category: string; name: string; description: string }>;
+      designPersona?: string;
     };
 
     if (!appName || !features || !Array.isArray(features) || features.length === 0) {
@@ -590,31 +591,80 @@ router.post("/ghost-preview", async (req: Request, res: Response) => {
     }
 
     const { callWithRetry } = await import("../lib/ai-retry");
+    const { getPersonaStyleTokens, DESIGN_PERSONAS } = await import("../lib/design-personas");
 
     const featureList = features
       .map((f) => `- ${f.category}: ${f.name} (${f.description})`)
       .join("\n");
 
-    const systemPrompt = `You are a UI wireframe generator. Generate a SINGLE self-contained React component that renders a high-fidelity homepage mockup for the described application.
+    const personaTokens = getPersonaStyleTokens(designPersona);
+    const persona = designPersona ? DESIGN_PERSONAS[designPersona as keyof typeof DESIGN_PERSONAS] : null;
 
-Rules:
-- Return ONLY valid JSON: { "code": "..." }
-- The "code" field contains a complete React component as a default export
-- Use ONLY inline styles (no Tailwind, no CSS imports, no external dependencies)
-- Use a dark theme with these colors: background #0a0a12, cards #12121a, borders #1e1e2e, text #e4e4e7, muted text #71717a, accent #22d3ee
-- Create a professional landing page / dashboard mockup showing:
-  - A navigation bar with the app name and placeholder menu items
-  - A hero section with the tagline
-  - Feature cards or sections based on the enabled features
-  - A call-to-action button
-  - A footer
-- Make it look like a real product — use realistic placeholder text, not "Lorem ipsum"
-- All content must be hardcoded (no props, no API calls, no state management)
-- Use modern layout: flexbox or CSS grid via inline styles
-- Include visual hierarchy: headings, subheadings, body text
-- Add subtle visual details: rounded corners, box shadows, emoji or unicode icons
-- The component MUST be declared as: function App() { ... } (NO export keyword — the code runs in a script tag, not a module)
-- Keep it under 200 lines`;
+    const voiceDirective = persona ? `
+
+VOICE & CONTENT STYLE — "${persona.name}":
+${designPersona === "cupertino" ? `Write copy like Apple: minimal, elegant, confident. Short sentences. "Just works." Premium feel. Use words like "beautiful," "effortless," "designed for." Whitespace IS content.` :
+  designPersona === "terminal" ? `Write copy like a hacker's README: terse, technical-sounding, confident. Use code metaphors. Prefix things with ">" or "$". Version numbers in badges. "Engineered for speed." "Zero overhead." Status indicators everywhere.` :
+  designPersona === "startup" ? `Write copy like a Y Combinator landing page: bold, punchy, aspirational. Big claims. Social proof numbers. "Join 10,000+ users." "The fastest way to..." Emoji in CTAs. Energy and momentum.` :
+  designPersona === "editorial" ? `Write copy like a New York Times feature: sophisticated, measured, literary. Longer sentences with rhythm. Pull-quotes. "A new way to think about..." Understated confidence. Let the typography speak.` :
+  designPersona === "brutalist" ? `Write copy like a manifesto: UPPERCASE HEADERS. Short. Blunt. No fluff. "IT WORKS." "NO NONSENSE." Direct imperatives. Counter-cultural tone. Anti-marketing marketing.` :
+  "Write copy that fits the selected design persona."}` : "";
+
+    const personaStyleBlock = personaTokens ? `
+
+VISUAL STYLE — Apply this persona's design language:
+${personaTokens}
+The entire mockup MUST use this style. Colors, typography, spacing, borders, and component shapes must all match this persona.` : `
+Use a dark theme with these colors: background #0a0a12, cards #12121a, borders #1e1e2e, text #e4e4e7, muted text #71717a, accent #22d3ee`;
+
+    const systemPrompt = `You are a UI mockup generator that creates VIVID, REALISTIC previews. Your job is to make creators SEE their vision come alive — not just empty wireframes, but a living, breathing preview of what their app COULD be.
+
+Return ONLY valid JSON with this structure:
+{
+  "code": "...",
+  "userPersonas": [
+    {
+      "name": "string — a realistic first name",
+      "age": "string — age range like '28' or '34'",
+      "role": "string — their relationship to the app (e.g., 'Power Lender', 'Weekend Borrower', 'Neighborhood Admin')",
+      "emoji": "string — a single emoji representing this persona",
+      "story": "string — 1-2 sentences: who they are and why they'd use this app. Make it vivid and specific.",
+      "painPoint": "string — the ONE problem this app solves for them",
+      "delight": "string — the ONE thing about this app that would make them smile"
+    }
+  ]
+}
+
+CODE RULES:
+- The "code" field contains a SINGLE React component
+- Use ONLY inline styles (no Tailwind, no CSS imports)
+- The component MUST be declared as: function App() { ... } (NO export keyword)
+- All content hardcoded (no props, no API calls, no state)
+- Keep it under 250 lines
+${personaStyleBlock}${voiceDirective}
+
+CONTENT RULES — "Hallucinate Vividly":
+- DO NOT use "Lorem ipsum" or "Sample text" — every piece of text should feel REAL
+- Generate realistic user profiles with names, avatars (use emoji faces), and believable bios
+- Generate realistic data: product listings, prices, ratings, dates, locations, metrics
+- For a tool rental app: show specific tools ("DeWalt 20V Drill", "$5/day"), real-seeming neighbor names, star ratings
+- For a social app: show realistic posts, follower counts, engagement metrics
+- For a dashboard: show plausible KPIs, charts (as styled divs), trend indicators
+- The mockup should make the user think "YES, that's exactly what I imagined"
+
+LAYOUT REQUIREMENTS:
+- Create a professional app mockup (landing page or dashboard view)
+- Navigation bar with the app name
+- Hero section with tagline
+- At least 2-3 content sections showing REALISTIC data for the app's features
+- Feature highlights with realistic content
+- Social proof or testimonials section with hallucinated user quotes
+- Call-to-action
+- Footer
+
+USER PERSONAS:
+Generate 2-3 user personas — fictional but believable people who would LOVE this app.
+Make them diverse in age, background, and use-case. Their stories should make the creator think "I'm building this for real people."`;
 
     const raw = await callWithRetry(
       {
@@ -624,10 +674,10 @@ Rules:
           { role: "system", content: systemPrompt },
           {
             role: "user",
-            content: `Generate a homepage mockup for "${appName}" — ${tagline || ""}
+            content: `Generate a vivid homepage mockup for "${appName}" — ${tagline || ""}
 
 Enabled features:
-${featureList}`,
+${featureList}${persona ? `\n\nDesign Persona: ${persona.name} — ${persona.tagline}` : ""}`,
           },
         ],
         response_format: { type: "json_object" },
@@ -656,7 +706,9 @@ ${featureList}`,
       .replace(/export\s+default\s+/g, "")
       .replace(/export\s+function/g, "function");
 
-    res.json({ code: cleanCode });
+    const userPersonas = Array.isArray(parsed.userPersonas) ? parsed.userPersonas : [];
+
+    res.json({ code: cleanCode, userPersonas });
   } catch (err: unknown) {
     const internal = err instanceof Error ? err.message : "Unknown error";
     console.error("Ghost Preview error:", internal);
