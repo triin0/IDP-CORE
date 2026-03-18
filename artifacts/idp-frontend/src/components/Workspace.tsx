@@ -643,9 +643,10 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
 
   const sandpackFiles = useMemo(
     () => prepareSandpackFiles(
-      (project.files ?? []) as Array<{ path: string; content: string }>
+      (project.files ?? []) as Array<{ path: string; content: string }>,
+      (project.annotatedFiles ?? undefined) as Array<{ path: string; content: string }> | undefined,
     ).files,
-    [project.files]
+    [project.files, project.annotatedFiles]
   );
 
   const hasAnyFiles = Object.keys(sandpackFiles).length > 0;

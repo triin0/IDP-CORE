@@ -207,12 +207,27 @@ router.get("/projects/:id", requireAuth, async (req, res) => {
     const project = await loadOwnedProject(req, res, id);
     if (!project) return;
 
+    const files = project.files ?? [];
+    let annotatedFiles: Array<{ path: string; content: string }> | undefined;
+    if (files.length > 0) {
+      try {
+        const { annotateProjectFiles, mergeAnnotatedFiles } = await import("../lib/source-annotator");
+        const annotations = annotateProjectFiles(files);
+        if (annotations.length > 0) {
+          annotatedFiles = mergeAnnotatedFiles(files, annotations);
+        }
+      } catch (err) {
+        console.warn("[xray] Source annotation failed, serving clean files only:", err instanceof Error ? err.message : err);
+      }
+    }
+
     res.json({
       id: project.id,
       prompt: project.prompt,
       status: project.status,
       spec: project.spec ?? undefined,
-      files: project.files ?? [],
+      files,
+      annotatedFiles,
       goldenPathChecks: project.goldenPathChecks ?? [],
       pipelineStatus: project.pipelineStatus ?? undefined,
       verificationVerdict: project.verificationVerdict ?? undefined,

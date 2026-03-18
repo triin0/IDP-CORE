@@ -184,6 +184,7 @@ export interface ProjectDetails {
   status: ProjectDetailsStatus;
   spec?: ProjectSpec;
   files: ProjectFile[];
+  annotatedFiles?: ProjectFile[];
   goldenPathChecks: GoldenPathCheck[];
   pipelineStatus?: PipelineStatus;
   verificationVerdict?: VerificationVerdict;

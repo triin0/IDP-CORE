@@ -28,7 +28,7 @@ The IDP is built as a pnpm workspace monorepo. It features an Express 5 API serv
 *   **Real-Time SSE:** `PipelineEventBus` emits structured events for real-time updates on pipeline status, verification, self-healing, and build output to the frontend.
 
 **Frontend (Observable UI):**
-*   **Sandpack-Powered Workspace:** The primary IDE view uses `@codesandbox/sandpack-react` for an embedded code editor with file explorer, line numbers, and syntax highlighting. The workspace uses `react-resizable-panels` for a split-pane layout (editor | preview | status). Shared utilities in `lib/sandpack-utils.ts` (theme + file preparation).
+*   **Sandpack-Powered Workspace:** The primary IDE view uses `@codesandbox/sandpack-react` for an embedded code editor with file explorer, line numbers, and syntax highlighting. The workspace uses `react-resizable-panels` for a split-pane layout (editor | preview | status). Shared utilities in `lib/sandpack-utils.ts` (theme + dual-mode file preparation supporting clean editor view + annotated runtime with X-Ray bridge injection).
 *   **Preview Modes:** Three preview modes available: (1) Sandpack — hot-reloading client-side preview via SandpackPreview, (2) Live Sandbox — iframe embedding the CodeSandbox VM URL, (3) Info — static HTML overview showing pages, components, backend, and tech stack.
 *   **App Anatomy Dashboard ("X-Ray" v2):** A visual body-metaphor view (`AppAnatomy.tsx`) accessible via the "X-Ray" tab in the Workspace right panel. Breaks the project into five organs: **The Face** (UI pages and components — clickable to open in Sandpack editor), **The Brain** (API endpoints with linked table indicators showing which DB table each endpoint touches), **The Memory** (database tables with expandable spreadsheet-style column grids showing name/type/constraints), **The Shield** (security middleware), **The Foundation** (architectural decisions). Includes stat bubbles, project overview, and expandable organ cards with color-coded items and method badges. Uses `useSandpack` hook for file navigation.
 *   **Snapshot Time Travel ("Timeline" tab):** A horizontal timeline UI (`SnapshotTimeline.tsx`) showing version history from initial build through all refinements. Each version shows the prompt, timestamp, and file count. Users can restore to any previous version via a confirmation dialog. Backend `POST /api/projects/:id/rollback` endpoint reverses refinements by replaying `previousFiles` snapshots in reverse order.
@@ -56,6 +56,7 @@ The IDP is built as a pnpm workspace monorepo. It features an Express 5 API serv
 *   **Validation:** Zod (`zod/v4`)
 *   **API Codegen:** Orval
 *   **AI Providers:** `@google/generative-ai` (Gemini), OpenAI SDK (via Replit AI Integrations)
+*   **AST Tooling:** @babel/core, @babel/parser, @babel/traverse, @babel/generator, @babel/types, @babel/plugin-syntax-typescript, @babel/plugin-syntax-jsx (server-side JSX annotation for X-Ray Inspector)
 *   **Build Tools:** esbuild, tsx
 *   **Frontend Libraries:** React 19, Vite 7, Tailwind CSS v4, Shadcn UI, Framer Motion, Lucide React, react-syntax-highlighter, diff (v7)
 *   **Vulnerability Database:** OSV

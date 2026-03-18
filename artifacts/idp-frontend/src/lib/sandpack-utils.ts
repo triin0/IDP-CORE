@@ -4,8 +4,120 @@ const SKIP_FILES = new Set([
   "postcss.config.js", "tailwind.config.js", "tailwind.config.ts",
 ]);
 
-export function prepareSandpackFiles(files: Array<{ path: string; content: string }>) {
-  const sandpackFiles: Record<string, { code: string; active?: boolean }> = {};
+interface SandpackFileEntry {
+  code: string;
+  active?: boolean;
+  hidden?: boolean;
+  readOnly?: boolean;
+}
+
+function normalizePath(filePath: string, basePrefix: string): string | null {
+  let p = filePath;
+  if (basePrefix && p.startsWith(basePrefix)) {
+    p = p.slice(basePrefix.length);
+  }
+  if (p.startsWith("src/")) {
+    p = p.slice(4);
+  }
+  if (SKIP_FILES.has(p)) return null;
+  if (p === "public/index.html" || p === "index.html") return null;
+  return `/${p}`;
+}
+
+export const XRAY_BRIDGE_PATH = "/__idp-xray-bridge.js";
+
+const XRAY_BRIDGE_CODE = `
+(function() {
+  var active = false;
+  var overlay = null;
+  var tooltip = null;
+  var ATTR = "data-idp-source";
+
+  function createOverlay() {
+    overlay = document.createElement("div");
+    overlay.id = "__idp-xray-overlay";
+    overlay.style.cssText = "position:fixed;pointer-events:none;border:2px solid #22d3ee;background:rgba(34,211,238,0.08);z-index:99999;transition:all 0.15s ease;display:none;border-radius:4px;";
+    tooltip = document.createElement("div");
+    tooltip.id = "__idp-xray-tooltip";
+    tooltip.style.cssText = "position:fixed;pointer-events:none;z-index:100000;background:#0a0a0f;color:#22d3ee;font-family:monospace;font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid rgba(34,211,238,0.3);display:none;white-space:nowrap;";
+    document.body.appendChild(overlay);
+    document.body.appendChild(tooltip);
+  }
+
+  function findAnnotated(el) {
+    var node = el;
+    while (node && node !== document.body) {
+      if (node.getAttribute && node.getAttribute(ATTR)) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  function onMouseMove(e) {
+    if (!active || !overlay) return;
+    var target = findAnnotated(e.target);
+    if (target) {
+      var rect = target.getBoundingClientRect();
+      overlay.style.left = rect.left + "px";
+      overlay.style.top = rect.top + "px";
+      overlay.style.width = rect.width + "px";
+      overlay.style.height = rect.height + "px";
+      overlay.style.display = "block";
+      var source = target.getAttribute(ATTR);
+      var parts = source.split(":");
+      var file = parts.slice(0, -2).join(":");
+      var shortName = file.split("/").pop();
+      tooltip.textContent = shortName + " :" + parts[parts.length - 2];
+      tooltip.style.left = rect.left + "px";
+      tooltip.style.top = Math.max(0, rect.top - 24) + "px";
+      tooltip.style.display = "block";
+    } else {
+      overlay.style.display = "none";
+      tooltip.style.display = "none";
+    }
+  }
+
+  function onClick(e) {
+    if (!active) return;
+    var target = findAnnotated(e.target);
+    if (target) {
+      e.preventDefault();
+      e.stopPropagation();
+      var source = target.getAttribute(ATTR);
+      window.parent.postMessage({ type: "idp-xray-select", source: source }, "*");
+    }
+  }
+
+  window.addEventListener("message", function(e) {
+    if (e.data && e.data.type === "idp-xray-activate") {
+      active = true;
+      if (!overlay) createOverlay();
+      document.body.style.cursor = "crosshair";
+    } else if (e.data && e.data.type === "idp-xray-deactivate") {
+      active = false;
+      if (overlay) overlay.style.display = "none";
+      if (tooltip) tooltip.style.display = "none";
+      document.body.style.cursor = "";
+    }
+  });
+
+  document.addEventListener("mousemove", onMouseMove, true);
+  document.addEventListener("click", onClick, true);
+})();
+`;
+
+export function prepareSandpackFiles(
+  files: Array<{ path: string; content: string }>,
+  annotatedFiles?: Array<{ path: string; content: string }>,
+) {
+  const sandpackFiles: Record<string, SandpackFileEntry> = {};
+  const annotatedMap = new Map<string, string>();
+
+  if (annotatedFiles) {
+    for (const af of annotatedFiles) {
+      annotatedMap.set(af.path, af.content);
+    }
+  }
 
   const clientFiles = files.filter((f) => f.path.startsWith("client/"));
   const hasClient = clientFiles.length > 0;
@@ -13,22 +125,30 @@ export function prepareSandpackFiles(files: Array<{ path: string; content: strin
   const basePrefix = hasClient ? "client/" : "";
 
   for (const file of sourceFiles) {
-    let filePath = file.path;
-    if (basePrefix && filePath.startsWith(basePrefix)) {
-      filePath = filePath.slice(basePrefix.length);
-    }
-    if (filePath.startsWith("src/")) {
-      filePath = filePath.slice(4);
-    }
-    if (SKIP_FILES.has(filePath)) continue;
-    if (filePath === "public/index.html" || filePath === "index.html") continue;
+    const sandpackPath = normalizePath(file.path, basePrefix);
+    if (!sandpackPath) continue;
 
-    sandpackFiles[`/${filePath}`] = { code: file.content };
+    const annotatedContent = annotatedMap.get(file.path);
+    sandpackFiles[sandpackPath] = {
+      code: annotatedContent ?? file.content,
+    };
   }
 
   const appEntry = sandpackFiles["/App.tsx"] || sandpackFiles["/App.jsx"];
   if (appEntry) {
     appEntry.active = true;
+  }
+
+  if (annotatedFiles && annotatedFiles.length > 0) {
+    sandpackFiles[XRAY_BRIDGE_PATH] = {
+      code: XRAY_BRIDGE_CODE,
+      hidden: true,
+      readOnly: true,
+    };
+
+    if (appEntry) {
+      appEntry.code = `import "${XRAY_BRIDGE_PATH}";\n${appEntry.code}`;
+    }
   }
 
   return { files: sandpackFiles };
