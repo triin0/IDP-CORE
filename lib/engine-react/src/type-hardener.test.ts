@@ -307,6 +307,82 @@ router.get("/:table", async (req, res) => {
     "Fix message mentions Express v5 or admin route");
 }
 
+console.log("\n=== Pass 8: fixFramerMotionPropSpreads ===");
+{
+  const files = [
+    {
+      path: "client/src/components/ui/Button.tsx",
+      content: `import { motion } from "framer-motion";
+import React from "react";
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "secondary";
+}
+
+export function Button({ children, variant = "primary", className, ...props }: ButtonProps) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.97 }}
+      {...props}
+      className={className}
+    >
+      {children}
+    </motion.button>
+  );
+}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const btnFile = result.files.find(f => f.path === "client/src/components/ui/Button.tsx")!;
+
+  assert(btnFile.content.includes("{...(props as any)}"),
+    `motion.button prop spread cast to any`);
+  assert(!btnFile.content.includes("{...props}"),
+    "Raw {...props} no longer present");
+  assert(result.fixes.some(f => f.includes("motion component")),
+    "Fix message mentions motion component");
+}
+
+console.log("\n=== Pass 8b: fixFramerMotionPropSpreads - no-op without motion ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Card.tsx",
+      content: `import React from "react";
+export function Card({ ...props }) {
+  return <div {...props} />;
+}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const cardFile = result.files.find(f => f.path === "client/src/components/Card.tsx")!;
+  assert(!result.fixes.some(f => f.includes("motion")),
+    "No fix when no motion components");
+  assert(cardFile.content.includes("{...props}"),
+    "Non-motion spread unchanged");
+}
+
+console.log("\n=== Pass 8c: fixFramerMotionPropSpreads - motion.div with spread ===");
+{
+  const files = [
+    {
+      path: "client/src/components/AnimatedCard.tsx",
+      content: `import { motion } from "framer-motion";
+export function AnimatedCard({ className, ...rest }: any) {
+  return <motion.div animate={{ opacity: 1 }} {...rest} className={className} />;
+}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const file = result.files.find(f => f.path === "client/src/components/AnimatedCard.tsx")!;
+
+  assert(file.content.includes("{...(rest as any)}"),
+    "motion.div prop spread cast to any");
+}
+
 console.log("\n=== Integration: all passes together (realistic generation) ===");
 {
   const files = [
@@ -382,6 +458,13 @@ router.get("/:table", async (req, res) => {
 });`,
     },
     { path: "client/src/App.tsx", content: "export default function App() { return <div>Hi</div>; }" },
+    {
+      path: "client/src/components/ui/Button.tsx",
+      content: `import { motion } from "framer-motion";
+export function Button({ children, ...props }: any) {
+  return <motion.button whileTap={{ scale: 0.97 }} {...props}>{children}</motion.button>;
+}`,
+    },
   ];
 
   const result = hardenGeneratedTypes(files);
@@ -406,7 +489,11 @@ router.get("/:table", async (req, res) => {
 
   const clientFile = result.files.find(f => f.path === "client/src/App.tsx")!;
   assert(clientFile.content === "export default function App() { return <div>Hi</div>; }",
-    "Integration: client files untouched");
+    "Integration: non-motion client files untouched");
+
+  const btnFile = result.files.find(f => f.path === "client/src/components/ui/Button.tsx")!;
+  assert(btnFile.content.includes("{...(props as any)}"),
+    "Integration: motion.button prop spread cast");
 
   console.log(`\nIntegration total fixes: ${result.fixes.length}`);
   result.fixes.forEach(f => console.log(`  - ${f}`));

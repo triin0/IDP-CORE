@@ -78,4 +78,8 @@ Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs 7 det
 6. **fixDrizzleTableFields** — Replaces `table.fields` with `getTableColumns(table)`.
 7. **fixAdminRouteTypes** — Fixes `tables[param]` index type errors in admin routes.
 
-Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events.
+8. **fixFramerMotionPropSpreads** — Casts prop spreads on `motion.*` components (`{...props}` → `{...(props as any)}`) to avoid framer-motion/HTML event handler type conflicts (e.g. `onDrag` incompatibility).
+
+Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events. Hardened files are persisted back to the project via `hardenedFiles` return from `runVerificationStage`.
+
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 52 tests covering all 8 passes.

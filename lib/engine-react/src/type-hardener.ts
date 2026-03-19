@@ -377,6 +377,45 @@ function fixMissingTypeDeclarations(
   return { files: updatedFiles, fixes };
 }
 
+function fixFramerMotionPropSpreads(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const updatedFiles = files.map(file => {
+    if (!file.path.includes("client/") || !file.path.match(/\.[tj]sx$/)) return file;
+    if (!file.content.includes("motion.")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    content = content.replace(
+      /<motion\.(\w+)\s+\{\.\.\.(\w+)\}/g,
+      (match, element, propsVar) => {
+        modified = true;
+        return `<motion.${element} {...(${propsVar} as any)}`;
+      }
+    );
+
+    content = content.replace(
+      /<motion\.(\w+)([^>]*?)\s+\{\.\.\.(\w+)\}/g,
+      (match, element, middle, propsVar) => {
+        if (match.includes("as any")) return match;
+        modified = true;
+        return `<motion.${element}${middle} {...(${propsVar} as any)}`;
+      }
+    );
+
+    if (modified) {
+      fixes.push(`[${file.path}] Cast motion component prop spreads to avoid type conflicts`);
+      return { path: file.path, content };
+    }
+    return file;
+  });
+
+  return { files: updatedFiles, fixes };
+}
+
 export function hardenGeneratedTypes(
   files: Array<{ path: string; content: string }>,
 ): HardenerResult {
@@ -410,6 +449,10 @@ export function hardenGeneratedTypes(
   const adminFix = fixAdminRouteTypes(currentFiles);
   currentFiles = adminFix.files;
   allFixes.push(...adminFix.fixes);
+
+  const framerFix = fixFramerMotionPropSpreads(currentFiles);
+  currentFiles = framerFix.files;
+  allFixes.push(...framerFix.fixes);
 
   return { files: currentFiles, fixes: allFixes };
 }
