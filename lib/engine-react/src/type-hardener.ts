@@ -15,10 +15,12 @@ function fixExpressV5Params(
     let content = file.content;
     let modified = false;
 
+    const destructuredParams = new Set<string>();
     content = content.replace(
       /(?:const|let)\s*\{\s*([^}]+)\}\s*=\s*req\.params\s*;/g,
       (match, destructured: string) => {
         const vars = destructured.split(",").map((v: string) => v.trim()).filter(Boolean);
+        for (const v of vars) destructuredParams.add(v);
         const casts = vars.map((v: string) => `const ${v} = req.params.${v} as string;`).join("\n  ");
         modified = true;
         return casts;
@@ -26,10 +28,8 @@ function fixExpressV5Params(
     );
 
     content = content.replace(
-      /req\.params\.(\w+)(?!\s+as\s)/g,
+      /req\.params\.(\w+)/g,
       (match, param, offset) => {
-        const before = content.slice(Math.max(0, offset - 30), offset);
-        if (before.includes("as string") || before.includes("String(")) return match;
         const after = content.slice(offset + match.length, offset + match.length + 15);
         if (after.trimStart().startsWith("as ")) return match;
         modified = true;
