@@ -142,9 +142,27 @@ export function prepareSandpackFiles(
     sandpackFiles[sandpackPath] = { code };
   }
 
+  const API_MOCK_PATH = "/__api-mock.js";
+  const API_MOCK_CODE = `
+const _origFetch = window.fetch;
+window.fetch = function(url, opts) {
+  if (typeof url === "string" && (url.startsWith("/api") || url.includes("/api/"))) {
+    const method = (opts && opts.method || "GET").toUpperCase();
+    const body = method === "GET" ? "[]" : '{"id":1,"ok":true}';
+    return Promise.resolve(new Response(body, {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+  }
+  return _origFetch.apply(this, arguments);
+};
+`;
+  sandpackFiles[API_MOCK_PATH] = { code: API_MOCK_CODE, hidden: true, readOnly: true };
+
   const appEntry = sandpackFiles["/App.tsx"] || sandpackFiles["/App.jsx"];
   if (appEntry) {
     appEntry.active = true;
+    appEntry.code = `import "${API_MOCK_PATH}";\n${appEntry.code}`;
   }
 
   if (annotatedFiles && annotatedFiles.length > 0) {
