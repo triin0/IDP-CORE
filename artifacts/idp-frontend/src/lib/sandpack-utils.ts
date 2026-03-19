@@ -139,7 +139,35 @@ export function prepareSandpackFiles(
       return '""';
     });
     code = code.replace(/import\.meta\.env/g, '({})');
+    if (sandpackPath.endsWith(".css")) {
+      code = code.replace(/@import\s+["']tailwindcss["']\s*;?/g, "");
+      code = code.replace(/@tailwind\s+\w+\s*;?/g, "");
+    }
     sandpackFiles[sandpackPath] = { code };
+  }
+
+  const TAILWIND_CDN_PATH = "/__tailwind-cdn.js";
+  const hasTailwind = clientFiles.some(f =>
+    f.content.includes("tailwindcss") || f.content.includes("@tailwind")
+  );
+  if (hasTailwind) {
+    const TAILWIND_CDN_CODE = `
+if (!document.getElementById("__tw-cdn")) {
+  var s = document.createElement("script");
+  s.id = "__tw-cdn";
+  s.src = "https://cdn.tailwindcss.com";
+  document.head.appendChild(s);
+  s.onload = function() {
+    if (window.tailwind) {
+      window.tailwind.config = {
+        darkMode: "class",
+        theme: { extend: { fontFamily: { sans: ["Inter", "system-ui", "sans-serif"], mono: ["JetBrains Mono", "monospace"] } } }
+      };
+    }
+  };
+}
+`;
+    sandpackFiles[TAILWIND_CDN_PATH] = { code: TAILWIND_CDN_CODE, hidden: true, readOnly: true };
   }
 
   const API_MOCK_PATH = "/__api-mock.js";
@@ -162,7 +190,10 @@ window.fetch = function(url, opts) {
   const appEntry = sandpackFiles["/App.tsx"] || sandpackFiles["/App.jsx"];
   if (appEntry) {
     appEntry.active = true;
-    appEntry.code = `import "${API_MOCK_PATH}";\n${appEntry.code}`;
+    const injections: string[] = [];
+    if (hasTailwind) injections.push(`import "${TAILWIND_CDN_PATH}";`);
+    injections.push(`import "${API_MOCK_PATH}";`);
+    appEntry.code = injections.join("\n") + "\n" + appEntry.code;
   }
 
   if (annotatedFiles && annotatedFiles.length > 0) {

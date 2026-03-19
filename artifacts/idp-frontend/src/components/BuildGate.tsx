@@ -42,7 +42,7 @@ const GATE_CONFIG = [
   { key: "security", label: "Security Review", icon: Shield, color: "text-emerald-400" },
 ];
 
-function deriveGateStatus(verdict: VerificationVerdictData | null | undefined, key: string): "pass" | "fail" | "pending" {
+function deriveGateStatus(verdict: VerificationVerdictData | null | undefined, key: string): "pass" | "fail" | "warn" | "pending" {
   if (!verdict) return "pending";
 
   switch (key) {
@@ -50,8 +50,11 @@ function deriveGateStatus(verdict: VerificationVerdictData | null | undefined, k
       return verdict.failureCategory !== "golden_path_violation" ? "pass" : "fail";
     case "dependencies":
       return verdict.dependencyErrors.length === 0 && verdict.failureCategory !== "dependency_hallucination" && verdict.failureCategory !== "dependency_vulnerability" ? "pass" : "fail";
-    case "build":
-      return (verdict.buildPassed ?? !verdict.buildStderr) && verdict.failureCategory !== "build_failure" ? "pass" : "fail";
+    case "build": {
+      const buildOk = (verdict.buildPassed ?? !verdict.buildStderr) && verdict.failureCategory !== "build_failure";
+      if (buildOk) return "pass";
+      return verdict.passed ? "warn" : "fail";
+    }
     case "hash_integrity":
       return verdict.failureCategory !== "hash_integrity" ? "pass" : "fail";
     case "security": {
@@ -66,6 +69,7 @@ function deriveGateStatus(verdict: VerificationVerdictData | null | undefined, k
 export function BuildGate({ verdict, isValidating, status }: BuildGateProps) {
   const allPassed = verdict?.passed === true;
   const hasVerdict = !!verdict;
+  const hasWarnings = allPassed && verdict?.buildPassed === false;
 
   return (
     <motion.div
@@ -84,9 +88,14 @@ export function BuildGate({ verdict, isValidating, status }: BuildGateProps) {
         <span className="font-mono text-xs font-semibold text-zinc-400 uppercase tracking-wider">
           Verification Gate
         </span>
-        {allPassed && (
+        {allPassed && !hasWarnings && (
           <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20">
             ALL GATES PASSED
+          </span>
+        )}
+        {allPassed && hasWarnings && (
+          <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            PASSED WITH WARNINGS
           </span>
         )}
         {hasVerdict && !allPassed && (
@@ -110,6 +119,7 @@ export function BuildGate({ verdict, isValidating, status }: BuildGateProps) {
               className={cn(
                 "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md border text-xs font-mono transition-all",
                 gateStatus === "pass" && "border-green-500/20 bg-green-500/5",
+                gateStatus === "warn" && "border-amber-500/20 bg-amber-500/5",
                 gateStatus === "fail" && "border-red-500/20 bg-red-500/5",
                 gateStatus === "pending" && "border-zinc-800 bg-zinc-900/30",
               )}
@@ -118,12 +128,14 @@ export function BuildGate({ verdict, isValidating, status }: BuildGateProps) {
               <span className={cn(
                 "flex-1",
                 gateStatus === "pass" && "text-green-400/80",
+                gateStatus === "warn" && "text-amber-400/80",
                 gateStatus === "fail" && "text-red-400/80",
                 gateStatus === "pending" && "text-zinc-500",
               )}>
                 {gate.label}
               </span>
               {gateStatus === "pass" && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+              {gateStatus === "warn" && <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
               {gateStatus === "fail" && <XCircle className="w-3.5 h-3.5 text-red-500" />}
               {gateStatus === "pending" && isValidating && <Loader2 className="w-3.5 h-3.5 text-zinc-600 animate-spin" />}
               {gateStatus === "pending" && !isValidating && <div className="w-3.5 h-3.5 rounded-full border border-zinc-700" />}
@@ -136,9 +148,9 @@ export function BuildGate({ verdict, isValidating, status }: BuildGateProps) {
         const decoded = decryptError(verdict.buildStderr);
         return (
           <details className="group mt-2">
-            <summary className="flex items-center gap-2 text-[10px] font-mono text-red-400/70 cursor-pointer hover:text-red-400 transition-colors">
+            <summary className="flex items-center gap-2 text-[10px] font-mono text-amber-400/70 cursor-pointer hover:text-amber-400 transition-colors">
               <AlertTriangle className="w-3 h-3" />
-              Build stderr ({verdict.buildStderr.split("\n").length} lines)
+              Build warnings ({verdict.buildStderr.split("\n").length} lines)
             </summary>
             <div className="mt-1 p-2 rounded border border-amber-500/20 bg-amber-500/5 text-xs text-zinc-300">
               <span className="mr-1">{decoded.emoji}</span>

@@ -1366,6 +1366,9 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
       for (const key of Object.keys(deps)) {
         if (NODE_ONLY.has(key) || key.startsWith("@types/")) delete deps[key];
       }
+      if (deps["framer-motion"]) {
+        deps["@emotion/is-prop-valid"] = "^1.2.2";
+      }
       return deps;
     } catch { return {}; }
   }, [project.files]);
