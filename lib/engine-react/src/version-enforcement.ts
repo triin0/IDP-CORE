@@ -5,6 +5,7 @@ const MANDATED_SERVER_DEPS: Record<string, string> = {
   "express-rate-limit": "^7.5.0",
   "zod": "^3.25.0",
   "drizzle-orm": "^0.44.0",
+  "drizzle-zod": "^0.7.0",
   "pg": "^8.16.0",
   "dotenv": "^16.5.0",
 };
@@ -173,7 +174,11 @@ function enforceVersions(
   const devDeps = (pkg.devDependencies || {}) as Record<string, string>;
 
   for (const [name, version] of Object.entries(mandatedDeps)) {
-    if (deps[name] && deps[name] !== version) {
+    if (!deps[name]) {
+      fixes.push(`Added missing ${name}@${version}`);
+      deps[name] = version;
+      modified = true;
+    } else if (deps[name] !== version) {
       fixes.push(`${name}: ${deps[name]} → ${version}`);
       deps[name] = version;
       modified = true;
@@ -181,7 +186,11 @@ function enforceVersions(
   }
 
   for (const [name, version] of Object.entries(mandatedDevDeps)) {
-    if (devDeps[name] && devDeps[name] !== version) {
+    if (!devDeps[name]) {
+      fixes.push(`Added missing ${name}@${version} (dev)`);
+      devDeps[name] = version;
+      modified = true;
+    } else if (devDeps[name] !== version) {
       fixes.push(`${name} (dev): ${devDeps[name]} → ${version}`);
       devDeps[name] = version;
       modified = true;
@@ -223,7 +232,7 @@ function enforceVersions(
     pkg.devDependencies = devDeps;
   }
 
-  return { modified, fixes };
+  return { modified: modified || Object.keys(deps).length > 0, fixes };
 }
 
 function rewriteSourceImports(
@@ -309,6 +318,30 @@ function detectSubstitutedPackages(
   return substituted;
 }
 
+function fixDrizzleColumnTypes(
+  files: Array<{ path: string; content: string }>,
+): { files: Array<{ path: string; content: string }>; fixes: string[] } {
+  const fixes: string[] = [];
+  const updatedFiles = files.map(file => {
+    if (!file.path.includes("schema") || !file.path.match(/\.[tj]sx?$/)) return file;
+    let content = file.content;
+    let modified = false;
+
+    if (/\bfloat\b/.test(content) && content.includes("drizzle-orm/pg-core")) {
+      content = content.replace(
+        /(import\s*\{[^}]*)\bfloat\b([^}]*\}\s*from\s*["']drizzle-orm\/pg-core["'])/g,
+        (_, before, after) => `${before}doublePrecision${after}`
+      );
+      content = content.replace(/\bfloat\s*\(/g, "doublePrecision(");
+      fixes.push(`[${file.path}] Replaced 'float' with 'doublePrecision' (pg-core)`);
+      modified = true;
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+  return { files: updatedFiles, fixes };
+}
+
 export function enforcePackageVersions(
   files: Array<{ path: string; content: string }>,
 ): { files: Array<{ path: string; content: string }>; fixes: string[] } {
@@ -349,6 +382,10 @@ export function enforcePackageVersions(
     updatedFiles = importResult.files;
     allFixes.push(...importResult.fixes);
   }
+
+  const drizzleResult = fixDrizzleColumnTypes(updatedFiles);
+  updatedFiles = drizzleResult.files;
+  allFixes.push(...drizzleResult.fixes);
 
   return { files: updatedFiles, fixes: allFixes };
 }

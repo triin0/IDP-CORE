@@ -323,6 +323,29 @@ All shared types MUST live inside \`server/src/\` (within the rootDir). Do NOT i
 - ${security.requireRateLimiting ? "MUST apply rate limiting with express-rate-limit" : ""}
 - ${security.noHardcodedSecrets ? "NO hardcoded secrets — use process.env for ALL sensitive values" : ""}
 
+### CRITICAL: SCHEMA SYNCHRONIZATION RULES
+The Architect generates schema files in \`server/src/schema/\`. You MUST follow these rules:
+1. **Never import non-existent symbols**. If a schema file exports \`agents\` (the table), do NOT import \`insertAgentSchema\` or \`selectAgentSchema\` unless you also CREATE them. To create insert schemas, use \`import { createInsertSchema } from "drizzle-zod"\` and define them yourself in the route file or in a validators file:
+   \`\`\`typescript
+   import { createInsertSchema } from "drizzle-zod";
+   import { agents } from "../schema";
+   const insertAgentSchema = createInsertSchema(agents);
+   \`\`\`
+   Alternatively, define a plain Zod schema manually — do NOT import a symbol that the schema file does not export.
+2. **validateRequest middleware** expects a Zod schema directly, NOT an object with \`{ query, body }\` keys. If you need to validate query params, call \`schema.parse(req.query)\` inline instead:
+   \`\`\`typescript
+   // WRONG: validateRequest({ query: someSchema })
+   // RIGHT: const parsed = someSchema.parse(req.query);
+   \`\`\`
+3. **drizzle-orm/pg-core column types**: Use ONLY these numeric types: \`integer\`, \`bigint\`, \`smallint\`, \`real\`, \`doublePrecision\`, \`numeric\`, \`decimal\`. The type \`float\` does NOT exist — use \`doublePrecision\` or \`real\` instead.
+4. **Express v5 req.params**: In Express v5, \`req.params\` values are typed as \`string | string[]\`. Always cast param values: \`const id = req.params.id as string;\` or \`const table = req.params.table as string;\`.
+5. **Drizzle pgEnum + eq() filtering**: When filtering on a pgEnum column, cast the filter value to the enum type. Example:
+   \`\`\`typescript
+   // WRONG: eq(reviews.status, req.query.status)  // TS error: string not assignable to enum
+   // RIGHT: eq(reviews.status, req.query.status as typeof reviews.status.enumValues[number])
+   \`\`\`
+6. **Drizzle table column access**: To get columns from a table, use \`getTableColumns(table)\` from \`drizzle-orm\`, NOT \`table.fields\`. When iterating columns for dynamic updates, use \`Object.entries(getTableColumns(table))\`.
+
 ### DATA RULES
 - Every route MUST validate input with ${techStack.validation} schemas
 - ${database.requireParameterizedQueries ? "Parameterized queries only" : ""}
