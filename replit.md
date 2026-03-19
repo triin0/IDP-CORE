@@ -89,7 +89,13 @@ Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs 17 de
 17. **fixMissingTypeStubs** — Generates stub type interfaces when PascalCase types are imported but never defined.
 
 18. **fixSignatureMap** — Fuzzy-matches misnamed imports to actual exported symbols using Levenshtein distance + semantic synonym table (e.g. `validateRequest`↔`validate`, `protect`↔`authenticate`, `requireAdmin`↔`isAdmin`). Rewires import names and all usage sites across the file.
+19. **fixHardcodedSecrets** — Replaces literal strings assigned to `JWT_SECRET`, `API_KEY`, `PASSWORD` etc. with `process.env.KEY_NAME`, injects keys into `.env.example`.
+
+**Key hardener details:**
+- `fixBcryptImports` generates `server/src/types/bcryptjs.d.ts` with hand-written declarations (replaces `@types/bcryptjs` which causes TS2688).
+- `fixExpressRequestAugmentation` uses regex `\buser\s*[?:]` to distinguish `user?` from `userId?` in existing declarations — prevents false-positive guard when LLM only declares `userId`.
+- `fixServerTsconfig` handles both `NodeNext→bundler` and `CommonJS→ES2022` / `Node/Classic→bundler`.
 
 Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events. Hardened files are persisted back to the project via `hardenedFiles` return from `runVerificationStage`.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 142 tests covering all 18 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 166 tests covering all 19 passes.

@@ -315,21 +315,31 @@ function fixServerTsconfig(
       const co = config.compilerOptions || {};
       let modified = false;
 
-      if (co.moduleResolution === "NodeNext" || co.moduleResolution === "Node16" ||
-          co.moduleResolution === "nodenext" || co.moduleResolution === "node16") {
+      const badModRes = new Set(["NodeNext", "Node16", "nodenext", "node16", "Node", "node", "Classic", "classic"]);
+      if (badModRes.has(co.moduleResolution)) {
         co.moduleResolution = "bundler";
         modified = true;
       }
 
-      if (co.module === "NodeNext" || co.module === "Node16" ||
-          co.module === "nodenext" || co.module === "node16") {
+      const badMod = new Set(["NodeNext", "Node16", "nodenext", "node16", "CommonJS", "commonjs"]);
+      if (badMod.has(co.module)) {
         co.module = "ES2022";
         modified = true;
       }
 
+      if (Array.isArray(co.types)) {
+        const validTypeRoots = new Set(["node", "jest", "mocha", "vite/client"]);
+        const cleaned = co.types.filter((t: string) => validTypeRoots.has(t) || t.startsWith("@types/"));
+        if (cleaned.length !== co.types.length) {
+          co.types = cleaned.length > 0 ? cleaned : undefined;
+          if (co.types === undefined) delete co.types;
+          modified = true;
+        }
+      }
+
       if (modified) {
         config.compilerOptions = co;
-        fixes.push(`[${file.path}] Changed moduleResolution to 'bundler' (avoids .js extension requirement)`);
+        fixes.push(`[${file.path}] Fixed tsconfig compilerOptions (moduleResolution/types cleanup)`);
         return { path: file.path, content: JSON.stringify(config, null, 2) + "\n" };
       }
     } catch {}
@@ -344,7 +354,7 @@ const COMMON_TYPES_MAP: Record<string, { pkg: string; version: string }> = {
   "express": { pkg: "@types/express", version: "*" },
   "cors": { pkg: "@types/cors", version: "*" },
   "cookie-parser": { pkg: "@types/cookie-parser", version: "*" },
-  "bcryptjs": { pkg: "@types/bcryptjs", version: "*" },
+  
   "jsonwebtoken": { pkg: "@types/jsonwebtoken", version: "^9.0.0" },
   "morgan": { pkg: "@types/morgan", version: "*" },
   "compression": { pkg: "@types/compression", version: "*" },
@@ -694,7 +704,24 @@ function fixBcryptImports(
 
   if (!hasBcryptUsage && !hasBcryptjsUsage) return { files, fixes };
 
-  const updatedFiles = files.map(file => {
+  const hasBcryptDts = files.some(f =>
+    f.path.includes("bcryptjs.d.ts") || f.path.includes("bcrypt.d.ts")
+  );
+
+  let injectedFiles = [...files];
+  if (!hasBcryptDts) {
+    const dtsPath = "server/src/types/bcryptjs.d.ts";
+    const dtsExists = files.some(f => f.path === dtsPath);
+    if (!dtsExists) {
+      injectedFiles.push({
+        path: dtsPath,
+        content: `declare module 'bcryptjs' {\n  export function hash(data: string, saltOrRounds: string | number): Promise<string>;\n  export function hashSync(data: string, saltOrRounds: string | number): string;\n  export function compare(data: string, encrypted: string): Promise<boolean>;\n  export function compareSync(data: string, encrypted: string): boolean;\n  export function genSalt(rounds?: number): Promise<string>;\n  export function genSaltSync(rounds?: number): string;\n}\n`,
+      });
+      fixes.push(`[${dtsPath}] Generated bcryptjs type declarations`);
+    }
+  }
+
+  const updatedFiles = injectedFiles.map(file => {
     if (file.path === "server/package.json") {
       try {
         const pkg = JSON.parse(file.content);
@@ -712,6 +739,13 @@ function fixBcryptImports(
           pkg.dependencies = deps;
           pkgModified = true;
           fixes.push(`[${file.path}] Added missing bcryptjs dependency`);
+        }
+        const devDeps = pkg.devDependencies || {};
+        if (devDeps["@types/bcryptjs"] || devDeps["@types/bcrypt"]) {
+          delete devDeps["@types/bcryptjs"];
+          delete devDeps["@types/bcrypt"];
+          pkg.devDependencies = devDeps;
+          pkgModified = true;
         }
         if (pkgModified) {
           return { path: file.path, content: JSON.stringify(pkg, null, 2) + "\n" };
@@ -761,10 +795,11 @@ function fixExpressRequestAugmentation(
 
   if (!hasReqUser) return { files, fixes };
 
-  const hasDeclaration = files.some(f =>
-    (f.path.includes("types/") || f.path.includes(".d.ts")) &&
-    f.content.includes("declare") && f.content.includes("Request") && f.content.includes("user")
-  );
+  const hasDeclaration = files.some(f => {
+    if (!(f.path.includes("types/") || f.path.includes(".d.ts"))) return false;
+    if (!f.content.includes("declare") || !f.content.includes("Request")) return false;
+    return /\buser\s*[?:]/i.test(f.content);
+  });
 
   if (hasDeclaration) return { files, fixes };
 
@@ -1386,6 +1421,100 @@ function fixSignatureMap(
   return { files: updatedFiles, fixes };
 }
 
+const SECRET_VAR_PATTERN = /(?:(?:const|let|var)\s+)?(\w*(?:SECRET|PASSWORD|API_KEY|APIKEY|TOKEN|PRIVATE_KEY|DB_PASS)\w*)\s*[:=]\s*["']([A-Za-z0-9+/=!@#$%^&*]{8,})["']/gi;
+
+const SECRET_ENV_NAMES: Record<string, string> = {
+  jwt_secret: "JWT_SECRET",
+  jwtsecret: "JWT_SECRET",
+  secret: "JWT_SECRET",
+  secret_key: "SECRET_KEY",
+  secretkey: "SECRET_KEY",
+  api_key: "API_KEY",
+  apikey: "API_KEY",
+  token: "AUTH_TOKEN",
+  auth_token: "AUTH_TOKEN",
+  password: "DB_PASSWORD",
+  db_password: "DB_PASSWORD",
+  db_pass: "DB_PASSWORD",
+  private_key: "PRIVATE_KEY",
+  session_secret: "SESSION_SECRET",
+  sessionsecret: "SESSION_SECRET",
+  cookie_secret: "COOKIE_SECRET",
+  cookiesecret: "COOKIE_SECRET",
+  access_token_secret: "ACCESS_TOKEN_SECRET",
+  refresh_token_secret: "REFRESH_TOKEN_SECRET",
+};
+
+function resolveEnvName(varName: string): string {
+  const lower = varName.toLowerCase();
+  if (SECRET_ENV_NAMES[lower]) return SECRET_ENV_NAMES[lower];
+
+  const snakeCase = varName
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .toUpperCase();
+  return snakeCase;
+}
+
+function fixHardcodedSecrets(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+  const envKeysInjected = new Set<string>();
+
+  const updatedFiles = files.map(file => {
+    if (!file.path.match(/\.[tj]sx?$/) || file.path.endsWith(".d.ts")) return file;
+    if (file.path.includes("seed") || file.path.includes("test") || file.path.includes("spec")) return file;
+
+    let content = file.content;
+    let changed = false;
+
+    content = content.replace(SECRET_VAR_PATTERN, (fullMatch, varName, _literalValue) => {
+      const envName = resolveEnvName(varName);
+      envKeysInjected.add(envName);
+      changed = true;
+
+      if (fullMatch.match(/^(?:const|let|var)\s/)) {
+        const declType = fullMatch.match(/^(const|let|var)/)?.[1] || "const";
+        return `${declType} ${varName} = process.env.${envName} || ""`;
+      }
+
+      if (fullMatch.includes(":")) {
+        return `${varName}: process.env.${envName} || ""`;
+      }
+
+      return `${varName} = process.env.${envName} || ""`;
+    });
+
+    if (changed) {
+      fixes.push(`[${file.path}] Replaced hardcoded secret(s) with process.env references`);
+      return { path: file.path, content };
+    }
+    return file;
+  });
+
+  if (envKeysInjected.size > 0) {
+    const envExampleIdx = updatedFiles.findIndex(f =>
+      f.path.endsWith(".env.example") || f.path.endsWith(".env")
+    );
+
+    if (envExampleIdx >= 0) {
+      let envContent = updatedFiles[envExampleIdx].content;
+      for (const key of envKeysInjected) {
+        if (!envContent.includes(key)) {
+          envContent += `\n${key}=`;
+          fixes.push(`[${updatedFiles[envExampleIdx].path}] Added ${key} to env template`);
+        }
+      }
+      updatedFiles[envExampleIdx] = {
+        path: updatedFiles[envExampleIdx].path,
+        content: envContent,
+      };
+    }
+  }
+
+  return { files: updatedFiles, fixes };
+}
+
 export function hardenGeneratedTypes(
   files: Array<{ path: string; content: string }>,
 ): HardenerResult {
@@ -1463,6 +1592,10 @@ export function hardenGeneratedTypes(
   const sigMapFix = fixSignatureMap(currentFiles);
   currentFiles = sigMapFix.files;
   allFixes.push(...sigMapFix.fixes);
+
+  const secretsFix = fixHardcodedSecrets(currentFiles);
+  currentFiles = secretsFix.files;
+  allFixes.push(...secretsFix.fixes);
 
   return { files: currentFiles, fixes: allFixes };
 }

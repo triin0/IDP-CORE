@@ -8,6 +8,9 @@ const MANDATED_SERVER_DEPS: Record<string, string> = {
   "drizzle-zod": "^0.7.0",
   "pg": "^8.16.0",
   "dotenv": "^16.5.0",
+  "bcryptjs": "^2.4.3",
+  "cookie-parser": "^1.4.7",
+  "jsonwebtoken": "^9.0.2",
 };
 
 const MANDATED_SERVER_DEV_DEPS: Record<string, string> = {
@@ -37,7 +40,7 @@ const MANDATED_CLIENT_DEV_DEPS: Record<string, string> = {
 
 const TYPES_MAP: Record<string, string> = {
   "cookie-parser": "@types/cookie-parser",
-  "bcryptjs": "@types/bcryptjs",
+  
   "jsonwebtoken": "@types/jsonwebtoken",
   "express-session": "@types/express-session",
   "compression": "@types/compression",

@@ -89,6 +89,83 @@ console.log("\n=== Pass 1c: fixServerTsconfig - no-op when already bundler ===")
     "No fix when already using bundler");
 }
 
+console.log("\n=== Pass 1d: fixServerTsconfig - CommonJS + Node resolution ===");
+{
+  const files = [
+    {
+      path: "server/tsconfig.json",
+      content: JSON.stringify({
+        compilerOptions: {
+          module: "CommonJS",
+          moduleResolution: "Node",
+          target: "ES2022",
+        },
+      }, null, 2),
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const tsconfig = result.files.find(f => f.path === "server/tsconfig.json")!.content;
+  const parsed = JSON.parse(tsconfig);
+
+  assert(parsed.compilerOptions.module === "ES2022",
+    "tsconfig CommonJS: module changed to ES2022");
+  assert(parsed.compilerOptions.moduleResolution === "bundler",
+    "tsconfig Node: moduleResolution changed to bundler");
+}
+
+console.log("\n=== Pass 1e: fixServerTsconfig - removes invalid types entries ===");
+{
+  const files = [
+    {
+      path: "server/tsconfig.json",
+      content: JSON.stringify({
+        compilerOptions: {
+          module: "ES2022",
+          moduleResolution: "bundler",
+          types: ["node", "bcryptjs", "express"],
+        },
+      }, null, 2),
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const tsconfig = result.files.find(f => f.path === "server/tsconfig.json")!.content;
+  const parsed = JSON.parse(tsconfig);
+
+  assert(parsed.compilerOptions.types?.includes("node"),
+    "tsconfig types: keeps valid 'node' entry");
+  assert(!parsed.compilerOptions.types?.includes("bcryptjs"),
+    "tsconfig types: removes invalid 'bcryptjs' entry");
+  assert(!parsed.compilerOptions.types?.includes("express"),
+    "tsconfig types: removes invalid 'express' entry");
+  assert(result.fixes.some(f => f.includes("types cleanup")),
+    "tsconfig types: fix logged");
+}
+
+console.log("\n=== Pass 1e: fixServerTsconfig - removes types array entirely when all invalid ===");
+{
+  const files = [
+    {
+      path: "server/tsconfig.json",
+      content: JSON.stringify({
+        compilerOptions: {
+          module: "ES2022",
+          moduleResolution: "bundler",
+          types: ["bcryptjs", "jsonwebtoken"],
+        },
+      }, null, 2),
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const tsconfig = result.files.find(f => f.path === "server/tsconfig.json")!.content;
+  const parsed = JSON.parse(tsconfig);
+
+  assert(!("types" in parsed.compilerOptions),
+    "tsconfig types: removes types key entirely when all entries invalid");
+}
+
 console.log("\n=== Pass 2: fixMissingTypeDeclarations ===");
 {
   const files = [
@@ -116,14 +193,14 @@ console.log("\n=== Pass 2: fixMissingTypeDeclarations ===");
     `@types/cors injected (got: ${pkg.devDependencies["@types/cors"]})`);
   assert(pkg.devDependencies["@types/cookie-parser"] === "*",
     `@types/cookie-parser injected`);
-  assert(pkg.devDependencies["@types/bcryptjs"] === "*",
-    `@types/bcryptjs injected`);
+  assert(!pkg.devDependencies["@types/bcryptjs"],
+    `@types/bcryptjs NOT injected (replaced by bcryptjs.d.ts)`);
   assert(pkg.devDependencies["@types/jsonwebtoken"] === "^9.0.0",
     `@types/jsonwebtoken injected with pinned version`);
   assert(pkg.devDependencies["@types/node"] === "^20.0.0",
     `@types/node injected (got: ${pkg.devDependencies["@types/node"]})`);
-  assert(result.fixes.filter(f => f.includes("Injected")).length === 6,
-    `6 injection fixes reported (got: ${result.fixes.filter(f => f.includes("Injected")).length})`);
+  assert(result.fixes.filter(f => f.includes("Injected")).length === 5,
+    `5 injection fixes reported (got: ${result.fixes.filter(f => f.includes("Injected")).length})`);
 }
 
 console.log("\n=== Pass 2b: fixMissingTypeDeclarations - no-op when types exist ===");
@@ -444,6 +521,10 @@ router.post("/", async (req, res) => {
 });`,
     },
     {
+      path: "server/src/lib/auth.ts",
+      content: `import bcrypt from 'bcryptjs';\nexport async function hashPassword(pw: string) { return bcrypt.hash(pw, 10); }`,
+    },
+    {
       path: "server/src/routes/admin.ts",
       content: `import { Router } from "express";
 import { eq } from "drizzle-orm";
@@ -476,7 +557,8 @@ export function Button({ children, ...props }: any) {
   assert(!!pkg.devDependencies["@types/express"], "Integration: @types/express injected");
   assert(!!pkg.devDependencies["@types/cors"], "Integration: @types/cors injected");
   assert(!!pkg.devDependencies["@types/cookie-parser"], "Integration: @types/cookie-parser injected");
-  assert(!!pkg.devDependencies["@types/bcryptjs"], "Integration: @types/bcryptjs injected");
+  assert(!pkg.devDependencies["@types/bcryptjs"], "Integration: @types/bcryptjs removed (using .d.ts instead)");
+  assert(result.files.some(f => f.path === "server/src/types/bcryptjs.d.ts"), "Integration: bcryptjs.d.ts generated");
 
   const routeFile = result.files.find(f => f.path === "server/src/routes/incidents.ts")!;
   assert(routeFile.content.includes("as string"), "Integration: params hardened");
@@ -1016,6 +1098,26 @@ console.log("\n=== Pass 11c: fixExpressRequestAugmentation - existing declaratio
     "req.user existing: no duplicate declaration when already present");
 }
 
+console.log("\n=== Pass 11d: fixExpressRequestAugmentation - userId-only declaration still injects user ===");
+{
+  const files = [
+    {
+      path: "server/src/types.d.ts",
+      content: `declare global {\n  namespace Express {\n    interface Request {\n      userId?: string;\n    }\n  }\n}\n\nexport {};`,
+    },
+    {
+      path: "server/src/middleware/auth.ts",
+      content: `import { Request, Response, NextFunction } from 'express';\nreq.user = decoded;`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(result.files.some(f => f.path === "server/src/types/express.d.ts"),
+    "req.user userId-only: express.d.ts injected when only userId declared");
+  assert(result.fixes.some(f => f.includes("Express Request augmentation")),
+    "req.user userId-only: fix logged");
+}
+
 console.log("\n=== Pass 12: fixToFixedOnStrings ===");
 {
   const files = [
@@ -1544,7 +1646,145 @@ console.log("\n=== Pass 18i: fixSignatureMap - distant name NOT matched ===");
     "sig map no-match: no fix logged for distant names");
 }
 
-console.log("\n=== Pass 18j: fixSignatureMap - client files skipped ===");
+console.log("\n=== Pass 19: fixHardcodedSecrets - JWT secret const ===");
+{
+  const files = [
+    {
+      path: "server/src/middleware/auth.ts",
+      content: `import jwt from 'jsonwebtoken';\n\nconst JWT_SECRET = "superSecretKey123abc";\n\nconst token = jwt.sign(payload, JWT_SECRET);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const auth = result.files.find(f => f.path === "server/src/middleware/auth.ts")!.content;
+
+  assert(auth.includes('process.env.JWT_SECRET'),
+    "secrets: JWT_SECRET replaced with process.env.JWT_SECRET");
+  assert(!auth.includes('"superSecretKey123abc"'),
+    "secrets: hardcoded value removed");
+  assert(result.fixes.some(f => f.includes("hardcoded secret")),
+    "secrets: fix logged");
+}
+
+console.log("\n=== Pass 19b: fixHardcodedSecrets - object property pattern ===");
+{
+  const files = [
+    {
+      path: "server/src/config/index.ts",
+      content: `export const config = {\n  secret: "myAppSecret12345",\n  port: 3000,\n};`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const cfg = result.files.find(f => f.path === "server/src/config/index.ts")!.content;
+
+  assert(cfg.includes('process.env.JWT_SECRET'),
+    "secrets obj: secret property replaced with process.env");
+  assert(!cfg.includes('"myAppSecret12345"'),
+    "secrets obj: literal removed");
+}
+
+console.log("\n=== Pass 19c: fixHardcodedSecrets - env template injection ===");
+{
+  const files = [
+    {
+      path: "server/src/middleware/auth.ts",
+      content: `const JWT_SECRET = "hardcodedValue12345";\njwt.verify(token, JWT_SECRET);`,
+    },
+    {
+      path: "server/.env.example",
+      content: `PORT=3000\nDATABASE_URL=`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const env = result.files.find(f => f.path === "server/.env.example")!.content;
+
+  assert(env.includes("JWT_SECRET="),
+    "secrets env: JWT_SECRET added to .env.example");
+  assert(result.fixes.some(f => f.includes("Added JWT_SECRET")),
+    "secrets env: injection fix logged");
+}
+
+console.log("\n=== Pass 19d: fixHardcodedSecrets - no-op when already using process.env ===");
+{
+  const files = [
+    {
+      path: "server/src/middleware/auth.ts",
+      content: `const JWT_SECRET = process.env.JWT_SECRET || "";\njwt.verify(token, JWT_SECRET);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("hardcoded secret")),
+    "secrets no-op: already using process.env");
+}
+
+console.log("\n=== Pass 19e: fixHardcodedSecrets - seed files skipped ===");
+{
+  const files = [
+    {
+      path: "server/src/seed.ts",
+      content: `const API_KEY = "seedDataApiKey1234";\nconsole.log(API_KEY);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("hardcoded secret")),
+    "secrets skip: seed files not processed");
+}
+
+console.log("\n=== Pass 19f: fixHardcodedSecrets - short values not matched ===");
+{
+  const files = [
+    {
+      path: "server/src/config.ts",
+      content: `const secret = "short";\nconsole.log(secret);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("hardcoded secret")),
+    "secrets short: values < 8 chars not matched");
+}
+
+console.log("\n=== Pass 19g: fixHardcodedSecrets - multiple secrets in one file ===");
+{
+  const files = [
+    {
+      path: "server/src/config/secrets.ts",
+      content: `const JWT_SECRET = "jwtSecret12345678";\nconst SESSION_SECRET = "sessionKey99887766";\nconst DB_PASSWORD = "dbPass12345678ab";`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const cfg = result.files.find(f => f.path === "server/src/config/secrets.ts")!.content;
+
+  assert(cfg.includes("process.env.JWT_SECRET"),
+    "secrets multi: JWT_SECRET replaced");
+  assert(cfg.includes("process.env.SESSION_SECRET"),
+    "secrets multi: SESSION_SECRET replaced");
+  assert(cfg.includes("process.env.DB_PASSWORD"),
+    "secrets multi: DB_PASSWORD replaced");
+}
+
+console.log("\n=== Pass 19h: fixHardcodedSecrets - camelCase var name ===");
+{
+  const files = [
+    {
+      path: "server/src/auth.ts",
+      content: `const jwtSecret = "myHardcoded12345";\njwt.sign(data, jwtSecret);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const auth = result.files.find(f => f.path === "server/src/auth.ts")!.content;
+
+  assert(auth.includes("process.env.JWT_SECRET"),
+    "secrets camel: jwtSecret → process.env.JWT_SECRET");
+}
+
+console.log("\n=== Pass 19i: fixSignatureMap - client files skipped ===");
 {
   const files = [
     {
