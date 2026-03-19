@@ -1360,6 +1360,208 @@ console.log("\n=== Pass 17c: fixMissingTypeStubs - lowercase names skipped ===")
     "type stubs no-op: lowercase imports not treated as types");
 }
 
+console.log("\n=== Pass 18: fixSignatureMap - synonym match ===");
+{
+  const files = [
+    {
+      path: "server/src/middleware/validation.ts",
+      content: `import { z } from 'zod';\nexport function validate(schema: any) { return (req: any, res: any, next: any) => next(); }`,
+    },
+    {
+      path: "server/src/routes/entities.ts",
+      content: `import { validateRequest } from '../middleware/validation';\n\nconst handler = validateRequest(schema);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/entities.ts")!.content;
+
+  assert(route.includes("validate") && !route.includes("validateRequest"),
+    "sig map: validateRequest → validate (synonym)");
+  assert(result.fixes.some(f => f.includes("Signature Map") && f.includes("validateRequest→validate")),
+    "sig map: fix logged with arrow notation");
+}
+
+console.log("\n=== Pass 18b: fixSignatureMap - auth middleware synonym ===");
+{
+  const files = [
+    {
+      path: "server/src/middleware/auth.ts",
+      content: `export function authenticate(req: any, res: any, next: any) { next(); }`,
+    },
+    {
+      path: "server/src/routes/transactions.ts",
+      content: `import { protect } from '../middleware/auth';\n\nrouter.use(protect);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/transactions.ts")!.content;
+
+  assert(route.includes("authenticate") && !route.includes("protect"),
+    "sig map: protect → authenticate (synonym)");
+}
+
+console.log("\n=== Pass 18c: fixSignatureMap - levenshtein fuzzy match ===");
+{
+  const files = [
+    {
+      path: "server/src/middleware/validation.ts",
+      content: `export function validateBody(schema: any) { return (req: any, res: any, next: any) => next(); }`,
+    },
+    {
+      path: "server/src/routes/items.ts",
+      content: `import { validatBody } from '../middleware/validation';\n\nconst h = validatBody(schema);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/items.ts")!.content;
+
+  assert(route.includes("validateBody") && !route.includes("validatBody"),
+    "sig map: validatBody → validateBody (levenshtein typo fix)");
+}
+
+console.log("\n=== Pass 18d: fixSignatureMap - no-op when names match ===");
+{
+  const files = [
+    {
+      path: "server/src/middleware/auth.ts",
+      content: `export function protect(req: any, res: any, next: any) { next(); }`,
+    },
+    {
+      path: "server/src/routes/admin.ts",
+      content: `import { protect } from '../middleware/auth';\n\nrouter.use(protect);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("Signature Map")),
+    "sig map no-op: names already match");
+}
+
+console.log("\n=== Pass 18e: fixSignatureMap - star re-export skipped ===");
+{
+  const files = [
+    {
+      path: "server/src/schema/index.ts",
+      content: `export * from './users';`,
+    },
+    {
+      path: "server/src/routes/admin.ts",
+      content: `import { usersTable } from '../schema';\nconsole.log(usersTable);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("Signature Map")),
+    "sig map no-op: star re-exports are not analyzed");
+}
+
+console.log("\n=== Pass 18f: fixSignatureMap - multiple rewrites in one file ===");
+{
+  const files = [
+    {
+      path: "server/src/middleware/auth.ts",
+      content: `export function authenticate(req: any, res: any, next: any) { next(); }\nexport function isAdmin(req: any, res: any, next: any) { next(); }`,
+    },
+    {
+      path: "server/src/routes/admin.ts",
+      content: `import { protect, requireAdmin } from '../middleware/auth';\n\nrouter.use(protect);\nrouter.use(requireAdmin);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/admin.ts")!.content;
+
+  assert(route.includes("authenticate") && !route.includes("protect"),
+    "sig map multi: protect → authenticate");
+  assert(route.includes("isAdmin") && !route.includes("requireAdmin"),
+    "sig map multi: requireAdmin → isAdmin");
+}
+
+console.log("\n=== Pass 18g: fixSignatureMap - case-insensitive match ===");
+{
+  const files = [
+    {
+      path: "server/src/lib/helpers.ts",
+      content: `export function formatCurrency(amount: number) { return amount.toFixed(2); }`,
+    },
+    {
+      path: "server/src/routes/analytics.ts",
+      content: `import { formatcurrency } from '../lib/helpers';\nconst x = formatcurrency(100);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/analytics.ts")!.content;
+
+  assert(route.includes("formatCurrency") && !route.includes("formatcurrency"),
+    "sig map case: formatcurrency → formatCurrency (case-insensitive)");
+}
+
+console.log("\n=== Pass 18h: fixSignatureMap - aliased import preserved ===");
+{
+  const files = [
+    {
+      path: "server/src/middleware/auth.ts",
+      content: `export function authenticate(req: any, res: any, next: any) { next(); }`,
+    },
+    {
+      path: "server/src/routes/users.ts",
+      content: `import { protect as authGuard } from '../middleware/auth';\n\nrouter.use(authGuard);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/users.ts")!.content;
+
+  assert(route.includes("authenticate"),
+    "sig map alias: protect rewired to authenticate in import");
+  assert(route.includes("authGuard"),
+    "sig map alias: local alias authGuard preserved in usage");
+}
+
+console.log("\n=== Pass 18i: fixSignatureMap - distant name NOT matched ===");
+{
+  const files = [
+    {
+      path: "server/src/middleware/auth.ts",
+      content: `export function authenticate(req: any, res: any, next: any) { next(); }`,
+    },
+    {
+      path: "server/src/routes/items.ts",
+      content: `import { formatTransactionData } from '../middleware/auth';\n\nconst x = formatTransactionData();`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/items.ts")!.content;
+
+  assert(route.includes("formatTransactionData"),
+    "sig map no-match: distant name preserved (too different for levenshtein)");
+  assert(!result.fixes.some(f => f.includes("Signature Map") && f.includes("formatTransactionData")),
+    "sig map no-match: no fix logged for distant names");
+}
+
+console.log("\n=== Pass 18j: fixSignatureMap - client files skipped ===");
+{
+  const files = [
+    {
+      path: "client/src/lib/helpers.ts",
+      content: `export function formatDate(d: Date) { return d.toISOString(); }`,
+    },
+    {
+      path: "client/src/components/Dashboard.tsx",
+      content: `import { formatDt } from '../lib/helpers';\nconst x = formatDt(new Date());`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("Signature Map")),
+    "sig map skip: client-side files not processed");
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

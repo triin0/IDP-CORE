@@ -88,6 +88,8 @@ Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs 17 de
 16. **fixMissingNamedExports** — Adds `export` keyword to declarations imported by other files but not exported.
 17. **fixMissingTypeStubs** — Generates stub type interfaces when PascalCase types are imported but never defined.
 
+18. **fixSignatureMap** — Fuzzy-matches misnamed imports to actual exported symbols using Levenshtein distance + semantic synonym table (e.g. `validateRequest`↔`validate`, `protect`↔`authenticate`, `requireAdmin`↔`isAdmin`). Rewires import names and all usage sites across the file.
+
 Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events. Hardened files are persisted back to the project via `hardenedFiles` return from `runVerificationStage`.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 128 tests covering all 17 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 142 tests covering all 18 passes.

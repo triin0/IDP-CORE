@@ -1184,6 +1184,208 @@ function fixMissingTypeStubs(
   return { files: updatedFiles, fixes };
 }
 
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+const FUNCTION_SYNONYMS: Record<string, string[]> = {
+  "validateRequest": ["validate", "validateBody", "validateInput", "validateSchema", "validateData", "validatePayload"],
+  "validate": ["validateRequest", "validateBody", "validateInput", "validateSchema"],
+  "protect": ["authenticate", "requireAuth", "authMiddleware", "ensureAuth", "isAuthenticated", "authGuard", "requireLogin"],
+  "authenticate": ["protect", "requireAuth", "authMiddleware", "ensureAuth", "isAuthenticated", "authGuard"],
+  "requireAuth": ["protect", "authenticate", "authMiddleware", "ensureAuth", "isAuthenticated"],
+  "authMiddleware": ["protect", "authenticate", "requireAuth", "ensureAuth"],
+  "isAuthenticated": ["protect", "authenticate", "requireAuth", "authMiddleware"],
+  "requireAdmin": ["isAdmin", "adminOnly", "adminGuard", "checkAdmin", "ensureAdmin", "requireRole"],
+  "isAdmin": ["requireAdmin", "adminOnly", "adminGuard", "checkAdmin"],
+  "errorHandler": ["handleError", "globalErrorHandler", "errorMiddleware", "handleErrors"],
+  "handleError": ["errorHandler", "globalErrorHandler", "errorMiddleware"],
+  "notFound": ["notFoundHandler", "handleNotFound", "handle404"],
+};
+
+function resolveImportPath(
+  importPath: string,
+  importerPath: string,
+): string {
+  const fileDir = importerPath.split("/").slice(0, -1).join("/");
+  const resolvedParts = [...fileDir.split("/")];
+  for (const segment of importPath.split("/")) {
+    if (segment === ".") continue;
+    if (segment === "..") resolvedParts.pop();
+    else resolvedParts.push(segment);
+  }
+  return resolvedParts.join("/");
+}
+
+function findTargetFile(
+  resolved: string,
+  files: Array<{ path: string; content: string }>,
+): { path: string; content: string } | undefined {
+  const candidates = [
+    resolved + ".ts", resolved + ".tsx",
+    resolved + "/index.ts", resolved + "/index.tsx",
+  ];
+  return files.find(f => candidates.includes(f.path));
+}
+
+function extractExportedNames(content: string): Set<string> {
+  const exports = new Set<string>();
+
+  const declPattern = /export\s+(?:default\s+)?(?:const|let|var|function|class|interface|type|enum|async\s+function)\s+(\w+)/g;
+  let m;
+  while ((m = declPattern.exec(content)) !== null) {
+    exports.add(m[1]);
+  }
+
+  const reExportPattern = /export\s*\{([^}]+)\}/g;
+  while ((m = reExportPattern.exec(content)) !== null) {
+    const names = m[1].split(",").map(s => {
+      const parts = s.trim().split(/\s+as\s+/);
+      return parts[parts.length - 1].trim();
+    }).filter(Boolean);
+    names.forEach(n => exports.add(n));
+  }
+
+  const starPattern = /export\s*\*\s*from/g;
+  if (starPattern.test(content)) {
+    exports.add("__star_reexport__");
+  }
+
+  return exports;
+}
+
+function findBestMatch(wanted: string, available: Set<string>): string | null {
+  if (available.has(wanted)) return null;
+
+  const synonyms = FUNCTION_SYNONYMS[wanted] || [];
+  for (const syn of synonyms) {
+    if (available.has(syn)) return syn;
+  }
+
+  const wantedLower = wanted.toLowerCase();
+  for (const exp of available) {
+    if (exp === "__star_reexport__") continue;
+    if (exp.toLowerCase() === wantedLower) return exp;
+  }
+
+  let bestMatch: string | null = null;
+  let bestDist = Infinity;
+  const maxDist = Math.max(2, Math.floor(wanted.length * 0.4));
+
+  for (const exp of available) {
+    if (exp === "__star_reexport__") continue;
+    const dist = levenshtein(wanted.toLowerCase(), exp.toLowerCase());
+    if (dist < bestDist && dist <= maxDist) {
+      bestDist = dist;
+      bestMatch = exp;
+    }
+  }
+
+  return bestMatch;
+}
+
+function fixSignatureMap(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const exportMap = new Map<string, Set<string>>();
+  for (const file of files) {
+    if (!file.path.includes("server/") || !file.path.match(/\.[tj]sx?$/)) continue;
+    exportMap.set(file.path, extractExportedNames(file.content));
+  }
+
+  const rewrites = new Map<string, Array<{ original: string; replacement: string }>>();
+
+  for (const file of files) {
+    if (!file.path.includes("server/") || !file.path.match(/\.[tj]sx?$/)) continue;
+
+    const importPattern = /import\s*\{([^}]+)\}\s*from\s*['"](\.[^'"]+)['"]/g;
+    let match;
+    while ((match = importPattern.exec(file.content)) !== null) {
+      const importedNames = match[1].split(",").map(s => s.trim()).filter(Boolean);
+      const importPath = match[2];
+      const resolved = resolveImportPath(importPath, file.path);
+      const target = findTargetFile(resolved, files);
+
+      if (!target) continue;
+
+      const targetExports = exportMap.get(target.path);
+      if (!targetExports || targetExports.has("__star_reexport__")) continue;
+
+      const nameRewrites: Array<{ from: string; to: string }> = [];
+
+      for (const rawName of importedNames) {
+        const name = rawName.split(/\s+as\s+/)[0].trim();
+        if (targetExports.has(name)) continue;
+
+        const best = findBestMatch(name, targetExports);
+        if (best) {
+          nameRewrites.push({ from: name, to: best });
+        }
+      }
+
+      if (nameRewrites.length > 0) {
+        if (!rewrites.has(file.path)) rewrites.set(file.path, []);
+
+        for (const rw of nameRewrites) {
+          rewrites.get(file.path)!.push({
+            original: rw.from,
+            replacement: rw.to,
+          });
+        }
+      }
+    }
+  }
+
+  if (rewrites.size === 0) return { files, fixes };
+
+  const updatedFiles = files.map(file => {
+    const fileRewrites = rewrites.get(file.path);
+    if (!fileRewrites) return file;
+
+    let content = file.content;
+    for (const rw of fileRewrites) {
+      const importNamePattern = new RegExp(
+        `(import\\s*\\{[^}]*?)\\b${rw.original}\\b([^}]*\\}\\s*from)`,
+        "g"
+      );
+      content = content.replace(importNamePattern, `$1${rw.replacement}$2`);
+
+      const usagePattern = new RegExp(`\\b${rw.original}\\b`, "g");
+      const importSectionEnd = content.lastIndexOf("from ");
+      if (importSectionEnd > 0) {
+        const afterImports = content.substring(importSectionEnd);
+        const restStart = content.indexOf("\n", importSectionEnd);
+        if (restStart > 0) {
+          const before = content.substring(0, restStart);
+          const rest = content.substring(restStart);
+          content = before + rest.replace(usagePattern, rw.replacement);
+        }
+      }
+    }
+
+    if (content === file.content) return file;
+
+    const names = fileRewrites.map(r => `${r.original}→${r.replacement}`).join(", ");
+    fixes.push(`[${file.path}] Signature Map: rewired imports {${names}}`);
+    return { path: file.path, content };
+  });
+
+  return { files: updatedFiles, fixes };
+}
+
 export function hardenGeneratedTypes(
   files: Array<{ path: string; content: string }>,
 ): HardenerResult {
@@ -1257,6 +1459,10 @@ export function hardenGeneratedTypes(
   const stubsFix = fixMissingTypeStubs(currentFiles);
   currentFiles = stubsFix.files;
   allFixes.push(...stubsFix.fixes);
+
+  const sigMapFix = fixSignatureMap(currentFiles);
+  currentFiles = sigMapFix.files;
+  allFixes.push(...sigMapFix.fixes);
 
   return { files: currentFiles, fixes: allFixes };
 }
