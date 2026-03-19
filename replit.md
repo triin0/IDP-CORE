@@ -68,18 +68,26 @@ Generated apps now use a "commercial-grade" visual design by default:
 *   **Vulnerability Database:** OSV
 
 ## Type Hardener (Deterministic AST Post-Processing)
-Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs 7 deterministic rewrite passes on generated files after version enforcement in the pipeline:
+Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs 17 deterministic rewrite passes on generated files after version enforcement in the pipeline:
 
-1. **fixServerTsconfig** — Rewrites `moduleResolution: "NodeNext"` → `"bundler"` and `module: "NodeNext"` → `"ES2022"` to avoid TS2834 `.js` extension requirements.
-2. **fixMissingTypeDeclarations** — Scans server `package.json` for common Node packages (express, cors, cookie-parser, bcryptjs, jsonwebtoken, etc.) and auto-injects their `@types/` counterparts into devDependencies.
-3. **fixDrizzleInsertSchemaImports** — Adds missing `createInsertSchema` import from `drizzle-zod` when schema files use insert schemas.
-4. **fixExpressV5Params** — Adds `as string` casts to `req.params.*` in Express v5 route handlers (TS type is `string | string[]`).
-5. **fixDrizzleEnumFiltering** — Fixes pgEnum + `eq()` literal type mismatches by casting enum values.
-6. **fixDrizzleTableFields** — Replaces `table.fields` with `getTableColumns(table)`.
-7. **fixAdminRouteTypes** — Fixes `tables[param]` index type errors in admin routes.
-
-8. **fixFramerMotionPropSpreads** — Casts prop spreads on `motion.*` components (`{...props}` → `{...(props as any)}`) to avoid framer-motion/HTML event handler type conflicts (e.g. `onDrag` incompatibility).
+1. **fixServerTsconfig** — Rewrites `moduleResolution: "NodeNext"` → `"bundler"` and `module: "NodeNext"` → `"ES2022"`.
+2. **fixBcryptImports** — Swaps `bcrypt` → `bcryptjs` in imports and package.json; also adds `bcryptjs` to deps when imported but missing.
+3. **fixMissingTypeDeclarations** — Auto-injects `@types/` counterparts for common Node packages into devDependencies. Includes `@types/jsonwebtoken@^9.0.0` pin.
+4. **fixDrizzleInsertSchemaImports** — Adds missing `createInsertSchema`/`createSelectSchema` from `drizzle-zod`.
+5. **fixExpressV5Params** — Adds `as string` casts to `req.params.*` in Express v5 route handlers.
+6. **fixDrizzleEnumFiltering** — Fixes pgEnum + `eq()` literal type mismatches by casting enum values.
+7. **fixDrizzleTableFields** — Replaces `table.fields` with `getTableColumns(table)`.
+8. **fixAdminRouteTypes** — Fixes `tables[param]` index type errors in admin routes.
+9. **fixFramerMotionPropSpreads** — Casts prop spreads on `motion.*` components to avoid type conflicts.
+10. **fixSchemaColumnMismatches** (Schema Mirror) — Parses pgTable definitions, corrects hallucinated column/relation names using fuzzy matching + semantic synonyms.
+11. **fixExpressRequestAugmentation** — Creates `server/src/types/express.d.ts` augmenting `Request` with `user?` when `req.user` usage detected.
+12. **fixToFixedOnStrings** — Wraps `.toFixed()` calls in `Number()` for SQL aggregation results returned as strings.
+13. **fixDtsModuleExports** — Converts ambient `declare` declarations to `export` when `.d.ts` files are imported as ES modules.
+14. **fixMissingBarrelExports** — Auto-generates `index.ts` barrel exports for directories (e.g. `schema/`) when files import from directory path but no barrel exists.
+15. **fixMissingDrizzleColumnImports** — Adds missing drizzle-orm/pg-core column type imports (varchar, numeric, etc.) to schema files.
+16. **fixMissingNamedExports** — Adds `export` keyword to declarations imported by other files but not exported.
+17. **fixMissingTypeStubs** — Generates stub type interfaces when PascalCase types are imported but never defined.
 
 Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events. Hardened files are persisted back to the project via `hardenedFiles` return from `runVerificationStage`.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 52 tests covering all 8 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 128 tests covering all 17 passes.
