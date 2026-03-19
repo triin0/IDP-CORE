@@ -22,11 +22,13 @@ const MANDATED_CLIENT_DEPS: Record<string, string> = {
   "react": "^19.1.0",
   "react-dom": "^19.1.0",
   "react-router-dom": "^7.6.0",
+  "framer-motion": "^11.18.0",
 };
 
 const MANDATED_CLIENT_DEV_DEPS: Record<string, string> = {
   "vite": "^6.3.0",
   "@vitejs/plugin-react": "^4.5.0",
+  "@tailwindcss/vite": "^4.1.0",
   "typescript": "^5.8.0",
   "@types/react": "^19.1.0",
   "@types/react-dom": "^19.1.0",

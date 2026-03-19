@@ -80,7 +80,7 @@ export const CreateProjectBody = zod.object({
     .default("react")
     .describe("Generation engine: react for React/Express, fastapi for Python/FastAPI, mobile-expo for React Native/Expo"),
   designPersona: zod
-    .enum(["cupertino", "terminal", "startup", "editorial", "brutalist"])
+    .enum(["sovereign", "cupertino", "terminal", "startup", "editorial", "brutalist"])
     .optional()
     .describe("Visual design persona to guide the generated UI style"),
 });

@@ -1361,7 +1361,7 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
       const parsed = JSON.parse(pkgFile.content);
       const deps: Record<string, string> = { ...(parsed.dependencies || {}) };
       const NODE_ONLY = new Set(["vite", "typescript", "concurrently", "tsx", "esbuild",
-        "@vitejs/plugin-react", "@types/react", "@types/react-dom", "@types/node",
+        "@vitejs/plugin-react", "@tailwindcss/vite", "@types/react", "@types/react-dom", "@types/node",
         "drizzle-kit", "postcss", "tailwindcss", "autoprefixer", "browserslist"]);
       for (const key of Object.keys(deps)) {
         if (NODE_ONLY.has(key) || key.startsWith("@types/")) delete deps[key];

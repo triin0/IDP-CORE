@@ -1,4 +1,6 @@
-export type DesignPersonaId = "cupertino" | "terminal" | "startup" | "editorial" | "brutalist";
+export type DesignPersonaId = "sovereign" | "cupertino" | "terminal" | "startup" | "editorial" | "brutalist";
+
+export const DEFAULT_PERSONA: DesignPersonaId = "sovereign";
 
 export interface DesignPersona {
   id: DesignPersonaId;
@@ -9,6 +11,83 @@ export interface DesignPersona {
 }
 
 export const DESIGN_PERSONAS: Record<DesignPersonaId, DesignPersona> = {
+  sovereign: {
+    id: "sovereign",
+    name: "The Sovereign",
+    tagline: "Premium dark glass, commercial-grade SaaS",
+    emoji: "👑",
+    styleTokens: `DESIGN DIRECTIVE — "The Sovereign" Style (MANDATORY DEFAULT)
+
+COLOR SYSTEM:
+- Background: Deep space slate (#0F172A) as body, darker panels (#020617) for sidebar/nav
+- Surface: Semi-transparent glass panels — background: rgba(15, 23, 42, 0.8) with backdrop-filter: blur(16px) and border: 1px solid rgba(148, 163, 184, 0.1)
+- Cards: background: rgba(30, 41, 59, 0.5), backdrop-filter: blur(12px), border: 1px solid rgba(148, 163, 184, 0.08), border-radius: 12px
+- Primary accent: Electric indigo (#6366F1) — buttons, active states, focus rings
+- Secondary accent: Cyan (#06B6D4) — links, badges, success states
+- Text: Primary #F1F5F9 (slate-100), secondary #94A3B8 (slate-400), muted #64748B (slate-500)
+- Danger: #EF4444, Warning: #F59E0B, Success: #10B981
+- Subtle neon glow on interactive elements: box-shadow: 0 0 20px rgba(99, 102, 241, 0.15)
+
+TYPOGRAPHY:
+- Headings: Inter (weight 600-700), tracking tight (-0.025em), sizes: h1=2.25rem, h2=1.5rem, h3=1.25rem
+- Body: Inter (weight 400), 0.875rem (14px), line-height 1.5
+- Code/mono: JetBrains Mono, 0.8125rem (13px), used in badges, stats, table cells
+- Load fonts via: <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+- font-family: 'Inter', system-ui, -apple-system, sans-serif
+- font-family for mono: 'JetBrains Mono', 'Fira Code', monospace
+
+LAYOUT SHELL (MANDATORY):
+Every app MUST start with a layout shell, never a naked vertical stack:
+- Left sidebar: 64px collapsed / 240px expanded, background #020617, border-right: 1px solid rgba(148,163,184,0.1)
+  - App icon/logo at top
+  - Navigation items as icon+label rows with hover: background rgba(99,102,241,0.1), active: background rgba(99,102,241,0.15) + left border accent
+- Top bar: height 56px, background rgba(15,23,42,0.8), backdrop-filter: blur(16px), border-bottom: 1px solid rgba(148,163,184,0.1)
+  - Breadcrumb path on left (text-sm text-slate-400)
+  - User avatar circle + settings icon on right
+- Main content: centered max-width 960px with 32px padding, scrollable
+
+COMPONENTS:
+- Buttons (primary): bg-indigo-600 hover:bg-indigo-500, text-white, rounded-lg (8px), px-4 py-2, font-medium text-sm
+  - Hover: subtle glow (box-shadow: 0 0 16px rgba(99,102,241,0.3)), transform: translateY(-1px), transition: all 200ms ease
+  - Focus: ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-900
+- Buttons (secondary): bg-transparent border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white
+- Buttons (danger): bg-red-600/10 text-red-400 border border-red-500/20 hover:bg-red-600/20
+- Input fields: bg-slate-800/50, border border-slate-700, rounded-lg, text-slate-100, placeholder-slate-500
+  - Focus: border-indigo-500, ring-1 ring-indigo-500/50, glow
+- Cards: Glass panel (as described above), p-6, hover: border-color transitions to rgba(148,163,184,0.2)
+- Tables: bg-transparent, th: text-xs uppercase tracking-wider text-slate-500 border-b border-slate-700/50
+  - td: text-sm text-slate-300, border-b border-slate-800, hover:bg-slate-800/30
+- Badges/pills: text-xs font-mono px-2 py-0.5 rounded-full, bg-indigo-500/10 text-indigo-400 border border-indigo-500/20
+- Modals: Glass card centered, backdrop: bg-black/60 backdrop-blur-sm
+- Toast notifications: Glass card with colored left border (4px), slide in from top-right
+
+MICRO-ANIMATIONS (framer-motion REQUIRED):
+- Page transitions: fade + slide up (y: 20 -> 0, opacity: 0 -> 1, duration: 0.3s)
+- List items: staggered entrance (staggerChildren: 0.05), each item slides up with fade
+- Cards on hover: subtle lift (y: -2px) + border glow transition
+- Buttons: whileTap={{ scale: 0.97 }}
+- Modals: overlay fade + card scale (0.95 -> 1) + slide up
+- Delete animations: item shrinks (height: 0) + fade out before removal
+- Add animations: new item expands from 0 height + fades in
+- Skeleton loaders: pulse animation on placeholder rectangles while loading
+- Use AnimatePresence for enter/exit transitions on conditional renders
+- Import: import { motion, AnimatePresence } from "framer-motion"
+
+CSS APPROACH:
+- Use Tailwind CSS utility classes for ALL styling
+- index.css: @import "tailwindcss"; plus custom CSS variables for the glass theme
+- Add to index.css:
+  @import "tailwindcss";
+  :root { --glass-bg: rgba(15, 23, 42, 0.8); --glass-border: rgba(148, 163, 184, 0.1); --glow-indigo: rgba(99, 102, 241, 0.15); }
+  body { background: #0F172A; color: #F1F5F9; font-family: 'Inter', system-ui, sans-serif; }
+  * { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+
+RESPONSIVE BEHAVIOR:
+- Sidebar collapses to icon-only (64px) on screens < 1024px
+- Top bar remains, content goes full width
+- Cards stack vertically on mobile
+- Minimum touch targets 44px on mobile`,
+  },
   cupertino: {
     id: "cupertino",
     name: "The Cupertino",
@@ -96,8 +175,8 @@ export const DESIGN_PERSONAS: Record<DesignPersonaId, DesignPersona> = {
 };
 
 export function getPersonaStyleTokens(personaId: string | null | undefined): string {
-  if (!personaId) return "";
-  const persona = DESIGN_PERSONAS[personaId as DesignPersonaId];
-  if (!persona) return "";
+  const id = personaId || DEFAULT_PERSONA;
+  const persona = DESIGN_PERSONAS[id as DesignPersonaId];
+  if (!persona) return DESIGN_PERSONAS[DEFAULT_PERSONA].styleTokens;
   return persona.styleTokens;
 }

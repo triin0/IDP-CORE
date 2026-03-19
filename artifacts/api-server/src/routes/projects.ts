@@ -625,7 +625,8 @@ router.post("/ghost-preview", async (req: Request, res: Response) => {
     const voiceDirective = persona ? `
 
 VOICE & CONTENT STYLE — "${persona.name}":
-${designPersona === "cupertino" ? `Write copy like Apple: minimal, elegant, confident. Short sentences. "Just works." Premium feel. Use words like "beautiful," "effortless," "designed for." Whitespace IS content.` :
+${designPersona === "sovereign" ? `Write copy like a premium SaaS platform: confident, precise, professional. Clean sentences with authority. "Built for scale." "Enterprise-ready." Use words like "seamless," "intelligent," "powerful." Technical credibility without jargon. Dark, sophisticated energy.` :
+  designPersona === "cupertino" ? `Write copy like Apple: minimal, elegant, confident. Short sentences. "Just works." Premium feel. Use words like "beautiful," "effortless," "designed for." Whitespace IS content.` :
   designPersona === "terminal" ? `Write copy like a hacker's README: terse, technical-sounding, confident. Use code metaphors. Prefix things with ">" or "$". Version numbers in badges. "Engineered for speed." "Zero overhead." Status indicators everywhere.` :
   designPersona === "startup" ? `Write copy like a Y Combinator landing page: bold, punchy, aspirational. Big claims. Social proof numbers. "Join 10,000+ users." "The fastest way to..." Emoji in CTAs. Energy and momentum.` :
   designPersona === "editorial" ? `Write copy like a New York Times feature: sophisticated, measured, literary. Longer sentences with rhythm. Pull-quotes. "A new way to think about..." Understated confidence. Let the typography speak.` :

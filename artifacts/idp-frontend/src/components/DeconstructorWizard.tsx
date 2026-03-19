@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type DesignPersonaId = "cupertino" | "terminal" | "startup" | "editorial" | "brutalist";
+type DesignPersonaId = "sovereign" | "cupertino" | "terminal" | "startup" | "editorial" | "brutalist";
 
 interface PersonaOption {
   id: DesignPersonaId;
@@ -34,6 +34,13 @@ interface PersonaOption {
 }
 
 const PERSONA_OPTIONS: PersonaOption[] = [
+  {
+    id: "sovereign",
+    name: "Sovereign",
+    tagline: "Premium dark glass",
+    emoji: "👑",
+    preview: { bg: "bg-[#0F172A]", accent: "bg-indigo-500", text: "text-slate-100", border: "border-indigo-500/30" },
+  },
   {
     id: "cupertino",
     name: "Cupertino",
@@ -377,7 +384,7 @@ export function DeconstructorWizard({ onBuildPrompt }: DeconstructorWizardProps)
   const [categories, setCategories] = useState<Category[]>([]);
   const [addingToCategory, setAddingToCategory] = useState<number | null>(null);
   const [newFeatureName, setNewFeatureName] = useState("");
-  const [selectedPersona, setSelectedPersona] = useState<DesignPersonaId | null>(null);
+  const [selectedPersona, setSelectedPersona] = useState<DesignPersonaId | null>("sovereign");
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
 
   const deconstruct = useCallback(async () => {

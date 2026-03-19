@@ -491,7 +491,7 @@ components:
         designPersona:
           type: string
           description: Visual design persona to guide the generated UI style
-          enum: [cupertino, terminal, startup, editorial, brutalist]
+          enum: [sovereign, cupertino, terminal, startup, editorial, brutalist]
       required:
         - prompt
     CreateProjectResponse:

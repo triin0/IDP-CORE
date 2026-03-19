@@ -15,7 +15,7 @@ export interface CreateProjectBody {
   /** Generation engine: react for React/Express, fastapi for Python/FastAPI, mobile-expo for React Native/Expo */
   engine?: 'react' | 'fastapi' | 'mobile-expo';
   /** Visual design persona to guide the generated UI style */
-  designPersona?: 'cupertino' | 'terminal' | 'startup' | 'editorial' | 'brutalist';
+  designPersona?: 'sovereign' | 'cupertino' | 'terminal' | 'startup' | 'editorial' | 'brutalist';
 }
 
 export type CreateProjectResponseStatus =

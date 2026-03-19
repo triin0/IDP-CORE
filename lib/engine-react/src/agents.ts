@@ -88,10 +88,12 @@ You MUST use these exact versions. Using older versions will FAIL the security a
 - react: "^19.1.0"
 - react-dom: "^19.1.0"
 - react-router-dom: "^7.6.0"
+- framer-motion: "^11.18.0"
 
 **client/package.json devDependencies:**
 - vite: "^6.3.0" (NOT v5 — v5 has CVEs)
 - @vitejs/plugin-react: "^4.5.0"
+- @tailwindcss/vite: "^4.1.0"
 - typescript: "^5.8.0"
 - @types/react: "^19.1.0"
 - @types/react-dom: "^19.1.0"
@@ -146,6 +148,26 @@ client/package.json MUST have:
     "build": "tsc && vite build"
   }
 }
+\`\`\`
+
+### VITE CONFIG (MANDATORY)
+client/vite.config.ts MUST use the Tailwind CSS v4 Vite plugin:
+\`\`\`typescript
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+});
+\`\`\`
+
+### CLIENT index.html (MANDATORY)
+The client/index.html MUST include Inter and JetBrains Mono font links in <head>:
+\`\`\`html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 \`\`\`
 
 ### TSCONFIG REQUIREMENTS
@@ -389,17 +411,78 @@ Do NOT generate backend files, package.json, or config files.
 
 ### TECH STACK
 - Frontend: React 19 + TypeScript + Vite 6
+- Styling: Tailwind CSS v4 (via @tailwindcss/vite plugin — already configured in vite.config.ts)
+- Animations: framer-motion (MANDATORY — every project MUST use it)
 - IMPORTANT: Use react-router-dom v7 for routing (NOT v5 or v6)
 - All .tsx files use JSX automatically (jsx: "react-jsx" in tsconfig) — do NOT import React
 
 ### RULES
 - Use React functional components with TypeScript
 - All files with JSX MUST use .tsx extension (NOT .ts)
-- Implement proper loading states, error handling, and empty states
+- Implement proper loading states (skeleton loaders with pulse animation), error handling, and empty states
 - Use fetch() or a thin API client to communicate with backend routes — API base URL should be configurable via import.meta.env.VITE_API_URL or default to "/api"
-- Responsive design with clean, modern UI using Tailwind CSS or plain CSS
+- Use Tailwind CSS utility classes for ALL styling — do NOT write raw CSS except in index.css
 - Complete, functional code — no stubs or TODOs
 - Import types from shared types/ directory if the Architect provided them
+
+### MANDATORY: TAILWIND CSS v4 SETUP
+client/src/index.css MUST start with:
+\`\`\`css
+@import "tailwindcss";
+
+:root {
+  --glass-bg: rgba(15, 23, 42, 0.8);
+  --glass-border: rgba(148, 163, 184, 0.1);
+  --glow-indigo: rgba(99, 102, 241, 0.15);
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+\`\`\`
+Do NOT use @tailwind directives (that's v3 syntax). Tailwind v4 uses @import "tailwindcss".
+Do NOT create tailwind.config.js/ts — Tailwind v4 is zero-config with the Vite plugin.
+
+### MANDATORY: FRAMER-MOTION ANIMATIONS
+Every project MUST use framer-motion for micro-interactions:
+- \`import { motion, AnimatePresence } from "framer-motion"\`
+- Page/route transitions: wrap page content in \`<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>\`
+- List items: use \`<AnimatePresence>\` with staggered children — each item gets \`initial={{ opacity: 0, y: 10 }}\` and \`exit={{ opacity: 0, height: 0 }}\`
+- Buttons: \`<motion.button whileTap={{ scale: 0.97 }}>\`
+- Cards on hover: \`<motion.div whileHover={{ y: -2 }}>\`
+- Modal/dialog: AnimatePresence + motion.div with scale 0.95→1 and opacity transition
+- Loading states: Use animated skeleton placeholders (Tailwind animate-pulse on bg-slate-700 rounded blocks)
+
+### MANDATORY: LAYOUT SHELL
+Every app MUST wrap its content in a layout shell component (client/src/components/Layout.tsx):
+- Left sidebar: dark panel (#020617), 240px wide (collapses to 64px icon-only on mobile), contains:
+  - App logo/name at top
+  - Navigation links as rows with icons (use simple SVG icons or unicode symbols)
+  - Active link highlighted with indigo accent
+- Top bar: 56px height, glass background (backdrop-blur), contains:
+  - Page title / breadcrumb on left
+  - User avatar placeholder on right
+- Main content area: scrollable, padded, max-width container
+- Use this Layout component in App.tsx wrapping all routes
+
+### MANDATORY: PREVIEW-MODE SEED DATA
+The app MUST work without a backend by providing realistic seed data:
+- Create client/src/lib/seed-data.ts that exports mock arrays matching the app's data model
+  - Use 3-5 realistic, creative items (NOT "test item 1", "test item 2")
+  - Include varied data: different statuses, dates, amounts, descriptions
+  - Example for a todo app: "Refactor the authentication middleware", "Design the onboarding flow", "Write API documentation for v2"
+- Create client/src/lib/api.ts with a data layer that:
+  - Uses an in-memory store initialized from seed data
+  - Attempts fetch() calls to the real API
+  - Falls back to in-memory operations if fetch fails (catches errors silently)
+  - Supports full CRUD: list, create, update, delete all work in-memory
+  - This means the preview ALWAYS shows a working, interactive app — never an error screen
+- The preview should feel alive: pre-populated with data, fully interactive even without a server
 
 ### CONTEXT FROM PRIOR AGENTS
 Architect notes: ${architectNotes}

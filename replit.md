@@ -15,7 +15,7 @@ The system supports multiple generation engines: `engine-react` (React/Express),
 **Core Architectural Decisions:**
 *   **Orchestration API:** An Express 5 server manages the project lifecycle.
 *   **Multi-Agent AI Pipeline:** A sequential 6-agent pipeline (Architect, Backend, Frontend, Security Reviewer, Verification & Audit Agent, Fixer Agent) drives application generation, featuring a Self-Healing Loop for error correction and Version Enforcement for dependency management.
-*   **App Deconstructor Wizard:** A pre-creation tool using AI to modularize user app ideas, featuring Complexity Energy Bars, Credit Estimation, Ghost Preview, Design Persona System, Analogy-Driven Architect, and Magic Wand Suggestions.
+*   **App Deconstructor Wizard:** A pre-creation tool using AI to modularize user app ideas, featuring Complexity Energy Bars, Credit Estimation, Ghost Preview, Design Persona System (6 personas: Sovereign default, Cupertino, Terminal, Startup, Editorial, Brutalist), Analogy-Driven Architect, and Magic Wand Suggestions.
 *   **AI Provider Layer:** Supports Gemini Pro and OpenAI with robust retry and token continuation logic.
 *   **Golden Path Engine:** Enforces automated compliance checks covering structure, security, validation, database, and TypeScript, utilizing config-driven rules and AST-Level Verification.
 *   **Dependency Audit:** Validates npm packages for existence, age, popularity, and CVEs using OSV Guard.
@@ -42,6 +42,16 @@ The system supports multiple generation engines: `engine-react` (React/Express),
 
 **UI/UX — "The Glass Engine" Design System:**
 A design system featuring a "deep space black" canvas with frosted glass panels, Inter and JetBrains Mono typography, a color state machine for various states, a global HUD, and Framer Motion animations.
+
+**Generated App Design System ("Sovereign" Default):**
+Generated apps now use a "commercial-grade" visual design by default:
+- Dark glass theme (#0F172A background, frosted glass panels with backdrop-blur)
+- Inter + JetBrains Mono typography (loaded via Google Fonts)
+- Tailwind CSS v4 (via @tailwindcss/vite plugin, @import "tailwindcss" syntax)
+- framer-motion for micro-animations (page transitions, list stagger, button tap, modal scale)
+- Mandatory layout shell: sidebar + top bar + content area
+- Preview-mode seed data: in-memory store with realistic mock data, falls back gracefully when no backend
+- 6 design personas available: Sovereign (default), Cupertino, Terminal, Startup, Editorial, Brutalist
 
 ## External Dependencies
 *   **Monorepo Tool:** pnpm workspaces

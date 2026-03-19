@@ -40,7 +40,7 @@ export function PromptForm({ onProjectCreated, initialPrompt, designPersona, onE
     if (!prompt.trim() || createProject.isPending) return;
 
     createProject.mutate(
-      { data: { prompt, engine, ...(designPersona ? { designPersona: designPersona as "cupertino" | "terminal" | "startup" | "editorial" | "brutalist" } : {}) } },
+      { data: { prompt, engine, ...(designPersona ? { designPersona: designPersona as "sovereign" | "cupertino" | "terminal" | "startup" | "editorial" | "brutalist" } : {}) } },
       {
         onSuccess: (data) => {
           onProjectCreated(data.id);
