@@ -129,9 +129,17 @@ export function prepareSandpackFiles(
     if (!sandpackPath) continue;
 
     const annotatedContent = annotatedMap.get(file.path);
-    sandpackFiles[sandpackPath] = {
-      code: annotatedContent ?? file.content,
-    };
+    let code = annotatedContent ?? file.content;
+    code = code.replace(/import\.meta\.env\.(\w+)/g, (_match, key) => {
+      if (key === "VITE_API_URL" || key === "VITE_API_BASE_URL") return '"/api"';
+      if (key === "DEV") return "true";
+      if (key === "PROD") return "false";
+      if (key === "MODE") return '"development"';
+      if (key === "BASE_URL") return '"/"';
+      return '""';
+    });
+    code = code.replace(/import\.meta\.env/g, '({})');
+    sandpackFiles[sandpackPath] = { code };
   }
 
   const appEntry = sandpackFiles["/App.tsx"] || sandpackFiles["/App.jsx"];

@@ -1351,6 +1351,25 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
     [project.files, project.annotatedFiles]
   );
 
+  const sandpackDeps = useMemo(() => {
+    const files = (project.files ?? []) as Array<{ path: string; content: string }>;
+    const clientPkg = files.find(f => f.path === "client/package.json");
+    const rootPkg = files.find(f => f.path === "package.json");
+    const pkgFile = clientPkg || rootPkg;
+    if (!pkgFile) return {};
+    try {
+      const parsed = JSON.parse(pkgFile.content);
+      const deps: Record<string, string> = { ...(parsed.dependencies || {}) };
+      const NODE_ONLY = new Set(["vite", "typescript", "concurrently", "tsx", "esbuild",
+        "@vitejs/plugin-react", "@types/react", "@types/react-dom", "@types/node",
+        "drizzle-kit", "postcss", "tailwindcss", "autoprefixer", "browserslist"]);
+      for (const key of Object.keys(deps)) {
+        if (NODE_ONLY.has(key) || key.startsWith("@types/")) delete deps[key];
+      }
+      return deps;
+    } catch { return {}; }
+  }, [project.files]);
+
   const hasAnyFiles = Object.keys(sandpackFiles).length > 0;
 
   return (
@@ -1477,9 +1496,13 @@ export function Workspace({ project, onReset }: WorkspaceProps) {
               template="react-ts"
               files={sandpackFiles}
               theme={SANDPACK_THEME}
+              customSetup={{
+                dependencies: sandpackDeps,
+              }}
               options={{
                 recompileMode: "delayed",
                 recompileDelay: 500,
+                bundlerURL: "https://sandpack-bundler.codesandbox.io",
               }}
             >
               <SandpackWorkspaceInner

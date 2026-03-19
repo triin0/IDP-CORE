@@ -133,7 +133,7 @@ export async function generateProjectSpec(
 
     const adminDecision = "Built-in Admin Dashboard with form-based CRUD for all database entities";
     if (!spec.architecturalDecisions) spec.architecturalDecisions = [];
-    if (!spec.architecturalDecisions.some(d => d.toLowerCase().includes("admin"))) {
+    if (!spec.architecturalDecisions.some((d: unknown) => typeof d === "string" && d.toLowerCase().includes("admin"))) {
       spec.architecturalDecisions.push(adminDecision);
     }
 
