@@ -46,6 +46,7 @@ export type { ASTVerificationResult } from "./ast-verification";
 export { computeHashManifest, compareHashManifests, computeFullTreeHash, computeFullTreeManifest, computePayloadHash, computeSHA256 } from "./hash-integrity";
 export type { HashManifest, FullTreeHashResult } from "./hash-integrity";
 export { enforcePackageVersions } from "./version-enforcement";
+export { hardenGeneratedTypes } from "./type-hardener";
 export { recoverOrphanedProjects } from "./recovery";
 
 export { runPipeline, initPipelineStatus, executeWithSelfHealing, buildExpectedHashManifest, runVerificationStage } from "./pipeline";

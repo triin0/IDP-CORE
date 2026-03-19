@@ -13,6 +13,7 @@ import type { ASTVerificationResult } from "./ast-verification";
 import type { GoldenPathConfigRules } from "@workspace/db";
 import { emitPipelineEvent } from "@workspace/engine-common";
 import { enforcePackageVersions } from "./version-enforcement";
+import { hardenGeneratedTypes } from "./type-hardener";
 import { createSnapshot } from "@workspace/engine-common";
 
 function extractJSON(raw: string): unknown | null {
@@ -221,7 +222,7 @@ export async function runVerificationStage(
   spec: AgentContext["spec"],
   prompt: string,
   hashManifest: HashManifest,
-): Promise<{ verdict: VerificationVerdict; goldenPathChecks: GoldenPathCheck[]; payloadHash: string }> {
+): Promise<{ verdict: VerificationVerdict; goldenPathChecks: GoldenPathCheck[]; payloadHash: string; hardenedFiles: Array<{ path: string; content: string }> }> {
   await updatePipelineStage(projectId, pipeline, "verification", {
     status: "running",
     startedAt: new Date().toISOString(),
@@ -237,6 +238,13 @@ export async function runVerificationStage(
     enforcedFiles = enforcement.files;
     console.log(`[pipeline:${projectId.slice(0, 8)}] Version enforcement applied ${enforcement.fixes.length} fixes:\n${enforcement.fixes.join("\n")}`);
     emitPipelineEvent(projectId, "version-enforcement", { fixes: enforcement.fixes });
+  }
+
+  const hardening = hardenGeneratedTypes(enforcedFiles);
+  if (hardening.fixes.length > 0) {
+    enforcedFiles = hardening.files;
+    console.log(`[pipeline:${projectId.slice(0, 8)}] Type hardening applied ${hardening.fixes.length} fixes:\n${hardening.fixes.join("\n")}`);
+    emitPipelineEvent(projectId, "type-hardening", { fixes: hardening.fixes });
   }
 
   console.log(`[pipeline:${projectId.slice(0, 8)}] Running Golden Path checks...`);
@@ -472,7 +480,7 @@ export async function runVerificationStage(
     error: overallPassed ? undefined : `Failed [${failureCategory}]: ${failedNames.join(", ")}`,
   });
 
-  return { verdict, goldenPathChecks, payloadHash: fullTreeHash.payloadHash };
+  return { verdict, goldenPathChecks, payloadHash: fullTreeHash.payloadHash, hardenedFiles: enforcedFiles };
 }
 
 const MAX_RECOVERY_LOOPS = 3;
@@ -614,7 +622,7 @@ export async function executeWithSelfHealing(
 
     emitPipelineEvent(projectId, "verification:start", { attempt });
 
-    const { verdict, goldenPathChecks, payloadHash } = await runVerificationStage(
+    const { verdict, goldenPathChecks, payloadHash, hardenedFiles } = await runVerificationStage(
       projectId,
       pipeline,
       currentFiles,
@@ -623,6 +631,8 @@ export async function executeWithSelfHealing(
       prompt,
       hashManifest,
     );
+
+    currentFiles = hardenedFiles;
 
     emitPipelineEvent(projectId, "verification:complete", {
       attempt,
@@ -685,10 +695,10 @@ export async function executeWithSelfHealing(
   }
 
   const hashManifest = computeHashManifest(currentFiles);
-  const { verdict, goldenPathChecks, payloadHash } = await runVerificationStage(
+  const { verdict, goldenPathChecks, payloadHash, hardenedFiles: finalFiles } = await runVerificationStage(
     projectId, pipeline, currentFiles, config, spec, prompt, hashManifest,
   );
-  return { status: verdict.passed ? "ready" : "failed_validation", files: currentFiles, verdict, goldenPathChecks, payloadHash: verdict.passed ? payloadHash : undefined };
+  return { status: verdict.passed ? "ready" : "failed_validation", files: finalFiles, verdict, goldenPathChecks, payloadHash: verdict.passed ? payloadHash : undefined };
 }
 
 export async function runPipeline(

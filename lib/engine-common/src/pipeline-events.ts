@@ -13,6 +13,7 @@ export type PipelineEventType =
   | "self-healing:exhausted"
   | "build:output"
   | "version-enforcement"
+  | "type-hardening"
   | "pipeline:complete"
   | "pipeline:error";
 

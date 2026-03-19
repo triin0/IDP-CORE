@@ -66,3 +66,16 @@ Generated apps now use a "commercial-grade" visual design by default:
 *   **Build Tools:** esbuild, tsx
 *   **Frontend Libraries:** React 19, Vite 7, Tailwind CSS v4, Shadcn UI, Framer Motion, Lucide React, react-syntax-highlighter, diff (v7)
 *   **Vulnerability Database:** OSV
+
+## Type Hardener (Deterministic AST Post-Processing)
+Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs 7 deterministic rewrite passes on generated files after version enforcement in the pipeline:
+
+1. **fixServerTsconfig** — Rewrites `moduleResolution: "NodeNext"` → `"bundler"` and `module: "NodeNext"` → `"ES2022"` to avoid TS2834 `.js` extension requirements.
+2. **fixMissingTypeDeclarations** — Scans server `package.json` for common Node packages (express, cors, cookie-parser, bcryptjs, jsonwebtoken, etc.) and auto-injects their `@types/` counterparts into devDependencies.
+3. **fixDrizzleInsertSchemaImports** — Adds missing `createInsertSchema` import from `drizzle-zod` when schema files use insert schemas.
+4. **fixExpressV5Params** — Adds `as string` casts to `req.params.*` in Express v5 route handlers (TS type is `string | string[]`).
+5. **fixDrizzleEnumFiltering** — Fixes pgEnum + `eq()` literal type mismatches by casting enum values.
+6. **fixDrizzleTableFields** — Replaces `table.fields` with `getTableColumns(table)`.
+7. **fixAdminRouteTypes** — Fixes `tables[param]` index type errors in admin routes.
+
+Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events.
