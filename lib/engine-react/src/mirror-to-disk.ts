@@ -1,9 +1,28 @@
-import { db, projectsTable } from "../../../lib/db/src/index.ts";
+import { db, projectsTable } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 import { mkdir, writeFile, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, normalize, resolve } from "node:path";
 
-const OUTPUT_DIR = join(process.cwd(), "active-build");
+const OUTPUT_DIR = resolve(process.cwd(), "active-build");
+
+function safePath(filePath: string): string {
+  const normalized = normalize(filePath);
+
+  if (normalized.startsWith("/") || normalized.startsWith("\\")) {
+    throw new Error(`Absolute path rejected: ${filePath}`);
+  }
+
+  if (normalized.includes("..")) {
+    throw new Error(`Path traversal rejected: ${filePath}`);
+  }
+
+  const full = resolve(OUTPUT_DIR, normalized);
+  if (!full.startsWith(OUTPUT_DIR)) {
+    throw new Error(`Path escapes output directory: ${filePath}`);
+  }
+
+  return full;
+}
 
 async function mirror() {
   const projectId = process.argv[2];
@@ -42,7 +61,7 @@ async function mirror() {
   } catch {}
 
   for (const file of files) {
-    const fullPath = join(OUTPUT_DIR, file.path);
+    const fullPath = safePath(file.path);
     await mkdir(dirname(fullPath), { recursive: true });
     await writeFile(fullPath, file.content, "utf-8");
   }
