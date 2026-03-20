@@ -1802,6 +1802,153 @@ console.log("\n=== Pass 19i: fixSignatureMap - client files skipped ===");
     "sig map skip: client-side files not processed");
 }
 
+// ============ Test 20: fixDrizzleZodRefinementKeys ============
+
+console.log("\n=== Pass 20a: fixDrizzleZodRefinementKeys - mismatched keys ===");
+{
+  const files = [
+    {
+      path: "server/src/db/schema.ts",
+      content: `import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
+export const transactions = pgTable('transactions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sourceEntityId: uuid('source_entity_id').notNull(),
+  destinationEntityId: uuid('destination_entity_id').notNull(),
+  amount: text('amount'),
+});`,
+    },
+    {
+      path: "server/src/types/index.ts",
+      content: `import { createInsertSchema } from 'drizzle-zod';
+import { transactions } from '../db/schema';
+import { z } from 'zod';
+export const insertTransactionSchema = createInsertSchema(transactions, {
+    fromEntityId: z.string().uuid().optional(),
+    toEntityId: z.string().uuid().optional()
+});`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const typesFile = result.files.find(f => f.path === "server/src/types/index.ts")!;
+  assert(typesFile.content.includes("sourceEntityId"), "should rewrite fromEntityId → sourceEntityId");
+  assert(typesFile.content.includes("destinationEntityId"), "should rewrite toEntityId → destinationEntityId");
+  assert(!typesFile.content.includes("fromEntityId"), "fromEntityId should be gone");
+  assert(!typesFile.content.includes("toEntityId"), "toEntityId should be gone");
+  assert(result.fixes.some(f => f.includes("drizzle-zod refinement keys")),
+    "should log fix for refinement keys");
+}
+
+console.log("\n=== Pass 20b: fixDrizzleZodRefinementKeys - correct keys untouched ===");
+{
+  const files = [
+    {
+      path: "server/src/db/schema.ts",
+      content: `import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
+export const users = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: text('email').notNull(),
+  name: text('name'),
+});`,
+    },
+    {
+      path: "server/src/types/index.ts",
+      content: `import { createInsertSchema } from 'drizzle-zod';
+import { users } from '../db/schema';
+import { z } from 'zod';
+export const insertUserSchema = createInsertSchema(users, {
+    email: z.string().email(),
+    name: z.string().min(1)
+});`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const typesFile = result.files.find(f => f.path === "server/src/types/index.ts")!;
+  assert(typesFile.content.includes("email: z.string().email()"), "email key should remain");
+  assert(typesFile.content.includes("name: z.string().min(1)"), "name key should remain");
+  assert(!result.fixes.some(f => f.includes("drizzle-zod refinement keys")),
+    "no fix should be logged when keys match");
+}
+
+console.log("\n=== Pass 20c: fixDrizzleZodRefinementKeys - createSelectSchema ===");
+{
+  const files = [
+    {
+      path: "server/src/db/schema.ts",
+      content: `import { pgTable, text, uuid, timestamp } from 'drizzle-orm/pg-core';
+export const orders = pgTable('orders', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  customerId: uuid('customer_id').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});`,
+    },
+    {
+      path: "server/src/types/index.ts",
+      content: `import { createSelectSchema } from 'drizzle-zod';
+import { orders } from '../db/schema';
+import { z } from 'zod';
+export const selectOrderSchema = createSelectSchema(orders, {
+    userId: z.string().uuid(),
+    orderDate: z.date()
+});`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const typesFile = result.files.find(f => f.path === "server/src/types/index.ts")!;
+  assert(typesFile.content.includes("customerId"), "userId should rewrite to customerId");
+  assert(typesFile.content.includes("createdAt"), "orderDate should rewrite to createdAt");
+  assert(!typesFile.content.includes("userId"), "userId should be gone");
+  assert(!typesFile.content.includes("orderDate"), "orderDate should be gone");
+}
+
+console.log("\n=== Pass 20d: fixDrizzleZodRefinementKeys - skips schema files ===");
+{
+  const files = [
+    {
+      path: "server/src/db/schema.ts",
+      content: `import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
+export const items = pgTable('items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  title: text('title').notNull(),
+});
+import { createInsertSchema } from 'drizzle-zod';
+export const insertItemSchema = createInsertSchema(items, {
+    name: z.string()
+});`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const schemaFile = result.files.find(f => f.path === "server/src/db/schema.ts")!;
+  assert(schemaFile.content.includes("name: z.string()"), "schema file should not be modified");
+}
+
+console.log("\n=== Pass 20e: fixDrizzleZodRefinementKeys - no-op without calls ===");
+{
+  const files = [
+    {
+      path: "server/src/db/schema.ts",
+      content: `import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
+export const tasks = pgTable('tasks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  title: text('title'),
+});`,
+    },
+    {
+      path: "server/src/routes/tasks.ts",
+      content: `import express from 'express';
+const router = express.Router();
+export default router;`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("drizzle-zod refinement keys")),
+    "no fix when no createInsertSchema/createSelectSchema present");
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

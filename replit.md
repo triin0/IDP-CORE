@@ -68,7 +68,7 @@ Generated apps now use a "commercial-grade" visual design by default:
 *   **Vulnerability Database:** OSV
 
 ## Type Hardener (Deterministic AST Post-Processing)
-Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs 17 deterministic rewrite passes on generated files after version enforcement in the pipeline:
+Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs 20 deterministic rewrite passes on generated files after version enforcement in the pipeline:
 
 1. **fixServerTsconfig** — Rewrites `moduleResolution: "NodeNext"` → `"bundler"` and `module: "NodeNext"` → `"ES2022"`.
 2. **fixBcryptImports** — Swaps `bcrypt` → `bcryptjs` in imports and package.json; also adds `bcryptjs` to deps when imported but missing.
@@ -89,13 +89,18 @@ Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs 17 de
 17. **fixMissingTypeStubs** — Generates stub type interfaces when PascalCase types are imported but never defined.
 
 18. **fixSignatureMap** — Fuzzy-matches misnamed imports to actual exported symbols using Levenshtein distance + semantic synonym table (e.g. `validateRequest`↔`validate`, `protect`↔`authenticate`, `requireAdmin`↔`isAdmin`). Rewires import names and all usage sites across the file.
-19. **fixHardcodedSecrets** — Replaces literal strings assigned to `JWT_SECRET`, `API_KEY`, `PASSWORD` etc. with `process.env.KEY_NAME`, injects keys into `.env.example`.
+19. **fixDrizzleZodRefinementKeys** — Detects `createInsertSchema(table, { key: ... })` / `createSelectSchema` calls, cross-references refinement keys against real pgTable column names via `buildSchemaMap`, rewrites mismatched keys using word-level semantic scoring with synonym table (e.g. `fromEntityId`→`sourceEntityId`, `userId`→`customerId`).
+20. **fixHardcodedSecrets** — Replaces literal strings assigned to `JWT_SECRET`, `API_KEY`, `PASSWORD` etc. with `process.env.KEY_NAME`, injects keys into `.env.example`.
 
 **Key hardener details:**
 - `fixBcryptImports` generates `server/src/types/bcryptjs.d.ts` with hand-written declarations (replaces `@types/bcryptjs` which causes TS2688).
 - `fixExpressRequestAugmentation` uses regex `\buser\s*[?:]` to distinguish `user?` from `userId?` in existing declarations — prevents false-positive guard when LLM only declares `userId`.
 - `fixServerTsconfig` handles both `NodeNext→bundler` and `CommonJS→ES2022` / `Node/Classic→bundler`.
+- `fixDrizzleZodRefinementKeys` uses camelCase word decomposition + semantic synonyms (from/source, to/destination, user/customer) to match refinement keys to actual schema columns with a minimum score threshold of 2.
+
+**Disk Mirror Utility:**
+`lib/engine-react/src/mirror-to-disk.ts` — Reads hardened project files from Postgres and writes them to `active-build/` on disk for filesystem verification. Usage: `tsx lib/engine-react/src/mirror-to-disk.ts [projectId]` (omit projectId for latest project).
 
 Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events. Hardened files are persisted back to the project via `hardenedFiles` return from `runVerificationStage`.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 166 tests covering all 19 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 180 tests covering all 20 passes.

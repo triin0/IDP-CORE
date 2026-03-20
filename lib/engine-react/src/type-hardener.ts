@@ -1445,6 +1445,135 @@ const SECRET_ENV_NAMES: Record<string, string> = {
   refresh_token_secret: "REFRESH_TOKEN_SECRET",
 };
 
+function splitCamelWords(name: string): string[] {
+  return name.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase().split(/\s+/);
+}
+
+function scoreRefinementKeyMatch(key: string, col: string): number {
+  const keyWords = splitCamelWords(key);
+  const colWords = splitCamelWords(col);
+
+  const synonyms: Record<string, string[]> = {
+    from: ["source", "sender", "origin"],
+    to: ["destination", "target", "recipient", "dest"],
+    source: ["from", "sender", "origin"],
+    destination: ["to", "target", "recipient", "dest"],
+    user: ["customer", "account", "member", "person", "owner", "author"],
+    customer: ["user", "account", "member", "person", "client"],
+    order: ["purchase", "transaction"],
+    date: ["at", "time", "timestamp"],
+    name: ["title", "label"],
+  };
+
+  let score = 0;
+  for (const kw of keyWords) {
+    for (const cw of colWords) {
+      if (kw === cw) {
+        score += (kw === "id" ? 1 : 3);
+        continue;
+      }
+      const kwSyns = synonyms[kw] || [];
+      if (kwSyns.includes(cw)) {
+        score += 4;
+      }
+    }
+  }
+  return score;
+}
+
+function findBestRefinementColumn(key: string, available: string[], used: Set<string>): string | null {
+  let bestMatch: string | null = null;
+  let bestScore = 0;
+
+  for (const col of available) {
+    if (used.has(col)) continue;
+    const score = scoreRefinementKeyMatch(key, col);
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = col;
+    }
+  }
+
+  return bestScore >= 2 ? bestMatch : null;
+}
+
+function fixDrizzleZodRefinementKeys(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+  const schemaMap = buildSchemaMap(files);
+
+  if (Object.keys(schemaMap.columns).length === 0) {
+    return { files, fixes };
+  }
+
+  const tableVarToColumns = new Map<string, string[]>();
+  for (const [tableName, cols] of Object.entries(schemaMap.columns)) {
+    tableVarToColumns.set(tableName, cols);
+  }
+
+  const updatedFiles = files.map(file => {
+    if (!file.path.includes("server/") || !file.path.match(/\.[tj]sx?$/)) return file;
+    if (file.path.includes("schema/") || file.path.includes("schema.ts")) return file;
+    if (!file.content.includes("createInsertSchema") && !file.content.includes("createSelectSchema")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    content = content.replace(
+      /(create(?:Insert|Select)Schema)\s*\(\s*(\w+)\s*,\s*\{([^}]*)\}\s*\)/g,
+      (match, fnName, tableVar, refinementBlock) => {
+        const cols = tableVarToColumns.get(tableVar);
+        if (!cols) return match;
+
+        const entries = refinementBlock.split(",").map((e: string) => e.trim()).filter(Boolean);
+        const newEntries: string[] = [];
+        let blockModified = false;
+        const usedCols = new Set<string>();
+
+        for (const entry of entries) {
+          const keyMatch = entry.match(/^(\w+)\s*:/);
+          if (!keyMatch) {
+            newEntries.push(entry);
+            continue;
+          }
+          const key = keyMatch[1];
+
+          if (cols.includes(key)) {
+            newEntries.push(entry);
+            usedCols.add(key);
+            continue;
+          }
+
+          const best = findBestRefinementColumn(key, cols, usedCols);
+          if (best) {
+            const newEntry = entry.replace(new RegExp(`^${key}`), best);
+            newEntries.push(newEntry);
+            usedCols.add(best);
+            blockModified = true;
+          } else {
+            newEntries.push(entry);
+          }
+        }
+
+        if (blockModified) {
+          modified = true;
+          return `${fnName}(${tableVar}, {\n    ${newEntries.join(",\n    ")}\n})`;
+        }
+        return match;
+      }
+    );
+
+    if (modified) {
+      fixes.push(`[${file.path}] Fixed drizzle-zod refinement keys to match actual schema columns`);
+      return { path: file.path, content };
+    }
+    return file;
+  });
+
+  return { files: updatedFiles, fixes };
+}
+
 function resolveEnvName(varName: string): string {
   const lower = varName.toLowerCase();
   if (SECRET_ENV_NAMES[lower]) return SECRET_ENV_NAMES[lower];
@@ -1592,6 +1721,10 @@ export function hardenGeneratedTypes(
   const sigMapFix = fixSignatureMap(currentFiles);
   currentFiles = sigMapFix.files;
   allFixes.push(...sigMapFix.fixes);
+
+  const zodKeysFix = fixDrizzleZodRefinementKeys(currentFiles);
+  currentFiles = zodKeysFix.files;
+  allFixes.push(...zodKeysFix.fixes);
 
   const secretsFix = fixHardcodedSecrets(currentFiles);
   currentFiles = secretsFix.files;
