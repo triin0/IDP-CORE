@@ -1949,6 +1949,25 @@ export default router;`,
     "no fix when no createInsertSchema/createSelectSchema present");
 }
 
+console.log("\n=== Pass 20f: fixDrizzleZodRefinementKeys - no schema files present ===");
+{
+  const files = [
+    {
+      path: "server/src/types/index.ts",
+      content: `import { createInsertSchema } from 'drizzle-zod';
+import { users } from '../db/schema';
+import { z } from 'zod';
+export const insertUserSchema = createInsertSchema(users, {
+    email: z.string().email()
+});`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("drizzle-zod refinement keys")),
+    "no fix when no schema files to build column map from");
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

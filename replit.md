@@ -103,4 +103,4 @@ Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs 20 de
 
 Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events. Hardened files are persisted back to the project via `hardenedFiles` return from `runVerificationStage`.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 180 tests covering all 20 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 181 tests covering all 20 passes.
