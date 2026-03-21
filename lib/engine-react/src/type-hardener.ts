@@ -817,16 +817,16 @@ function fixExpressRequestAugmentation(
 ): HardenerResult {
   const fixes: string[] = [];
   let hasReqUser = false;
+  let hasReqUserId = false;
 
   for (const file of files) {
     if (!file.path.includes("server/") || !file.path.match(/\.[tj]sx?$/)) continue;
-    if (file.content.includes("req.user")) {
-      hasReqUser = true;
-      break;
-    }
+    if (file.content.includes("req.user")) hasReqUser = true;
+    if (/req\.userId\b/.test(file.content)) hasReqUserId = true;
+    if (hasReqUser && hasReqUserId) break;
   }
 
-  if (!hasReqUser) return { files, fixes };
+  if (!hasReqUser && !hasReqUserId) return { files, fixes };
 
   const hasDeclaration = files.some(f => {
     if (!(f.path.includes("types/") || f.path.includes(".d.ts"))) return false;
@@ -836,11 +836,13 @@ function fixExpressRequestAugmentation(
 
   if (hasDeclaration) return { files, fixes };
 
+  const extraProps = ["    user?: any;"];
+  if (hasReqUserId) extraProps.push("    userId?: any;");
   const declContent = `import "express";
 
 declare module "express-serve-static-core" {
   interface Request {
-    user?: any;
+${extraProps.join("\n")}
   }
 }
 `;
@@ -1225,8 +1227,29 @@ function fixMissingTypeStubs(
         if (/^[A-Z]/.test(name) || /[Ss]chema|[Vv]alidator/.test(name)) {
           const exportCheck = new RegExp(`(?:export\\s+)?(?:interface|type|enum|class|const|let|var|function)\\s+${name}\\b`);
           if (!exportCheck.test(targetFile.content)) {
-            const reExportCheck = /export\s*\*\s*from\s*/;
-            if (reExportCheck.test(targetFile.content)) continue;
+            const reExportMatches = targetFile.content.matchAll(/export\s*\*\s*from\s*['"](\.[^'"]+)['"]/g);
+            let providedByReExport = false;
+            for (const rem of reExportMatches) {
+              const reExportPath = rem[1];
+              const targetDir = targetFile.path.split("/").slice(0, -1).join("/");
+              const reResolvedParts = [...targetDir.split("/")];
+              for (const seg of reExportPath.split("/")) {
+                if (seg === ".") continue;
+                if (seg === "..") reResolvedParts.pop();
+                else reResolvedParts.push(seg);
+              }
+              const reResolved = reResolvedParts.join("/");
+              const reCandidates = [reResolved + ".ts", reResolved + "/index.ts", reResolved + ".tsx"];
+              const reExportedFile = files.find(f => reCandidates.includes(f.path));
+              if (reExportedFile) {
+                const reCheck = new RegExp(`(?:export\\s+)?(?:interface|type|enum|class|const|let|var|function)\\s+${name}\\b`);
+                if (reCheck.test(reExportedFile.content)) {
+                  providedByReExport = true;
+                  break;
+                }
+              }
+            }
+            if (providedByReExport) continue;
             if (!typeImports.has(targetFile.path)) typeImports.set(targetFile.path, new Set());
             typeImports.get(targetFile.path)!.add(name);
           }
@@ -1688,6 +1711,17 @@ function fixDrizzleExecuteDestructuring(
       );
     }
 
+    if (content.includes("db.select") || content.includes("db.execute")) {
+      content = content.replace(
+        /for\s*\(\s*(?:const|let)\s+(\w+)\s+of\s+((?:await\s+)?db\.(?:select|execute)\s*\([^)]*\)(?:\.[^;{]*?))\s*\)/g,
+        (match, varName, dbCall) => {
+          if (match.includes("as any")) return match;
+          modified = true;
+          return `for (const ${varName} of (${dbCall}) as any[])`;
+        }
+      );
+    }
+
     if (modified) {
       fixes.push(`[${file.path}] Fixed db.execute()/db.select() destructuring`);
       return { path: file.path, content };
@@ -1820,8 +1854,31 @@ function fixDrizzleZodRefinementCallbacks(
       }
     );
 
+    const createSchemaPattern = /(createInsertSchema|createSelectSchema)\s*\(\s*(\w+)\s*,\s*\{/g;
+    let csMatch;
+    const castInsertions: Array<{ pos: number }> = [];
+    while ((csMatch = createSchemaPattern.exec(content)) !== null) {
+      const braceStart = csMatch.index + csMatch[0].length - 1;
+      let depth = 1;
+      let pos = braceStart + 1;
+      while (pos < content.length && depth > 0) {
+        if (content[pos] === '{') depth++;
+        if (content[pos] === '}') depth--;
+        pos++;
+      }
+      const afterBrace = content.substring(pos).trimStart();
+      if (!afterBrace.startsWith("as any")) {
+        castInsertions.push({ pos });
+      }
+    }
+    for (let i = castInsertions.length - 1; i >= 0; i--) {
+      const { pos } = castInsertions[i];
+      content = content.substring(0, pos) + " as any" + content.substring(pos);
+      modified = true;
+    }
+
     if (modified) {
-      fixes.push(`[${file.path}] Fixed drizzle-zod v0.7 refinement callbacks (removed extra property access)`);
+      fixes.push(`[${file.path}] Fixed drizzle-zod v0.7 refinement callbacks`);
       return { path: file.path, content };
     }
     return file;

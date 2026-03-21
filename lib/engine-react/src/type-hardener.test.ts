@@ -2628,6 +2628,26 @@ const result = await db.select().from(expenses).where(
   assert(route.content.match(/import\s*\{.*lt.*\}\s*from\s*['"]drizzle-orm['"]/), "should include lt in drizzle-orm import");
 }
 
+console.log("\n=== Pass 24b: fixDrizzleZodRefinementCallbacks - casts refinement objects ===");
+{
+  const files = [
+    {
+      path: "server/src/lib/validators.ts",
+      content: `import { createInsertSchema } from 'drizzle-zod';
+import { recipes } from '../schema';
+export const insertRecipeSchema = createInsertSchema(recipes, {
+  title: z.string().min(3).max(255),
+  ingredients: z.array(z.string()).min(1),
+});`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const validators = result.files.find(f => f.path === "server/src/lib/validators.ts")!;
+  assert(validators.content.includes("} as any"), "should cast refinement object with as any");
+  assert(validators.content.includes("createInsertSchema(recipes,"), "should preserve function call");
+}
+
 console.log("\n=== Pass 32b: fixMissingTypeStubs - stubs Schema-suffixed imports as const ===");
 {
   const files = [
