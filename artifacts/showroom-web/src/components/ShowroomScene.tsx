@@ -2,6 +2,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Environment, ContactShadows, AdaptiveDpr, AdaptiveEvents, RoundedBox, Text, MeshReflectorMaterial } from "@react-three/drei";
 import { Suspense, useState, useRef, useCallback, useMemo, Component, type ReactNode, type ErrorInfo } from "react";
 import * as THREE from "three";
+import { verifiedFetch } from "../utils/crypto";
 
 class WebGLErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -185,15 +186,19 @@ export default function ShowroomScene() {
 
   const handleBid = useCallback(async (amount: number) => {
     try {
-      const resp = await fetch(`${API_BASE}/api/bids`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicle_id: selectedVehicle.id, amount, user_id: "dev-user-001" }),
-      });
+      const payload = { vehicle_id: selectedVehicle.id, amount, user_id: "dev-user-001" };
+      const resp = await verifiedFetch(`${API_BASE}/api/bids`, payload);
       if (resp.ok) {
-        setLastBid(`Bid of $${amount.toLocaleString()} placed on ${selectedVehicle.name}`);
+        const data = await resp.json();
+        const hashNote = data.payload_hash ? ` [SHA-256: ${data.payload_hash.slice(0, 12)}…]` : "";
+        setLastBid(`Bid of $${amount.toLocaleString()} placed on ${selectedVehicle.name}${hashNote}`);
       } else {
-        setLastBid("Bid failed — try again");
+        const err = await resp.json().catch(() => null);
+        if (err?.code === "INTEGRITY_HASH_MISMATCH") {
+          setLastBid("INTEGRITY FAULT — data corrupted in transit");
+        } else {
+          setLastBid("Bid failed — try again");
+        }
       }
     } catch {
       setLastBid("API offline — bid queued locally");

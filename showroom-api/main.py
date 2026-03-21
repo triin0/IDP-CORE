@@ -12,15 +12,17 @@ Transformations applied:
   Pass 10: GZipMiddleware
   Pass 48: Presence relay (WebSocket)
   Pass 49: Chronos snapshot store
+  Tier 5: SHA-256 Cryptographic Root of Trust
 """
 import os
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from sqlalchemy import create_engine, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker, relationship, mapped_column, Mapped
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+from integrity import IntegrityMiddleware
 
 DATABASE_URL = os.getenv("SHOWROOM_DATABASE_URL", "sqlite:///./showroom.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
@@ -48,6 +50,7 @@ class Bid(Base):
     vehicle_id: Mapped[int] = mapped_column(Integer, ForeignKey("vehicles.id"))
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     user_id: Mapped[str] = mapped_column(String, nullable=False)
+    payload_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     vehicle = relationship("Vehicle", back_populates="bids")
 
@@ -74,15 +77,18 @@ class BidResponse(BaseModel):
     vehicle_id: int
     amount: float
     user_id: str
+    payload_hash: str | None = None
 
 
 app = FastAPI(title="Lexus RX300 Showroom API", version="1.0.0")
+app.add_middleware(IntegrityMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-Payload-Hash"],
+    expose_headers=["X-Payload-Hash"],
     allow_credentials=True,
 )
 
@@ -130,8 +136,10 @@ async def get_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/bids", response_model=BidResponse)
-async def create_bid(bid: BidCreate, db: Session = Depends(get_db)):
-    new_bid = Bid(**bid.model_dump())
+async def create_bid(bid: BidCreate, request: Request, db: Session = Depends(get_db)):
+    bid_data = bid.model_dump()
+    bid_data["payload_hash"] = getattr(request.state, "payload_hash", None)
+    new_bid = Bid(**bid_data)
     db.add(new_bid)
     db.commit()
     db.refresh(new_bid)
@@ -182,8 +190,12 @@ from snapshot_store import snapshot_store, SnapshotCreate
 
 
 @app.post("/api/snapshots")
-async def create_snapshot(body: SnapshotCreate):
-    return snapshot_store.save(body.snapshot, body.autoSave)
+async def create_snapshot(body: SnapshotCreate, request: Request):
+    result = snapshot_store.save(body.snapshot, body.autoSave)
+    payload_hash = getattr(request.state, "payload_hash", None)
+    if payload_hash:
+        result["payloadHash"] = payload_hash
+    return result
 
 
 @app.get("/api/snapshots")
@@ -230,6 +242,17 @@ async def diff_snapshots(id_a: str, id_b: str):
     if result is None:
         raise HTTPException(status_code=404, detail="One or both snapshots not found")
     return result
+
+
+@app.get("/api/integrity/status")
+async def integrity_status():
+    return {
+        "tier": 5,
+        "protocol": "SHA-256 Cryptographic Root of Trust",
+        "verification": "X-Payload-Hash header on POST/PUT/PATCH",
+        "rejection": "400 Integrity Fault on hash mismatch",
+        "audit": "payload_hash column on bids table",
+    }
 
 
 if __name__ == "__main__":

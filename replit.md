@@ -198,7 +198,14 @@ Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardenin
 Test suite at `lib/engine-react/src/type-hardener.test.ts` — 659 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300).
 
 ## Project Showroom — Physical Runtime
-- **showroom-web** (`artifacts/showroom-web`): React/Vite + Three.js 3D showroom. Hardened by 46 React Vindicator passes. Preview at `/showroom-web/`.
-- **showroom-api** (`showroom-api/`): FastAPI backend on port 8000. Hardened by 12 FastAPI Vindicator passes. SQLite local DB (`showroom.db`). Uses `SHOWROOM_DATABASE_URL` env var (defaults to SQLite). Endpoints: `/api/vehicles`, `/api/bids`, `/api/snapshots` (Chronos), `/ws/presence/{user_id}` (Mirror), `/api/world/lock|unlock|status`.
+- **showroom-web** (`artifacts/showroom-web`): React/Vite + Three.js 3D showroom. Hardened by 46 React Vindicator passes. Preview at `/showroom-web/`. WebGL error boundary with graceful fallback for headless/no-GPU environments.
+- **showroom-api** (`showroom-api/`): FastAPI backend on port 8000. Hardened by 12 FastAPI Vindicator passes + Tier 5 SHA-256 integrity. SQLite local DB (`showroom.db`). Uses `SHOWROOM_DATABASE_URL` env var (defaults to SQLite). Endpoints: `/api/vehicles`, `/api/bids`, `/api/snapshots` (Chronos), `/ws/presence/{user_id}` (Mirror), `/api/world/lock|unlock|status`, `/api/integrity/status`.
 - Workflows: "Showroom API (FastAPI)" and "artifacts/showroom-web: web".
+
+## Tier 5 — SHA-256 Cryptographic Root of Trust
+- **Frontend** (`artifacts/showroom-web/src/utils/crypto.ts`): `canonicalize()` (deep key sorting + JSON.stringify), `sha256()` (Web Crypto API), `verifiedFetch()` (auto-appends `X-Payload-Hash` header to POST/PUT/PATCH).
+- **Backend** (`showroom-api/integrity.py`): `IntegrityMiddleware` — intercepts mutating requests, parses raw body, applies `canonical_sort()` + `json.dumps(separators=(',',':'))`, computes SHA-256, compares against `X-Payload-Hash`. On mismatch: returns `400 Integrity Fault` with code `INTEGRITY_HASH_MISMATCH`. Data never touches DB on failure.
+- **Audit Trail**: `payload_hash` column on `bids` table stores verified SHA-256 for forensic reconciliation.
+- **Backward Compatible**: Requests without `X-Payload-Hash` pass through (legacy client support).
+- **Serialization Trap Avoidance**: Both sides use deep recursive key sorting before hashing. Backend also tries raw-body hash as fallback to handle edge cases in number representation.
 - Stub collision guard: prevents duplicate declarations when imported symbols match stub candidates.
