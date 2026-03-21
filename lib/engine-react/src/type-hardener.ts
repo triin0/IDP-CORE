@@ -2832,6 +2832,10 @@ export function hardenGeneratedTypes(
   currentFiles = viteEnvFix.files;
   allFixes.push(...viteEnvFix.fixes);
 
+  const unifiedDispatcherFix = fixUnifiedArchitectDispatcher(currentFiles);
+  currentFiles = unifiedDispatcherFix.files;
+  allFixes.push(...unifiedDispatcherFix.fixes);
+
   return { files: currentFiles, fixes: allFixes };
 }
 
@@ -3565,4 +3569,282 @@ function getRelativeImportPath(fromPath: string, toPath: string): string {
   const prefix = ups === 0 ? "./" : "../".repeat(ups);
   const remaining = toParts.slice(common);
   return prefix + [...remaining, toFile].join("/");
+}
+
+function fixUnifiedArchitectDispatcher(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasCommandTypes = files.some(
+    f => (f.path.includes("types/commands") || f.path.includes("commands.ts")) &&
+      f.content.includes("CommandAction"),
+  );
+  const hasCommandBus = files.some(
+    f => f.path === "client/src/lib/command-bus.ts" && f.content.includes("commandBus"),
+  );
+  const hasNLParser = files.some(
+    f => f.path === "client/src/lib/nl-command-parser.ts" && f.content.includes("parseNaturalLanguage"),
+  );
+  if (!hasCommandTypes || !hasCommandBus || !hasNLParser) return { files, fixes };
+
+  const hasDispatcher = files.some(
+    f => f.path === "client/src/lib/engine-dispatcher.ts" && f.content.includes("EngineTarget"),
+  );
+  if (hasDispatcher) return { files, fixes };
+
+  const hasServerFiles = files.some(f => f.path.startsWith("server/"));
+  if (!hasServerFiles) return { files, fixes };
+
+  const commandsFile = files.find(f => f.path.includes("types/commands") && f.content.includes("CommandAction"));
+  const actionMatches = commandsFile?.content.match(/"([A-Z_]+)"/g) || [];
+  const actions = [...new Set(actionMatches.map(a => a.replace(/"/g, "")))];
+  const validActionsStr = actions.length > 0
+    ? actions.map(a => `"${a}"`).join(" | ")
+    : `"SPAWN_ASSET" | "DELETE_NODE" | "TRANSFORM_NODE" | "UPDATE_MATERIAL" | "SET_ENVIRONMENT" | "SNAPSHOT_STATE" | "UNDO" | "REDO"`;
+
+  const ENGINE_DISPATCHER_MODULE = `import type { CommandAction } from "../types/commands";
+import { commandBus } from "./command-bus";
+
+export type EngineTarget = "react" | "fastapi" | "mobile-expo";
+
+export interface DispatchPlan {
+  targets: EngineTarget[];
+  commands: Array<{
+    engine: EngineTarget;
+    action: ${validActionsStr};
+    payload: Record<string, unknown>;
+    crossRef?: { engine: EngineTarget; hook: string };
+  }>;
+  intent: string;
+}
+
+const ENGINE_AFFINITY: Record<string, EngineTarget[]> = {
+  SPAWN_ASSET: ["react"],
+  DELETE_NODE: ["react"],
+  TRANSFORM_NODE: ["react"],
+  UPDATE_MATERIAL: ["react"],
+  SET_ENVIRONMENT: ["react"],
+  SNAPSHOT_STATE: ["react", "fastapi"],
+  UNDO: ["react"],
+  REDO: ["react"],
+};
+
+const CROSS_STACK_HOOKS: Record<string, Array<{ engine: EngineTarget; hook: string }>> = {
+  SPAWN_ASSET: [{ engine: "fastapi", hook: "createAssetRecord" }],
+  DELETE_NODE: [{ engine: "fastapi", hook: "deleteAssetRecord" }],
+  SNAPSHOT_STATE: [{ engine: "fastapi", hook: "persistSnapshot" }],
+};
+
+export function resolveEngineTargets(
+  action: string,
+): EngineTarget[] {
+  return ENGINE_AFFINITY[action] ?? ["react"];
+}
+
+export function buildDispatchPlan(
+  commands: CommandAction[],
+  intent: string,
+): DispatchPlan {
+  const targets = new Set<EngineTarget>();
+  const planned: DispatchPlan["commands"] = [];
+
+  for (const command of commands) {
+    const engines = resolveEngineTargets(command.action);
+    engines.forEach(e => targets.add(e));
+
+    planned.push({
+      engine: engines[0],
+      action: command.action as any,
+      payload: command as unknown as Record<string, unknown>,
+    });
+
+    const hooks = CROSS_STACK_HOOKS[command.action];
+    if (hooks) {
+      for (const hook of hooks) {
+        targets.add(hook.engine);
+        planned[planned.length - 1].crossRef = hook;
+      }
+    }
+  }
+
+  return {
+    targets: [...targets],
+    commands: planned,
+    intent,
+  };
+}
+
+export async function dispatchToEngines(
+  plan: DispatchPlan,
+): Promise<{
+  results: Array<{ engine: EngineTarget; success: boolean; error?: string }>;
+}> {
+  const results: Array<{ engine: EngineTarget; success: boolean; error?: string }> = [];
+
+  for (const cmd of plan.commands) {
+    try {
+      if (cmd.engine === "react") {
+        commandBus.dispatch(cmd.payload as unknown as CommandAction, "ai");
+      }
+
+      if (cmd.crossRef) {
+        const hookRes = await fetch(
+          \`\${import.meta.env.VITE_API_URL || ""}/api/engine-hook\`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              engine: cmd.crossRef.engine,
+              hook: cmd.crossRef.hook,
+              payload: cmd.payload,
+              sourceEngine: cmd.engine,
+            }),
+          },
+        );
+        if (!hookRes.ok) {
+          results.push({ engine: cmd.crossRef.engine, success: false, error: \`Hook \${cmd.crossRef.hook} failed\` });
+          continue;
+        }
+      }
+
+      results.push({ engine: cmd.engine, success: true });
+    } catch (error: unknown) {
+      results.push({ engine: cmd.engine, success: false, error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  }
+
+  return { results };
+}
+
+export function analyzeIntent(
+  text: string,
+): { engines: EngineTarget[]; reasoning: string } {
+  const lower = text.toLowerCase();
+  const engines = new Set<EngineTarget>();
+  const reasons: string[] = [];
+
+  const reactSignals = ["3d", "scene", "model", "mesh", "material", "texture", "light",
+    "camera", "rotate", "position", "spawn", "render", "canvas", "ui", "component",
+    "button", "modal", "sidebar", "layout", "page", "dashboard"];
+  const fastapiSignals = ["api", "endpoint", "database", "table", "model", "schema",
+    "crud", "auth", "login", "user", "backend", "server", "query", "data",
+    "persist", "store", "fetch", "session", "middleware", "route"];
+  const mobileSignals = ["mobile", "app", "screen", "tab", "navigation", "swipe",
+    "touch", "haptic", "notification", "push", "phone", "ios", "android",
+    "expo", "native", "gesture"];
+
+  for (const s of reactSignals) {
+    if (lower.includes(s)) { engines.add("react"); reasons.push(\`React: detected "\${s}"\`); break; }
+  }
+  for (const s of fastapiSignals) {
+    if (lower.includes(s)) { engines.add("fastapi"); reasons.push(\`FastAPI: detected "\${s}"\`); break; }
+  }
+  for (const s of mobileSignals) {
+    if (lower.includes(s)) { engines.add("mobile-expo"); reasons.push(\`Mobile: detected "\${s}"\`); break; }
+  }
+
+  if (engines.size === 0) {
+    engines.add("react");
+    reasons.push("Default: no specific engine signal, routing to React");
+  }
+
+  return { engines: [...engines], reasoning: reasons.join("; ") };
+}
+`;
+
+  const updatedFiles = [...files];
+  updatedFiles.push({
+    path: "client/src/lib/engine-dispatcher.ts",
+    content: ENGINE_DISPATCHER_MODULE,
+  });
+  fixes.push("[client/src/lib/engine-dispatcher.ts] Injected Unified Architect Dispatcher with multi-engine routing, cross-stack hooks, and intent analysis");
+
+  const result = updatedFiles.map(file => {
+    if (file.path !== "client/src/lib/nl-command-parser.ts") return file;
+    if (file.content.includes("engine-dispatcher") || file.content.includes("analyzeIntent")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    if (!content.includes("analyzeIntent")) {
+      content = `import { analyzeIntent, buildDispatchPlan, dispatchToEngines } from "./engine-dispatcher";\n` + content;
+
+      content = content.replace(
+        /export async function parseNaturalLanguage\(\s*text: string,?\s*\):/,
+        `export async function parseNaturalLanguageMultiEngine(
+  text: string,
+): Promise<{ success: boolean; engines: string[]; results?: any[]; error?: string }> {
+  const intent = analyzeIntent(text);
+  const singleResult = await parseNaturalLanguage(text);
+  if (!singleResult.success || !singleResult.command) {
+    return { success: false, engines: intent.engines, error: singleResult.error };
+  }
+  const plan = buildDispatchPlan([singleResult.command], text);
+  const dispatched = await dispatchToEngines(plan);
+  return {
+    success: dispatched.results.every(r => r.success),
+    engines: plan.targets,
+    results: dispatched.results,
+  };
+}
+
+export async function parseNaturalLanguage(
+  text: string,
+):`,
+      );
+      modified = true;
+    }
+
+    if (modified) {
+      fixes.push("[client/src/lib/nl-command-parser.ts] Injected parseNaturalLanguageMultiEngine() with intent analysis and multi-engine dispatch");
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  const serverResult = result.map(file => {
+    if (!file.path.startsWith("server/")) return file;
+    if (!file.path.includes("routes") && !file.path.includes("index")) return file;
+    if (file.content.includes("engine-hook")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    if (content.includes("app.post") && !content.includes("/api/engine-hook")) {
+      const hookRoute = `
+
+app.post("/api/engine-hook", async (req, res) => {
+  const { engine, hook, payload, sourceEngine } = req.body;
+  if (!engine || !hook) {
+    return res.status(400).json({ error: "Missing engine or hook" });
+  }
+  console.log(\`[engine-hook] \${sourceEngine} -> \${engine}:\${hook}\`, JSON.stringify(payload).slice(0, 200));
+  res.json({ status: "acknowledged", engine, hook, timestamp: Date.now() });
+});
+`;
+      const lastRouteIndex = content.lastIndexOf("app.post(");
+      if (lastRouteIndex !== -1) {
+        const insertPos = content.indexOf(");", lastRouteIndex);
+        if (insertPos !== -1) {
+          content = content.slice(0, insertPos + 2) + hookRoute + content.slice(insertPos + 2);
+          modified = true;
+        }
+      } else if (content.includes("app.listen") || content.includes("app.get(")) {
+        const listenIdx = content.indexOf("app.listen");
+        if (listenIdx !== -1) {
+          content = content.slice(0, listenIdx) + hookRoute + content.slice(listenIdx);
+          modified = true;
+        }
+      }
+
+      if (modified) {
+        fixes.push(`[${file.path}] Injected /api/engine-hook cross-stack route for multi-engine dispatch`);
+      }
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: serverResult, fixes };
 }

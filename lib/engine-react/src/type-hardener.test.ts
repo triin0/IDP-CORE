@@ -3837,6 +3837,270 @@ export function App() {
   passed++;
 }
 
+console.log("\n=== Pass 45a: fixUnifiedArchitectDispatcher - injects engine-dispatcher.ts ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction =
+  | { action: "SPAWN_ASSET"; assetId: string }
+  | { action: "DELETE_NODE"; nodeId: string }
+  | { action: "TRANSFORM_NODE"; nodeId: string; transform: any }
+  | { action: "UPDATE_MATERIAL"; nodeId: string; material: any }
+  | { action: "SET_ENVIRONMENT"; env: string }
+  | { action: "SNAPSHOT_STATE" }
+  | { action: "UNDO" }
+  | { action: "REDO" };
+
+export interface CommandEnvelope {
+  id: string;
+  timestamp: number;
+  source: "editor" | "ai";
+  command: CommandAction;
+}`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `import type { CommandAction, CommandEnvelope } from "../types/commands";
+let history: CommandEnvelope[] = [];
+let future: CommandEnvelope[] = [];
+export const commandBus = {
+  dispatch(command: CommandAction, source: "editor" | "ai" = "editor"): CommandEnvelope {
+    const envelope: CommandEnvelope = { id: crypto.randomUUID(), timestamp: Date.now(), source, command };
+    history.push(envelope); future = [];
+    return envelope;
+  },
+  undo(): CommandEnvelope | undefined { const last = history.pop(); if (last) future.push(last); return last; },
+  redo(): CommandEnvelope | undefined { const next = future.pop(); if (next) history.push(next); return next; },
+  getHistory(): CommandEnvelope[] { return [...history]; },
+  clear() { history = []; future = []; },
+};`,
+    },
+    {
+      path: "client/src/lib/nl-command-parser.ts",
+      content: `import type { CommandAction } from "../types/commands";
+import { commandBus } from "./command-bus";
+
+const VALID_ACTIONS = ["SPAWN_ASSET", "DELETE_NODE", "TRANSFORM_NODE", "UPDATE_MATERIAL", "SET_ENVIRONMENT", "SNAPSHOT_STATE", "UNDO", "REDO"] as const;
+
+export async function parseNaturalLanguage(
+  text: string,
+): Promise<{ success: boolean; command?: CommandAction; error?: string }> {
+  try {
+    const res = await fetch(\`\${import.meta.env.VITE_API_URL || ""}/api/ai-command\`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) { const err = await res.json(); return { success: false, error: err.error || "Failed" }; }
+    const { command } = (await res.json()) as { command: CommandAction };
+    if (!command?.action || !VALID_ACTIONS.includes(command.action as any)) {
+      return { success: false, error: \`Unknown action: \${(command as any)?.action}\` };
+    }
+    commandBus.dispatch(command, "ai");
+    return { success: true, command };
+  } catch (error: unknown) { return { success: false, error: "Network error" }; }
+}`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express";
+const app = express();
+app.use(express.json());
+app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+app.post("/api/ai-command", async (req, res) => {
+  const { text } = req.body;
+  const raw = '{"command": {"action": "SPAWN_ASSET"}}';
+  const parsed = JSON.parse(raw);
+  res.json(parsed);
+});
+app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const dispatcher = result.files.find(f => f.path === "client/src/lib/engine-dispatcher.ts");
+  assert(dispatcher !== undefined, "should create engine-dispatcher.ts");
+  assert(dispatcher!.content.includes("EngineTarget"), "should define EngineTarget type");
+  assert(dispatcher!.content.includes("DispatchPlan"), "should define DispatchPlan interface");
+  assert(dispatcher!.content.includes("ENGINE_AFFINITY"), "should define ENGINE_AFFINITY map");
+  assert(dispatcher!.content.includes("CROSS_STACK_HOOKS"), "should define CROSS_STACK_HOOKS");
+  assert(dispatcher!.content.includes("resolveEngineTargets"), "should export resolveEngineTargets");
+  assert(dispatcher!.content.includes("buildDispatchPlan"), "should export buildDispatchPlan");
+  assert(dispatcher!.content.includes("dispatchToEngines"), "should export dispatchToEngines");
+  assert(dispatcher!.content.includes("analyzeIntent"), "should export analyzeIntent");
+  assert(dispatcher!.content.includes('"react"'), "should include react engine target");
+  assert(dispatcher!.content.includes('"fastapi"'), "should include fastapi engine target");
+  assert(dispatcher!.content.includes('"mobile-expo"'), "should include mobile-expo engine target");
+}
+
+console.log("\n=== Pass 45b: fixUnifiedArchitectDispatcher - injects parseNaturalLanguageMultiEngine ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction = { action: "SPAWN_ASSET"; assetId: string } | { action: "DELETE_NODE"; nodeId: string };
+export interface CommandEnvelope { id: string; timestamp: number; source: "editor" | "ai"; command: CommandAction; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `import type { CommandAction, CommandEnvelope } from "../types/commands";
+export const commandBus = { dispatch(c: CommandAction, s: "editor"|"ai" = "editor"): CommandEnvelope { return {} as any; }, undo() { return undefined; }, redo() { return undefined; }, getHistory() { return []; }, clear() {} };`,
+    },
+    {
+      path: "client/src/lib/nl-command-parser.ts",
+      content: `import type { CommandAction } from "../types/commands";
+import { commandBus } from "./command-bus";
+const VALID_ACTIONS = ["SPAWN_ASSET", "DELETE_NODE"] as const;
+export async function parseNaturalLanguage(
+  text: string,
+): Promise<{ success: boolean; command?: CommandAction; error?: string }> {
+  return { success: false, error: "stub" };
+}`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express";
+const app = express();
+app.post("/api/test", async (req, res) => { res.json({}); });
+app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const nlParser = result.files.find(f => f.path === "client/src/lib/nl-command-parser.ts")!;
+  assert(nlParser.content.includes("parseNaturalLanguageMultiEngine"), "should inject multi-engine parser");
+  assert(nlParser.content.includes("analyzeIntent"), "should import analyzeIntent");
+  assert(nlParser.content.includes("buildDispatchPlan"), "should import buildDispatchPlan");
+  assert(nlParser.content.includes("dispatchToEngines"), "should import dispatchToEngines");
+}
+
+console.log("\n=== Pass 45c: fixUnifiedArchitectDispatcher - injects /api/engine-hook route ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction = { action: "SPAWN_ASSET"; assetId: string };
+export interface CommandEnvelope { id: string; timestamp: number; source: "editor" | "ai"; command: CommandAction; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `import type { CommandAction, CommandEnvelope } from "../types/commands";
+export const commandBus = { dispatch(c: CommandAction, s: "editor"|"ai" = "editor"): CommandEnvelope { return {} as any; }, undo() { return undefined; }, redo() { return undefined; }, getHistory() { return []; }, clear() {} };`,
+    },
+    {
+      path: "client/src/lib/nl-command-parser.ts",
+      content: `import type { CommandAction } from "../types/commands";
+import { commandBus } from "./command-bus";
+const VALID_ACTIONS = ["SPAWN_ASSET"] as const;
+export async function parseNaturalLanguage(
+  text: string,
+): Promise<{ success: boolean; command?: CommandAction; error?: string }> {
+  return { success: false, error: "stub" };
+}`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express";
+const app = express();
+app.post("/api/ai-command", async (req, res) => { res.json({}); });
+app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const server = result.files.find(f => f.path === "server/src/index.ts")!;
+  assert(server.content.includes("/api/engine-hook"), "should inject engine-hook route");
+  assert(server.content.includes("sourceEngine"), "should include sourceEngine in hook handler");
+}
+
+console.log("\n=== Pass 45d: fixUnifiedArchitectDispatcher - skips when no command types ===");
+{
+  const files = [
+    { path: "client/src/App.tsx", content: `export default function App() { return <div>Hello</div>; }` },
+    { path: "server/src/index.ts", content: `import express from "express"; const app = express(); app.listen(3000);` },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const dispatcher = result.files.find(f => f.path === "client/src/lib/engine-dispatcher.ts");
+  assert(dispatcher === undefined, "should NOT create engine-dispatcher.ts without CommandAction types");
+}
+
+console.log("\n=== Pass 45e: fixUnifiedArchitectDispatcher - skips when dispatcher already exists ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction = { action: "SPAWN_ASSET"; assetId: string };
+export interface CommandEnvelope { id: string; timestamp: number; source: "editor" | "ai"; command: CommandAction; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `import type { CommandAction, CommandEnvelope } from "../types/commands";
+export const commandBus = { dispatch(c: CommandAction, s: "editor"|"ai" = "editor"): CommandEnvelope { return {} as any; }, undo() { return undefined; }, redo() { return undefined; }, getHistory() { return []; }, clear() {} };`,
+    },
+    {
+      path: "client/src/lib/nl-command-parser.ts",
+      content: `import type { CommandAction } from "../types/commands";
+export async function parseNaturalLanguage(text: string): Promise<any> { return { success: false }; }`,
+    },
+    {
+      path: "client/src/lib/engine-dispatcher.ts",
+      content: `export type EngineTarget = "react" | "fastapi" | "mobile-expo";
+export function analyzeIntent(text: string) { return { engines: ["react" as EngineTarget], reasoning: "" }; }`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express(); app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const dispatchers = result.files.filter(f => f.path === "client/src/lib/engine-dispatcher.ts");
+  assert(dispatchers.length === 1, "should not duplicate engine-dispatcher.ts");
+}
+
+console.log("\n=== Pass 45f: fixUnifiedArchitectDispatcher - extracts actions from CommandAction union ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction =
+  | { action: "CREATE_ITEM"; name: string }
+  | { action: "REMOVE_ITEM"; id: string }
+  | { action: "MODIFY_ITEM"; id: string; changes: any };
+export interface CommandEnvelope { id: string; timestamp: number; source: "editor" | "ai"; command: CommandAction; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `import type { CommandAction, CommandEnvelope } from "../types/commands";
+export const commandBus = { dispatch(c: CommandAction, s: "editor"|"ai" = "editor"): CommandEnvelope { return {} as any; }, undo() { return undefined; }, redo() { return undefined; }, getHistory() { return []; }, clear() {} };`,
+    },
+    {
+      path: "client/src/lib/nl-command-parser.ts",
+      content: `import type { CommandAction } from "../types/commands";
+import { commandBus } from "./command-bus";
+const VALID_ACTIONS = ["CREATE_ITEM", "REMOVE_ITEM", "MODIFY_ITEM"] as const;
+export async function parseNaturalLanguage(
+  text: string,
+): Promise<{ success: boolean; command?: CommandAction; error?: string }> {
+  return { success: false, error: "stub" };
+}`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express();
+app.post("/api/items", async (req, res) => { res.json({}); });
+app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const dispatcher = result.files.find(f => f.path === "client/src/lib/engine-dispatcher.ts")!;
+  assert(dispatcher.content.includes("CREATE_ITEM"), "should extract CREATE_ITEM from union");
+  assert(dispatcher.content.includes("REMOVE_ITEM"), "should extract REMOVE_ITEM from union");
+  assert(dispatcher.content.includes("MODIFY_ITEM"), "should extract MODIFY_ITEM from union");
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

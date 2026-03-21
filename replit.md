@@ -175,5 +175,7 @@ Wired into `pipeline.ts` and `refine.ts` — runs after code generation, before 
 
 Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 431 tests covering all 44 passes.
+45. **fixUnifiedArchitectDispatcher** — When CommandAction types + command-bus + nl-command-parser all detected: creates `client/src/lib/engine-dispatcher.ts` with multi-engine routing (EngineTarget = "react" | "fastapi" | "mobile-expo"), ENGINE_AFFINITY map for action→engine resolution, CROSS_STACK_HOOKS for automatic data hook injection (e.g., SPAWN_ASSET triggers FastAPI createAssetRecord), intent analysis via keyword signals, and `dispatchToEngines()` for parallel multi-engine command execution; upgrades nl-command-parser with `parseNaturalLanguageMultiEngine()` that analyzes intent across all three engines before dispatch; injects `/api/engine-hook` server route for cross-stack communication.
+
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 454 tests covering all 45 passes.
 - Stub collision guard: prevents duplicate declarations when imported symbols match stub candidates.
