@@ -8,6 +8,7 @@ import { AgentPipelineBar } from "@/components/AgentPipelineBar";
 import { LiveTerminal } from "@/components/LiveTerminal";
 import { BuildGate } from "@/components/BuildGate";
 import { usePipelineStream } from "@/hooks/usePipelineStream";
+import { GenerationProgressBar } from "@/components/GenerationProgressBar";
 import { AlertCircle, Loader2, WifiOff, ShieldAlert, XCircle, AlertTriangle, RefreshCw, CheckCircle2, Hash, FileWarning, Bot } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useEffect, useMemo } from "react";
@@ -474,6 +475,13 @@ function PipelineObserver({ projectId, status, pipelineStatus }: {
           </div>
         </div>
       </div>
+
+      <GenerationProgressBar
+        stages={pipelineStatus?.stages ?? []}
+        currentStage={stream.currentStage}
+        selfHealingAttempts={stream.selfHealingAttempts}
+        isConnected={stream.isConnected}
+      />
 
       <AgentPipelineBar
         stages={pipelineStatus?.stages ?? []}

@@ -1,7 +1,41 @@
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, CheckCircle2, XCircle, Clock, Bot, Wrench, ShieldCheck, Terminal, Activity } from "lucide-react";
 import type { PipelineEvent, VerificationGate } from "@/hooks/usePipelineStream";
 import { cn } from "@/lib/utils";
+
+const STAGE_ACTIVITY_HINTS: Record<string, string[]> = {
+  architect: [
+    "Designing schemas...",
+    "Planning routes...",
+    "Modeling data...",
+  ],
+  backend: [
+    "Writing handlers...",
+    "Wiring queries...",
+    "Building API...",
+  ],
+  frontend: [
+    "Creating components...",
+    "Styling views...",
+    "Connecting hooks...",
+  ],
+  security: [
+    "Scanning code...",
+    "Auditing imports...",
+    "Checking rules...",
+  ],
+  verification: [
+    "Compiling...",
+    "Type-checking...",
+    "Validating build...",
+  ],
+  fixer: [
+    "Diagnosing...",
+    "Patching errors...",
+    "Rewriting code...",
+  ],
+};
 
 interface PipelineStage {
   role: string;
@@ -44,9 +78,32 @@ function formatDuration(startedAt?: string | null, completedAt?: string | null):
   return `${seconds}s`;
 }
 
+function useRotatingHint(role: string, isRunning: boolean) {
+  const [index, setIndex] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hints = STAGE_ACTIVITY_HINTS[role] || ["Processing..."];
+
+  useEffect(() => {
+    if (!isRunning) {
+      setIndex(0);
+      return;
+    }
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      setIndex(prev => (prev + 1) % hints.length);
+    }, 3000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isRunning, hints.length]);
+
+  return hints[index % hints.length];
+}
+
 function StageCard({ stage }: { stage: PipelineStage }) {
   const Icon = AGENT_ICONS[stage.role] || Bot;
   const colorClass = AGENT_COLORS[stage.role] || "text-zinc-400 border-zinc-700 bg-zinc-900";
+  const hint = useRotatingHint(stage.role, stage.status === "running");
 
   return (
     <motion.div
@@ -86,7 +143,20 @@ function StageCard({ stage }: { stage: PipelineStage }) {
           </span>
         </div>
         <div className="text-[10px] font-mono text-zinc-500 mt-0.5">
-          {stage.status === "running" && "Processing..."}
+          {stage.status === "running" && (
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={hint}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="text-primary/70"
+              >
+                {hint}
+              </motion.span>
+            </AnimatePresence>
+          )}
           {stage.status === "completed" && (
             <span className="text-green-400/70">
               {stage.fileCount ?? 0} files
