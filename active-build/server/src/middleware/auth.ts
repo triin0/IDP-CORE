@@ -1,27 +1,45 @@
 import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 
-// Placeholder for authentication middleware
-// In a real app, this would verify a JWT, session, or API key from request headers
-export const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
-    // For demonstration, we'll assume the user is always authenticated.
-    // A real implementation would look like:
-    // const user = await verifyToken(req.headers.authorization);
-    // if (!user) {
-    //   return res.status(401).json({ message: 'Unauthorized: Access token is missing or invalid.' });
-    // }
-    // req.user = user; // Attach user to the request object
-    console.log('User is authenticated (placeholder)');
-    next();
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error('FATAL ERROR: JWT_SECRET environment variable is not set.');
+    process.exit(1);
+}
+
+// Extend Express's Request interface to include the user payload
+declare global {
+    namespace Express {
+        export interface Request {
+            user?: {
+                id: number;
+                role: string;
+            };
+        }
+    }
+}
+
+export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+    const token = req.cookies.token;
+
+    if (!token) {
+        return res.status(401).json({ message: 'Authentication required. No token provided.' });
+    }
+
+    try {
+        const payload = jwt.verify(token, JWT_SECRET) as any
+        req.user = payload;
+        next();
+    } catch (error: any) {
+        // Clear invalid cookie
+        res.clearCookie('token');
+        return res.status(401).json({ message: 'Invalid or expired token.' });
+    }
 };
 
-// Placeholder for authorization middleware (admin check)
-export const isAdmin = (req: Request, res: Response, next: NextFunction) => {
-    // This middleware should run AFTER isAuthenticated
-    // For demonstration, we'll assume the user is always an admin.
-    // A real implementation would look like:
-    // if (req.user?.role !== 'admin') {
-    //   return res.status(403).json({ message: 'Forbidden: User does not have admin privileges.' });
-    // }
-    console.log('User is an admin (placeholder)');
+export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+    if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Forbidden: Admin access required.' });
+    }
     next();
 };

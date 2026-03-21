@@ -1,129 +1,105 @@
-import { seedEntities, seedTransactions } from './seed-data';
-import { Entity, Transaction, NewEntity, NewTransaction, AdminRecord } from '../types';
+import { seedUsers, seedEvents, seedRsvps } from './seed-data';
+import type { User, Event, Rsvp } from '../../../../server/src/types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // In-memory store for preview mode
-let memoryEntities: Entity[] = JSON.parse(JSON.stringify(seedEntities));
-let memoryTransactions: Transaction[] = JSON.parse(JSON.stringify(seedTransactions));
+let memoryStore = {
+  users: [...seedUsers] as User[],
+  events: [...seedEvents] as Event[],
+  rsvps: [...seedRsvps] as Rsvp[],
+};
 
-const apiRequest = async <T>(method: string, path: string, body?: any): Promise<T> => {
+const getAuthToken = () => localStorage.getItem('authToken');
+
+async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers || {});
+  headers.set('Content-Type', 'application/json');
+  const token = getAuthToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
   try {
-    const options: RequestInit = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    };
-    if (body) {
-      options.body = JSON.stringify(body);
-    }
-    const response = await fetch(`${API_BASE_URL}${path}`, options);
+    const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
     if (!response.ok) {
-      // This will be caught and fallback to in-memory store
-      throw new Error(`API request failed: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
+    if (response.status === 204) return null as T;
     return response.json();
   } catch (error) {
-    console.warn(`API call failed for ${method} ${path}, falling back to in-memory store.`, error);
-    throw error; // Re-throw to be handled by fallback logic
+    console.warn(`API fetch failed for ${path}. Falling back to preview data.`, error);
+    throw error; // Re-throw to be handled by callers, which will then use fallback
   }
+}
+
+// --- Fallback Functions ---
+const handleApiError = <T>(fallbackFn: () => T) => (error: any): T => {
+  console.warn('API call failed, using fallback.', error);
+  return fallbackFn();
 };
 
-// Entities API
-export const getEntities = async (): Promise<Entity[]> => {
-  try {
-    return await apiRequest<Entity[]>('GET', '/entities');
-  } catch (e) {
-    return [...memoryEntities];
-  }
+// --- Auth API ---
+export const authApi = {
+  login: (credentials: { email: string; password: string }): Promise<{ token: string; user: User }> =>
+    apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
+  register: (userData: { name: string; email: string; password: string }): Promise<{ token: string; user: User }> =>
+    apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(userData) }),
+  getProfile: (): Promise<User> => apiFetch('/auth/profile'),
 };
 
-export const createEntity = async (entity: NewEntity): Promise<Entity> => {
-  try {
-    return await apiRequest<Entity>('POST', '/entities', entity);
-  } catch (e) {
-    const newId = Math.max(0, ...memoryEntities.map(e => e.id)) + 1;
-    const newEntity: Entity = { ...entity, id: newId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-    memoryEntities.push(newEntity);
-    return newEntity;
-  }
+// --- Events API ---
+export const eventsApi = {
+  list: (): Promise<Event[]> =>
+    apiFetch<Event[]>('/events').catch(handleApiError(() => memoryStore.events)),
+  get: (id: number): Promise<Event> =>
+    apiFetch<Event>(`/events/${id}`).catch(handleApiError(() => memoryStore.events.find(e => e.id === id)!)),
+  create: (eventData: Omit<Event, 'id' | 'createdAt' | 'createdById'>): Promise<Event> =>
+    apiFetch<Event>('/events', { method: 'POST', body: JSON.stringify(eventData) }).catch(handleApiError(() => {
+        const newEvent: Event = { ...eventData, id: Date.now(), createdAt: new Date().toISOString(), createdById: 1 }; // Assume user 1 for seed
+        memoryStore.events.push(newEvent);
+        return newEvent;
+    })),
+  update: (id: number, eventData: Partial<Event>): Promise<Event> =>
+    apiFetch<Event>(`/events/${id}`, { method: 'PUT', body: JSON.stringify(eventData) }).catch(handleApiError(() => {
+        const index = memoryStore.events.findIndex(e => e.id === id);
+        if (index === -1) throw new Error('Event not found');
+        memoryStore.events[index] = { ...memoryStore.events[index], ...eventData };
+        return memoryStore.events[index];
+    })),
+  delete: (id: number): Promise<void> =>
+    apiFetch<void>(`/events/${id}`, { method: 'DELETE' }).catch(handleApiError(() => {
+        memoryStore.events = memoryStore.events.filter(e => e.id !== id);
+    })),
+  rsvp: (id: number, status: 'yes' | 'no' | 'maybe'): Promise<Rsvp> =>
+    apiFetch<Rsvp>(`/events/${id}/rsvp`, { method: 'POST', body: JSON.stringify({ status }) }).catch(handleApiError(() => {
+        const newRsvp: Rsvp = { id: Date.now(), eventId: id, userId: 1, status, createdAt: new Date().toISOString() }; // Assume user 1
+        memoryStore.rsvps.push(newRsvp);
+        return newRsvp;
+    })),
 };
 
-// Transactions API
-export const getTransactions = async (): Promise<Transaction[]> => {
-  try {
-    return await apiRequest<Transaction[]>('GET', '/transactions');
-  } catch (e) {
-    const transactionsWithEntities = memoryTransactions.map(t => ({
-      ...t,
-      sourceEntity: { name: memoryEntities.find(e => e.id === t.sourceEntityId)?.name || 'Unknown' },
-      destinationEntity: { name: memoryEntities.find(e => e.id === t.destinationEntityId)?.name || 'Unknown' },
-    }));
-    return transactionsWithEntities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }
-};
-
-export const createTransaction = async (transaction: NewTransaction): Promise<Transaction> => {
-  try {
-    return await apiRequest<Transaction>('POST', '/transactions', transaction);
-  } catch (e) {
-    const newId = Math.max(0, ...memoryTransactions.map(t => t.id)) + 1;
-    const newTransaction: Transaction = { ...transaction, id: newId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-    memoryTransactions.push(newTransaction);
-    return newTransaction;
-  }
-};
-
-// Admin API
-const adminMemoryStore: Record<string, any[]> = {
-  entities: memoryEntities,
-  transactions: memoryTransactions,
-};
-
-export const getAdminTable = async (tableName: string): Promise<AdminRecord[]> => {
-  try {
-    return await apiRequest<AdminRecord[]>('GET', `/admin/${tableName}`);
-  } catch (e) {
-    return [...(adminMemoryStore[tableName] || [])];
-  }
-};
-
-export const createAdminRecord = async (tableName: string, record: Omit<AdminRecord, 'id'>): Promise<AdminRecord> => {
-  try {
-    return await apiRequest<AdminRecord>('POST', `/admin/${tableName}`, record);
-  } catch (e) {
-    const table = adminMemoryStore[tableName];
-    if (!table) throw new Error('Table not found in memory store');
-    const newId = Math.max(0, ...table.map(r => r.id)) + 1;
-    const newRecord = { ...record, id: newId, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-    table.push(newRecord);
-    return newRecord;
-  }
-};
-
-export const updateAdminRecord = async (tableName: string, id: number | string, record: Partial<AdminRecord>): Promise<AdminRecord> => {
-  try {
-    return await apiRequest<AdminRecord>('PUT', `/admin/${tableName}/${id}`, record);
-  } catch (e) {
-    const table = adminMemoryStore[tableName];
-    if (!table) throw new Error('Table not found in memory store');
-    const recordIndex = table.findIndex(r => r.id === id);
-    if (recordIndex === -1) throw new Error('Record not found');
-    table[recordIndex] = { ...table[recordIndex], ...record, updatedAt: new Date().toISOString() };
-    return table[recordIndex];
-  }
-};
-
-export const deleteAdminRecord = async (tableName: string, id: number | string): Promise<{ id: number | string }> => {
-  try {
-    return await apiRequest<{ id: number | string }>('DELETE', `/admin/${tableName}/${id}`);
-  } catch (e) {
-    const table = adminMemoryStore[tableName];
-    if (!table) throw new Error('Table not found in memory store');
-    const initialLength = table.length;
-    adminMemoryStore[tableName] = table.filter(r => r.id !== id);
-    if (table.length === initialLength) throw new Error('Record not found');
-    return { id };
-  }
+// --- Admin API ---
+export const adminApi = {
+  list: <T>(table: string): Promise<T[]> =>
+    apiFetch<T[]>(`/admin/${table}`).catch(handleApiError(() => (memoryStore as any)[table] || [])),
+  create: <T>(table: string, data: any): Promise<T> =>
+    apiFetch<T>(`/admin/${table}`, { method: 'POST', body: JSON.stringify(data) }).catch(handleApiError(() => {
+        const newItem = { ...data, id: Date.now(), createdAt: new Date().toISOString() };
+        (memoryStore as any)[table].push(newItem);
+        return newItem;
+    })),
+  update: <T>(table: string, id: number, data: any): Promise<T> =>
+    apiFetch<T>(`/admin/${table}/${id}`, { method: 'PUT', body: JSON.stringify(data) }).catch(handleApiError(() => {
+        const tableData = (memoryStore as any)[table];
+        const index = tableData.findIndex((item: any) => item.id === id);
+        if (index === -1) throw new Error('Item not found');
+        tableData[index] = { ...tableData[index], ...data };
+        return tableData[index];
+    })),
+  delete: (table: string, id: number): Promise<void> =>
+    apiFetch<void>(`/admin/${table}/${id}`, { method: 'DELETE' }).catch(handleApiError(() => {
+        (memoryStore as any)[table] = (memoryStore as any)[table].filter((item: any) => item.id !== id);
+    })),
 };

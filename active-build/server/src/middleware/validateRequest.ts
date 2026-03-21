@@ -1,17 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject } from 'zod';
+import { AnyZodObject, ZodError } from 'zod';
 
-export const validateRequest = (schema: AnyZodObject) => 
-    async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        await schema.parseAsync({
-            body: req.body,
-            query: req.query,
-            params: req.params,
-        });
-        return next();
-    } catch (error) {
-        // The error will be a ZodError, which the global errorHandler will catch and format
-        next(error);
+export const validateRequest = (schema: AnyZodObject) => (req: Request, res: Response, next: NextFunction) => {
+  try {
+    schema.parse(req.body);
+    next();
+  } catch (error: any) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: error.errors.map(e => ({ path: e.path.join('.'), message: e.message })),
+      });
     }
+    next(error);
+  }
 };

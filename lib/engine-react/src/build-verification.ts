@@ -124,7 +124,7 @@ export async function runBuildVerification(
     try {
       const installResult = await execFileAsync(
         "npm",
-        ["install", "--ignore-scripts", "--no-audit", "--no-fund"],
+        ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--legacy-peer-deps"],
         {
           cwd: tempDir,
           timeout: BUILD_TIMEOUT_MS,

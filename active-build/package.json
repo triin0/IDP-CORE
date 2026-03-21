@@ -1,5 +1,5 @@
 {
-  "name": "financial-tracker",
+  "name": "event-rsvp-app",
   "private": true,
   "workspaces": [
     "server",

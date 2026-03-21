@@ -48,7 +48,7 @@ const TYPES_MAP: Record<string, string> = {
   "multer": "@types/multer",
 };
 
-const BANNED_PACKAGES = ["@libsql/client", "better-sqlite3", "mysql2", "axios"];
+const BANNED_PACKAGES = ["@libsql/client", "better-sqlite3", "mysql2", "axios", "express-async-errors"];
 
 const PACKAGE_SUBSTITUTIONS: Record<string, { replacement: string; version: string }> = {
   "postgres": { replacement: "pg", version: "^8.16.0" },
@@ -155,6 +155,8 @@ const IMPORT_REWRITE_RULES: ImportRewriteRule[] = [
     },
   },
 ];
+
+const SIDE_EFFECT_BANNED = ["express-async-errors"];
 
 const AXIOS_REWRITE: { pattern: RegExp; replacement: string }[] = [
   { pattern: /import\s+axios\s+from\s+["']axios["']\s*;?/g, replacement: "" },
@@ -389,6 +391,25 @@ export function enforcePackageVersions(
   const drizzleResult = fixDrizzleColumnTypes(updatedFiles);
   updatedFiles = drizzleResult.files;
   allFixes.push(...drizzleResult.fixes);
+
+  updatedFiles = updatedFiles.map(file => {
+    if (!file.path.match(/\.[tj]sx?$/) || file.path.endsWith(".d.ts")) return file;
+    let content = file.content;
+    let modified = false;
+    for (const pkg of SIDE_EFFECT_BANNED) {
+      const re = new RegExp(
+        `^\\s*(?:import\\s+["']${pkg}["']|require\\s*\\(\\s*["']${pkg}["']\\s*\\))\\s*;?\\s*$`,
+        "gm"
+      );
+      const before = content;
+      content = content.replace(re, "");
+      if (content !== before) {
+        modified = true;
+        allFixes.push(`[${file.path}] Removed banned side-effect import: ${pkg}`);
+      }
+    }
+    return modified ? { path: file.path, content } : file;
+  });
 
   return { files: updatedFiles, fixes: allFixes };
 }

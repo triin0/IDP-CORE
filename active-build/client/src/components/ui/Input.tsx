@@ -1,32 +1,26 @@
+import { forwardRef } from 'react';
 import { cn } from '../../lib/utils';
-import type { ComponentProps } from 'react';
 
-interface InputProps extends ComponentProps<'input'> {}
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
-export function Input({ className, ...props }: InputProps) {
-  return (
-    <input
-      className={cn(
-        'w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all',
-        className
-      )}
-      {...props}
-    />
-  );
-}
-
-interface SelectProps extends ComponentProps<'select'> {}
-
-export function Select({ className, children, ...props }: SelectProps) {
+const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, ...props }, ref) => {
     return (
-        <select
-            className={cn(
-                'w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-all',
-                className
-            )}
-            {...props}
-        >
-            {children}
-        </select>
+      <input
+        type={type}
+        className={cn(
+          'flex h-10 w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-100',
+          'file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500',
+          'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500/50 focus-visible:border-indigo-500',
+          'disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
     );
-}
+  }
+);
+Input.displayName = 'Input';
+
+export { Input };

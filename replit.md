@@ -68,39 +68,50 @@ Generated apps now use a "commercial-grade" visual design by default:
 *   **Vulnerability Database:** OSV
 
 ## Type Hardener (Deterministic AST Post-Processing)
-Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs 20 deterministic rewrite passes on generated files after version enforcement in the pipeline:
+Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~32 deterministic rewrite passes on generated files after version enforcement in the pipeline:
 
 1. **fixServerTsconfig** — Rewrites `moduleResolution: "NodeNext"` → `"bundler"` and `module: "NodeNext"` → `"ES2022"`.
-2. **fixBcryptImports** — Swaps `bcrypt` → `bcryptjs` in imports and package.json; also adds `bcryptjs` to deps when imported but missing.
-3. **fixMissingTypeDeclarations** — Auto-injects `@types/` counterparts for common Node packages into devDependencies. Includes `@types/jsonwebtoken@^9.0.0` pin.
+2. **fixBcryptImports** — Swaps `bcrypt` → `bcryptjs` in imports and package.json.
+3. **fixMissingTypeDeclarations** — Auto-injects `@types/` counterparts for common Node packages.
 4. **fixDrizzleInsertSchemaImports** — Adds missing `createInsertSchema`/`createSelectSchema` from `drizzle-zod`.
-5. **fixExpressV5Params** — Adds `as string` casts to `req.params.*` in Express v5 route handlers.
-6. **fixDrizzleEnumFiltering** — Fixes pgEnum + `eq()` literal type mismatches by casting enum values.
+5. **fixExpressV5Params** — Adds `as string` casts to `req.params.*` in Express v5.
+6. **fixDrizzleEnumFiltering** — Fixes pgEnum + `eq()` literal type mismatches.
 7. **fixDrizzleTableFields** — Replaces `table.fields` with `getTableColumns(table)`.
-8. **fixAdminRouteTypes** — Fixes `tables[param]` index type errors in admin routes.
-9. **fixFramerMotionPropSpreads** — Casts prop spreads on `motion.*` components to avoid type conflicts.
-10. **fixSchemaColumnMismatches** (Schema Mirror) — Parses pgTable definitions, corrects hallucinated column/relation names using fuzzy matching + semantic synonyms.
-11. **fixExpressRequestAugmentation** — Creates `server/src/types/express.d.ts` augmenting `Request` with `user?` when `req.user` usage detected.
-12. **fixToFixedOnStrings** — Wraps `.toFixed()` calls in `Number()` for SQL aggregation results returned as strings.
-13. **fixDtsModuleExports** — Converts ambient `declare` declarations to `export` when `.d.ts` files are imported as ES modules.
-14. **fixMissingBarrelExports** — Auto-generates `index.ts` barrel exports for directories (e.g. `schema/`) when files import from directory path but no barrel exists.
-15. **fixMissingDrizzleColumnImports** — Adds missing drizzle-orm/pg-core column type imports (varchar, numeric, etc.) to schema files.
-16. **fixMissingNamedExports** — Adds `export` keyword to declarations imported by other files but not exported.
-17. **fixMissingTypeStubs** — Generates stub type interfaces when PascalCase types are imported but never defined.
-
-18. **fixSignatureMap** — Fuzzy-matches misnamed imports to actual exported symbols using Levenshtein distance + semantic synonym table (e.g. `validateRequest`↔`validate`, `protect`↔`authenticate`, `requireAdmin`↔`isAdmin`). Rewires import names and all usage sites across the file.
-19. **fixDrizzleZodRefinementKeys** — Detects `createInsertSchema(table, { key: ... })` / `createSelectSchema` calls, cross-references refinement keys against real pgTable column names via `buildSchemaMap`, rewrites mismatched keys using word-level semantic scoring with synonym table (e.g. `fromEntityId`→`sourceEntityId`, `userId`→`customerId`).
-20. **fixHardcodedSecrets** — Replaces literal strings assigned to `JWT_SECRET`, `API_KEY`, `PASSWORD` etc. with `process.env.KEY_NAME`, injects keys into `.env.example`.
+8. **fixAdminRouteTypes** — Fixes `tables[param]` index type errors.
+9. **fixFramerMotionPropSpreads** — Casts prop spreads on `motion.*` components.
+10. **fixSchemaBarrelExports** — Ensures barrel files exist for schema directories.
+11. **fixDrizzleExecuteDestructuring** — Fixes `db.execute()` destructuring + adds `as any[]` for result arrays.
+12. **fixSchemaColumnMismatches** — Corrects hallucinated column/relation names via fuzzy matching.
+13. **fixExpressRequestAugmentation** — Creates `express.d.ts` augmenting `Request` with `user?: any`.
+14. **fixToFixedOnStrings** — Wraps `.toFixed()` calls in `Number()`.
+15. **fixDtsModuleExports** — Converts ambient `declare` to `export` in `.d.ts` files.
+16. **fixMissingBarrelExports** — Auto-generates `index.ts` barrel exports.
+17. **fixMissingDrizzleColumnImports** — Adds missing drizzle-orm/pg-core column type imports.
+18. **fixMissingNamedExports** — Adds `export` keyword to un-exported declarations.
+19. **fixMissingTypeStubs** — Generates stub type interfaces for imported PascalCase types.
+20. **fixSignatureMap** — Fuzzy-matches misnamed imports via Levenshtein distance + synonyms.
+21. **fixDrizzleZodRefinementKeys** — Cross-references refinement keys against real pgTable columns.
+22. **fixValidateRequestSchema** — Fixes `validateRequest(schema)` patterns for Zod compliance.
+23. **fixCatchErrorUnknown** — Adds explicit `unknown` type to catch clause variables.
+24. **fixDrizzleZodRefinementCallbacks** — Wraps non-callback refinements in `(schema) => schema` format.
+25. **fixMissingDrizzleOrmImports** — Adds missing operators (eq, and, or, lt, gte, etc.) to `drizzle-orm` imports.
+26. **fixDrizzleRelationsImport** — Moves `relations` from `drizzle-orm/pg-core` to `drizzle-orm`.
+27. **fixMissingModuleFiles** — Creates stub `.ts` files for missing local module imports.
+28. **fixDrizzleDbSchemaGeneric** — Adds `{ schema }` to `drizzle(pool)` calls missing the schema generic.
+29. **fixMissingTypeExports** — Adds `export` to locally-declared types; respects star re-exports.
+30. **fixJwtTypeIssues** — Fixes JWT-related type casting issues.
+31. **fixMissingPackageDeps** — Strips banned packages (dompurify), adds missing deps.
+32. **fixHardcodedSecrets** — Replaces literal secrets with `process.env.*`.
 
 **Key hardener details:**
-- `fixBcryptImports` generates `server/src/types/bcryptjs.d.ts` with hand-written declarations (replaces `@types/bcryptjs` which causes TS2688).
-- `fixExpressRequestAugmentation` uses regex `\buser\s*[?:]` to distinguish `user?` from `userId?` in existing declarations — prevents false-positive guard when LLM only declares `userId`.
-- `fixServerTsconfig` handles both `NodeNext→bundler` and `CommonJS→ES2022` / `Node/Classic→bundler`.
-- `fixDrizzleZodRefinementKeys` uses camelCase word decomposition + semantic synonyms (from/source, to/destination, user/customer) to match refinement keys to actual schema columns with a minimum score threshold of 2.
+- `req.user` typed as `user?: any` to prevent TS2739 with custom TokenPayload types.
+- dompurify/isomorphic-dompurify are **banned** — stripped from ALL package.json files globally.
+- Star re-export awareness prevents TS2395/2440 duplicate export conflicts.
+- `fixMissingModuleFiles` creates stub files for non-existent local imports with proper type/value exports.
 
 **Disk Mirror Utility:**
-`lib/engine-react/src/mirror-to-disk.ts` — Reads hardened project files from Postgres and writes them to `active-build/` on disk for filesystem verification. Usage: `tsx lib/engine-react/src/mirror-to-disk.ts [projectId]` (omit projectId for latest project).
+`lib/engine-react/src/mirror-to-disk.ts` — Reads hardened project files from Postgres and writes them to `active-build/` on disk for filesystem verification.
 
-Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events. Hardened files are persisted back to the project via `hardenedFiles` return from `runVerificationStage`.
+Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 181 tests covering all 20 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 235 tests covering all ~32 passes.

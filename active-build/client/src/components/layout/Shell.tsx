@@ -1,9 +1,10 @@
 import { Outlet } from 'react-router-dom';
 
-export default function Layout() {
+export default function Shell() {
   return (
     <div>
-      <h1>Main Layout</h1>
+      <header>Top Bar</header>
+      <aside>Sidebar</aside>
       <main>
         <Outlet />
       </main>

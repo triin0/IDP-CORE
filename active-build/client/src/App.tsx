@@ -1,33 +1,37 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import TransactionsPage from './pages/TransactionsPage';
-import EntitiesPage from './pages/EntitiesPage';
-import AdminDashboard from './pages/AdminDashboard';
+import { Layout } from './components/Layout';
+import { EventsPage } from './pages/EventsPage';
+import { EventDetailPage } from './pages/EventDetailPage';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { AuthProvider } from './contexts/AuthContext';
 
-const AnimatedRoutes = () => {
+function AnimatedRoutes() {
   const location = useLocation();
-
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/transactions" element={<TransactionsPage />} />
-        <Route path="/entities" element={<EntitiesPage />} />
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route element={<Layout />}>
+          <Route path="/" element={<EventsPage />} />
+          <Route path="/events/:id" element={<EventDetailPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+        </Route>
       </Routes>
     </AnimatePresence>
   );
-};
+}
 
 function App() {
   return (
-    <BrowserRouter>
-      <Layout>
+    <AuthProvider>
+      <BrowserRouter>
         <AnimatedRoutes />
-      </Layout>
-    </BrowserRouter>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

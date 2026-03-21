@@ -1,12 +1,13 @@
 import { Router } from 'express';
-import entitiesRouter from './entities';
-import transactionsRouter from './transactions';
-import adminRouter from './admin';
+import authRoutes from './auth';
+import eventRoutes from './events';
+import adminRoutes from './admin';
 
 const router = Router();
 
-router.use('/entities', entitiesRouter);
-router.use('/transactions', transactionsRouter);
-router.use('/admin', adminRouter);
+router.get('/health', (_req, res) => res.send('OK'));
+router.use('/auth', authRoutes);
+router.use('/events', eventRoutes);
+router.use('/admin', adminRoutes);
 
 export default router;

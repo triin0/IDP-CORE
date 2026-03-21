@@ -1,77 +1,64 @@
-import { Entity, Transaction } from '../types';
+import type { User, Event, Rsvp } from '../../../../server/src/types';
 
 const now = new Date();
 
-export const seedEntities: Entity[] = [
+export const seedUsers: User[] = [
   {
     id: 1,
-    name: 'Hyperion Dynamics',
-    type: 'company',
-    createdAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    name: 'Alice Johnson',
+    email: 'alice@example.com',
+    createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 10).toISOString(),
   },
   {
     id: 2,
-    name: 'Aria Chen',
-    type: 'person',
-    createdAt: new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    name: 'Bob Williams',
+    email: 'bob@example.com',
+    createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 5).toISOString(),
   },
   {
     id: 3,
-    name: 'Stellar Solutions Inc.',
-    type: 'company',
-    createdAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 4,
-    name: 'Leo Vance',
-    type: 'person',
-    createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    name: 'Charlie Brown',
+    email: 'charlie@example.com',
+    createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 2).toISOString(),
   },
 ];
 
-export const seedTransactions: Transaction[] = [
+export const seedEvents: Event[] = [
   {
     id: 1,
-    amount: 15000.00,
-    description: 'Q1 Consulting Services',
-    date: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    sourceEntityId: 1,
-    destinationEntityId: 3,
-    createdAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    title: 'Tech Meetup: The Future of AI',
+    description: 'Join us for a deep dive into the latest advancements in artificial intelligence, featuring guest speakers from top tech companies.',
+    date: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 7).toISOString(),
+    location: 'Innovation Hall, 123 Tech Street',
+    capacity: 100,
+    createdById: 1,
+    createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 15).toISOString(),
   },
   {
     id: 2,
-    amount: 2500.50,
-    description: 'Freelance Design Work',
-    date: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-    sourceEntityId: 3,
-    destinationEntityId: 2,
-    createdAt: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    title: 'Design Workshop: UX for Startups',
+    description: 'A hands-on workshop covering the fundamentals of user experience design for early-stage startups. Bring your laptops!',
+    date: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14).toISOString(),
+    location: 'Creative Hub, 456 Design Avenue',
+    capacity: 30,
+    createdById: 2,
+    createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 8).toISOString(),
   },
   {
     id: 3,
-    amount: 850.00,
-    description: 'Software License Renewal',
-    date: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    sourceEntityId: 4,
-    destinationEntityId: 1,
-    createdAt: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    title: 'Starlight Gala Charity Event',
+    description: 'An evening of elegance and philanthropy under the stars to support local community projects. Formal attire required.',
+    date: new Date(now.getTime() + 1000 * 60 * 60 * 24 * 30).toISOString(),
+    location: 'The Grand Ballroom, 789 Charity Lane',
+    capacity: 250,
+    createdById: 1,
+    createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 3).toISOString(),
   },
-  {
-    id: 4,
-    amount: 120000.00,
-    description: 'Seed Round Investment',
-    date: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    sourceEntityId: 2,
-    destinationEntityId: 1,
-    createdAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
+];
+
+export const seedRsvps: Rsvp[] = [
+  { id: 1, eventId: 1, userId: 2, status: 'yes', createdAt: new Date().toISOString() },
+  { id: 2, eventId: 1, userId: 3, status: 'maybe', createdAt: new Date().toISOString() },
+  { id: 3, eventId: 2, userId: 1, status: 'yes', createdAt: new Date().toISOString() },
+  { id: 4, eventId: 3, userId: 2, status: 'no', createdAt: new Date().toISOString() },
 ];
