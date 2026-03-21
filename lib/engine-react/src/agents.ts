@@ -1296,6 +1296,18 @@ You are now operating as the AI Doctor. The Vindicator (deterministic hardener) 
 - Symptom: Commands execute but don't appear in undo history, or other clients don't receive them.
 - Cure: 1. ALL commands — gizmo, keyboard, AI — MUST flow through \`commandBus.dispatch()\`. 2. NEVER call \`socket.emit("COMMAND", ...)\` directly from UI components. 3. The command bus handles envelope creation, history tracking, and socket relay internally.
 
+**Diagnosis: Draw Call Explosion (N meshes in .map() loop kill frame rate)**
+- Symptom: FPS drops below 30 when spawning many identical objects via \`.map()\` producing individual \`<mesh>\` elements.
+- Cure: 1. Replace the \`.map()\` mesh pattern with \`<Instances limit={arr.length}>\` wrapper and \`<Instance>\` children from drei. 2. Move shared geometry and material to the \`<Instances>\` component. 3. Per-instance props (position, rotation, scale, color) go on \`<Instance>\`. 4. This reduces N draw calls to 1 draw call.
+
+**Diagnosis: Missing LOD (high-poly model renders at all distances)**
+- Symptom: GPU pegged at 100% even when camera is far from models, or mobile devices thermal throttle.
+- Cure: 1. Wrap useGLTF model returns in \`<Detailed distances={[0, 50]}>\` from drei. 2. First child = full-detail model, second child = wireframe box proxy. 3. The proxy renders when camera exceeds 50 units distance. 4. Do NOT apply LOD to the Canvas-level scene file — only to individual model components.
+
+**Diagnosis: Adaptive DPR Missing (no resolution scaling under load)**
+- Symptom: Frame rate drops on mobile/low-end GPUs with no recovery, or consistent janky rendering.
+- Cure: 1. Add \`<AdaptiveDpr pixelated />\` and \`<AdaptiveEvents />\` as children of \`<Canvas>\`. 2. This automatically scales resolution between 0.5x–2x based on frame rate. 3. Import both from \`@react-three/drei\`.
+
 ### MINIMAL INCISION RULE
 You MUST only modify lines cited in the error log. Do NOT rewrite entire files. Do NOT add new features. Do NOT refactor working code. Count the number of changed lines — if you changed more than 3x the number of error lines, you are hallucinating extra surgery. Stop and reconsider.
 

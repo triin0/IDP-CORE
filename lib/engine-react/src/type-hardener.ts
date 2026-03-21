@@ -2824,6 +2824,10 @@ export function hardenGeneratedTypes(
   currentFiles = conversationalArchitectFix.files;
   allFixes.push(...conversationalArchitectFix.fixes);
 
+  const performanceWallFix = fixPerformanceWall(currentFiles);
+  currentFiles = performanceWallFix.files;
+  allFixes.push(...performanceWallFix.fixes);
+
   const viteEnvFix = fixViteEnvTypes(currentFiles);
   currentFiles = viteEnvFix.files;
   allFixes.push(...viteEnvFix.fixes);
@@ -3397,6 +3401,147 @@ export async function parseNaturalLanguage(
       );
       if (modified) {
         fixes.push(`[${file.path}] Injected markdown fence stripping before JSON.parse for AI response safety`);
+      }
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: result, fixes };
+}
+
+function fixPerformanceWall(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasR3F = files.some(
+    f => f.path.startsWith("client/") &&
+      (f.content.includes("@react-three/fiber") || f.content.includes("<Canvas")),
+  );
+  if (!hasR3F) return { files, fixes };
+
+  const PERF_MODULE = `export const PERF_LIMITS = {
+  INSTANCE_THRESHOLD: 5,
+  MAX_DRAW_CALLS: 100,
+  LOD_DISTANCES: [0, 50, 150] as const,
+  ADAPTIVE_DPR: [0.5, 2] as [number, number],
+} as const;
+`;
+
+  const updatedFiles = [...files];
+
+  const hasPerfFile = files.some(
+    f => f.path === "client/src/lib/performance-wall.ts" && f.content.includes("PERF_LIMITS"),
+  );
+  if (!hasPerfFile) {
+    updatedFiles.push({
+      path: "client/src/lib/performance-wall.ts",
+      content: PERF_MODULE,
+    });
+    fixes.push("[client/src/lib/performance-wall.ts] Injected performance wall constants (instance threshold, LOD distances, adaptive DPR range)");
+  }
+
+  const result = updatedFiles.map(file => {
+    if (!file.path.startsWith("client/") || !file.path.endsWith(".tsx")) return file;
+
+    let content = file.content;
+    let modified = false;
+    const neededDreiImports: string[] = [];
+
+    if (content.includes(".map(") && content.includes("<mesh") &&
+      !content.includes("<Instances") && !content.includes("instancedMesh")) {
+      const pattern = /\{(\w+)\.map\(\s*\((\w+)[^)]*\)\s*=>\s*\(?\s*\n?\s*<mesh\b([\s\S]*?)>([\s\S]*?)<\/mesh>\s*\)?\s*\)\}/;
+      const match = content.match(pattern);
+
+      if (match) {
+        const [fullMatch, arrayName, itemVar, meshProps, meshChildren] = match;
+
+        const geoExtract = meshProps.match(/geometry=\{([^}]+)\}/);
+        const geoProp = geoExtract ? ` geometry={${geoExtract[1]}}` : "";
+
+        const inlineGeo = meshChildren.match(/<(\w+Geometry)\s*([^/]*?)\s*\/?>/);
+        const geoChild = inlineGeo
+          ? `\n      <${inlineGeo[1]} ${inlineGeo[2].trim()}/>`
+          : "";
+
+        const matExtract = meshChildren.match(/<(mesh\w+Material)\s*([^/]*?)\s*\/?>/);
+        let matChild = "";
+        if (matExtract) {
+          const sharedProps = matExtract[2]
+            .replace(new RegExp(`color=\\{${itemVar}\\.\\w+\\}`, "g"), "")
+            .trim();
+          matChild = `\n      <${matExtract[1]}${sharedProps ? " " + sharedProps : ""} />`;
+        }
+
+        let instanceProps = meshProps
+          .replace(/geometry=\{[^}]+\}\s*/g, "")
+          .replace(/\n\s*/g, " ")
+          .trim();
+
+        const colorMatch = meshChildren.match(new RegExp(`color=\\{${itemVar}\\.(\\w+)\\}`));
+        if (colorMatch) {
+          instanceProps += ` color={${itemVar}.${colorMatch[1]}}`;
+        }
+
+        const replacement = `<Instances limit={${arrayName}.length}${geoProp}>${geoChild}${matChild}\n      {${arrayName}.map((${itemVar}) => (\n        <Instance ${instanceProps} />\n      ))}\n    </Instances>`;
+
+        content = content.replace(fullMatch, replacement);
+        modified = true;
+        neededDreiImports.push("Instances", "Instance");
+        fixes.push(`[${file.path}] Promoted .map() mesh loop to <Instances>/<Instance> for GPU instancing (1 draw call)`);
+      }
+    }
+
+    if (content.includes("useGLTF") && !content.includes("<Canvas") && !content.includes("<Detailed")) {
+      const returnMatch = content.match(/return\s*\(\s*\n(\s*)([\s\S]*?)(\n\s*\);)/);
+      if (returnMatch) {
+        const [fullReturn, indent, jsx, closing] = returnMatch;
+        const innerIndent = indent + "  ";
+        const lodProxy = `\n${innerIndent}<mesh>\n${innerIndent}  <boxGeometry args={[1, 1, 1]} />\n${innerIndent}  <meshStandardMaterial wireframe />\n${innerIndent}</mesh>`;
+        const replacement = `return (\n${indent}<Detailed distances={[0, 50]}>\n${innerIndent}${jsx.trim()}\n${innerIndent}${lodProxy.trim()}\n${indent}</Detailed>${closing}`;
+        content = content.replace(fullReturn, replacement);
+        modified = true;
+        neededDreiImports.push("Detailed");
+        fixes.push(`[${file.path}] Wrapped useGLTF return in <Detailed> LOD with wireframe proxy at distance 50`);
+      }
+    }
+
+    if (content.includes("<Canvas") && !content.includes("AdaptiveDpr")) {
+      const canvasMatch = content.match(/<Canvas\b([\s\S]*?)>/);
+      if (canvasMatch) {
+        content = content.replace(
+          /<Canvas\b([\s\S]*?)>/,
+          `<Canvas$1>\n        <AdaptiveDpr pixelated />\n        <AdaptiveEvents />`,
+        );
+        modified = true;
+        neededDreiImports.push("AdaptiveDpr", "AdaptiveEvents");
+        fixes.push(`[${file.path}] Injected AdaptiveDpr + AdaptiveEvents for adaptive GPU scaling`);
+      }
+    }
+
+    if (neededDreiImports.length > 0 && modified) {
+      const unique = [...new Set(neededDreiImports)];
+      const dreiImportMatch = content.match(/import\s+\{([^}]+)\}\s+from\s+["']@react-three\/drei["']/);
+      if (dreiImportMatch) {
+        const existing = dreiImportMatch[1].split(",").map(s => s.trim());
+        const toAdd = unique.filter(u => !existing.includes(u));
+        if (toAdd.length > 0) {
+          content = content.replace(
+            dreiImportMatch[0],
+            `import { ${existing.join(", ")}, ${toAdd.join(", ")} } from "@react-three/drei"`,
+          );
+        }
+      } else {
+        const lastImport = content.lastIndexOf("\nimport ");
+        if (lastImport !== -1) {
+          const lineEnd = content.indexOf("\n", lastImport + 1);
+          content = content.slice(0, lineEnd + 1) +
+            `import { ${unique.join(", ")} } from "@react-three/drei";\n` +
+            content.slice(lineEnd + 1);
+        } else {
+          content = `import { ${unique.join(", ")} } from "@react-three/drei";\n` + content;
+        }
       }
     }
 

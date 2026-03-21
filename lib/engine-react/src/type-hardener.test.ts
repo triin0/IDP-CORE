@@ -3634,6 +3634,209 @@ console.log("\n=== Pass 43e: fixConversationalArchitect - skips fence stripping 
   passed++;
 }
 
+console.log("\n=== Pass 44a: fixPerformanceWall - creates performance-wall.ts when R3F detected ===");
+{
+  const files = [
+    {
+      path: "client/src/App.tsx",
+      content: `import { Canvas } from "@react-three/fiber";\nexport function App() { return <Canvas camera={{ position: [0, 5, 10] }}><mesh /></Canvas>; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const perf = result.files.find(f => f.path === "client/src/lib/performance-wall.ts");
+  assert(perf, "should create performance-wall.ts");
+  assert(perf!.content.includes("INSTANCE_THRESHOLD: 5"), "should have instance threshold");
+  assert(perf!.content.includes("MAX_DRAW_CALLS: 100"), "should have max draw calls");
+  assert(perf!.content.includes("LOD_DISTANCES"), "should have LOD distances");
+  assert(perf!.content.includes("ADAPTIVE_DPR"), "should have adaptive DPR range");
+  assert(result.fixes.some(f => f.includes("performance wall")), "should report performance wall creation");
+  passed++;
+}
+
+console.log("\n=== Pass 44b: fixPerformanceWall - promotes .map() mesh to InstancedMesh (geometry ref) ===");
+{
+  const files = [
+    {
+      path: "client/src/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
+export function Scene({ items }: { items: any[] }) {
+  const { nodes } = useGLTF("/model.glb");
+  return (
+    <Canvas camera={{ position: [0, 5, 10] }}>
+      {items.map((item) => (
+        <mesh key={item.id} position={item.position} geometry={nodes.Cube.geometry}>
+          <meshStandardMaterial color={item.color} />
+        </mesh>
+      ))}
+    </Canvas>
+  );
+}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const scene = result.files.find(f => f.path === "client/src/Scene.tsx")!;
+  assert(scene.content.includes("<Instances"), "should have <Instances> wrapper");
+  assert(scene.content.includes("<Instance"), "should have <Instance> elements");
+  assert(scene.content.includes("limit={items.length}"), "should set limit from array length");
+  assert(scene.content.includes("geometry={nodes.Cube.geometry}"), "should move geometry to Instances wrapper");
+  assert(!scene.content.includes("<mesh key="), "should replace <mesh> with <Instance>");
+  assert(scene.content.includes("Instances, Instance"), "should add drei imports");
+  assert(result.fixes.some(f => f.includes("GPU instancing")), "should report instancing promotion");
+  passed++;
+}
+
+console.log("\n=== Pass 44c: fixPerformanceWall - promotes .map() mesh with inline geometry ===");
+{
+  const files = [
+    {
+      path: "client/src/World.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function World({ cubes }: { cubes: any[] }) {
+  return (
+    <Canvas camera={{ position: [0, 0, 5] }}>
+      {cubes.map((cube) => (
+        <mesh key={cube.id} position={cube.position}>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color={cube.tint} />
+        </mesh>
+      ))}
+    </Canvas>
+  );
+}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const world = result.files.find(f => f.path === "client/src/World.tsx")!;
+  assert(world.content.includes("<Instances"), "should have <Instances> wrapper");
+  assert(world.content.includes("boxGeometry"), "should move inline geometry to Instances");
+  assert(world.content.includes("<Instance"), "should use Instance elements");
+  assert(world.content.includes("color={cube.tint}"), "should pass per-instance color");
+  passed++;
+}
+
+console.log("\n=== Pass 44d: fixPerformanceWall - injects LOD wrapper for useGLTF components ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Tank.tsx",
+      content: `import { useGLTF } from "@react-three/drei";
+export function Tank() {
+  const { nodes, materials } = useGLTF("/tank.glb");
+  return (
+    <group>
+      <mesh geometry={nodes.Body.geometry}>
+        <meshStandardMaterial />
+      </mesh>
+    </group>
+  );
+}`,
+    },
+    {
+      path: "client/src/App.tsx",
+      content: `import { Canvas } from "@react-three/fiber";\nexport function App() { return <Canvas><mesh /></Canvas>; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const tank = result.files.find(f => f.path === "client/src/components/Tank.tsx")!;
+  assert(tank.content.includes("<Detailed"), "should wrap return in <Detailed>");
+  assert(tank.content.includes("distances={[0, 50]}"), "should set LOD distances");
+  assert(tank.content.includes("boxGeometry"), "should include wireframe proxy mesh");
+  assert(tank.content.includes("wireframe"), "should use wireframe for LOD proxy");
+  assert(result.fixes.some(f => f.includes("LOD")), "should report LOD injection");
+  passed++;
+}
+
+console.log("\n=== Pass 44e: fixPerformanceWall - injects AdaptiveDpr into Canvas ===");
+{
+  const files = [
+    {
+      path: "client/src/App.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
+export function App() {
+  return (
+    <Canvas camera={{ position: [0, 5, 10] }} shadows>
+      <OrbitControls />
+      <mesh />
+    </Canvas>
+  );
+}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const app = result.files.find(f => f.path === "client/src/App.tsx")!;
+  assert(app.content.includes("AdaptiveDpr pixelated"), "should inject AdaptiveDpr");
+  assert(app.content.includes("AdaptiveEvents"), "should inject AdaptiveEvents");
+  assert(app.content.includes("AdaptiveDpr, AdaptiveEvents"), "should add to drei imports");
+  assert(result.fixes.some(f => f.includes("adaptive GPU scaling")), "should report adaptive injection");
+  passed++;
+}
+
+console.log("\n=== Pass 44f: fixPerformanceWall - skips when no R3F detected ===");
+{
+  const files = [
+    {
+      path: "client/src/App.tsx",
+      content: `export function App() { return <div>Hello</div>; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.files.some(f => f.path === "client/src/lib/performance-wall.ts"), "should not create performance-wall.ts");
+  assert(!result.fixes.some(f => f.includes("performance")), "should not report performance fixes");
+  passed++;
+}
+
+console.log("\n=== Pass 44g: fixPerformanceWall - does not duplicate performance-wall.ts ===");
+{
+  const files = [
+    {
+      path: "client/src/lib/performance-wall.ts",
+      content: `export const PERF_LIMITS = { INSTANCE_THRESHOLD: 5 } as const;`,
+    },
+    {
+      path: "client/src/App.tsx",
+      content: `import { Canvas } from "@react-three/fiber";\nexport function App() { return <Canvas><mesh /></Canvas>; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const perfs = result.files.filter(f => f.path === "client/src/lib/performance-wall.ts");
+  assert(perfs.length === 1, "should not duplicate performance-wall.ts");
+  assert(perfs[0].content.includes("INSTANCE_THRESHOLD: 5"), "should preserve original");
+  passed++;
+}
+
+console.log("\n=== Pass 44h: fixPerformanceWall - LOD skips Canvas-containing files ===");
+{
+  const files = [
+    {
+      path: "client/src/App.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
+export function App() {
+  const { nodes } = useGLTF("/scene.glb");
+  return (
+    <Canvas>
+      <mesh geometry={nodes.Floor.geometry} />
+    </Canvas>
+  );
+}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const app = result.files.find(f => f.path === "client/src/App.tsx")!;
+  assert(!app.content.includes("<Detailed"), "should NOT inject LOD in Canvas file");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
