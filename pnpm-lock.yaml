@@ -294,6 +294,9 @@ importers:
       '@codesandbox/sandpack-themes':
         specifier: ^2.0.21
         version: 2.0.21
+      immer:
+        specifier: ^11.1.4
+        version: 11.1.4
       react-syntax-highlighter:
         specifier: ^16.1.1
         version: 16.1.1(react@19.1.0)
