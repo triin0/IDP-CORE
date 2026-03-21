@@ -120,6 +120,8 @@ System prompts in `lib/engine-react/src/agents.ts` now include explicit "Soverei
 - Drizzle `relations` from `drizzle-orm` not `pg-core`, createInsertSchema refinement key matching
 - Express Request augmentation requirements, dompurify ban, typed catch clauses
 - Frontend-specific: no React import with react-jsx, typed event handlers, react-router-dom v7
+- **Sovereign Socket Protocol** (Socket.io real-time apps): Architect mandates Event Registry file (`socket-events.ts`), Backend enforces Effect Anchor pattern + Room Scoping rules + HTTP server extraction, Frontend enforces Effect Anchor Rule (named handler refs for socket.on/off cleanup) + Socket Singleton pattern, Fixer includes AI Doctor entries for Listener Leak, Shared Type Phantom, and Room Scoping Confusion
+- Socket.io versions pinned in `version-enforcement.ts`: `socket.io: "^4.8.0"`, `socket.io-client: "^4.8.0"`
 
 **Disk Mirror Utility:**
 `lib/engine-react/src/mirror-to-disk.ts` — Reads hardened project files from Postgres and writes them to `active-build/` on disk for filesystem verification.

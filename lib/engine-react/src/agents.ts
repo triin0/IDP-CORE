@@ -241,6 +241,21 @@ The Backend and Frontend agents will generate these files. Your job is to ensure
 7. **createInsertSchema / drizzle-zod**: Add \`drizzle-zod: "^0.7.0"\` to server dependencies if any schema file will use \`createInsertSchema\`.
 8. **Three.js projects**: If the spec requires 3D, the client/tsconfig.json MUST include \`"skipLibCheck": true\`. Import Three.js types explicitly: \`import * as THREE from "three"\`. Do NOT use \`import type * as THREE from "three"\` — it causes TS2693 when THREE is used as a value.
 
+### SOVEREIGN SOCKET PROTOCOL — Real-Time Apps (ONLY if spec requires Socket.io / real-time / WebSocket)
+If the user's prompt involves real-time features, live collaboration, multiplayer, chat, or WebSocket-based communication, you MUST:
+1. **Event Registry file**: Create \`server/src/types/socket-events.ts\` that defines ALL socket event names and payload types as a single source of truth:
+   \`\`\`typescript
+   export interface ServerToClientEvents {
+     // Define every event the server sends to clients
+   }
+   export interface ClientToServerEvents {
+     // Define every event clients send to the server
+   }
+   \`\`\`
+2. **Dependencies**: Add \`socket.io: "^4.8.0"\` to server/package.json dependencies. Add \`socket.io-client: "^4.8.0"\` to client/package.json dependencies.
+3. **File structure**: Include \`server/src/socket.ts\` (Socket.io server setup) and \`client/src/lib/socket.ts\` (client connection singleton) in the file structure.
+4. **Shared types**: Both server and client MUST import from the same Event Registry interface. Copy the types file into \`client/src/types/socket-events.ts\` (do NOT import across workspaces).
+
 ### OUTPUT FORMAT
 Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes": "Brief summary of architectural decisions" }
 Do NOT include any text before or after the JSON.
@@ -390,6 +405,25 @@ The Architect generates schema files in \`server/src/schema/\`. You MUST follow 
 8. **Barrel exports must be complete**: If \`types/index.ts\` re-exports via \`export * from './validators'\`, ensure \`validators.ts\` exists and exports everything that routes import. Never reference a symbol that no file exports.
 9. **Do NOT use dompurify or isomorphic-dompurify** — these packages have CVEs and are BANNED. Use native encoding or framework escaping instead.
 10. **catch(error)**: Always type catch variables: \`catch (error: unknown)\`, never \`catch (error)\` without a type annotation.
+
+### SOVEREIGN SOCKET PROTOCOL — Real-Time Backend (ONLY if spec requires Socket.io / real-time / WebSocket)
+If the Architect included \`socket.io\` in dependencies, you MUST implement \`server/src/socket.ts\`:
+1. **Effect Anchor**: Every \`socket.on(event, handler)\` registration MUST be inside the \`io.on("connection", (socket) => { ... })\` block. NEVER register listeners outside this block.
+2. **Room Scoping**: In room-based apps, NEVER use \`io.emit()\` for room-targeted messages. Use \`socket.to(room).emit()\` to broadcast to others in the room, or \`io.to(room).emit()\` to broadcast to everyone including sender.
+3. **Typed Server**: Create the server with typed events:
+   \`\`\`typescript
+   import { Server } from "socket.io";
+   import type { ServerToClientEvents, ClientToServerEvents } from "./types/socket-events";
+   const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, { cors: { origin: "*" } });
+   \`\`\`
+4. **HTTP Server**: Extract the http server from Express for Socket.io attachment:
+   \`\`\`typescript
+   import { createServer } from "http";
+   const httpServer = createServer(app);
+   const io = new Server(httpServer);
+   httpServer.listen(PORT); // NOT app.listen()
+   \`\`\`
+5. **Disconnect cleanup**: Always handle \`socket.on("disconnect", () => { ... })\` to clean up user state, leave rooms, and broadcast departure.
 
 ### ARCHITECT'S DECISIONS
 ${architectNotes}
@@ -562,6 +596,33 @@ The app MUST work without a backend by providing realistic seed data:
    - \`useFrame\` callback gets \`(state, delta)\` — type \`state\` as \`RootState\` from \`@react-three/fiber\` and \`delta\` as \`number\`.
    - Do NOT spread unknown props onto Three.js primitives (\`<mesh {...props}>\`) — explicitly pass position, rotation, scale.
    - For color props, use string hex values: \`color="#4f46e5"\` not \`color={new THREE.Color(...)}\` in JSX.
+
+### SOVEREIGN SOCKET PROTOCOL — Real-Time Frontend (ONLY if spec requires Socket.io / real-time / WebSocket)
+If the Architect included \`socket.io-client\` in dependencies, you MUST follow these rules:
+1. **Socket Singleton**: Create \`client/src/lib/socket.ts\` that exports a single socket instance:
+   \`\`\`typescript
+   import { io, Socket } from "socket.io-client";
+   import type { ServerToClientEvents, ClientToServerEvents } from "../types/socket-events";
+   const URL = import.meta.env.VITE_API_URL || "";
+   export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(URL, { autoConnect: false });
+   \`\`\`
+2. **Effect Anchor Rule (CRITICAL)**: Every \`socket.on(event, handler)\` MUST have a matching \`socket.off(event, handler)\` in the useEffect cleanup. The handler MUST be the SAME function reference — define it as a named const BEFORE the \`socket.on\` call:
+   \`\`\`typescript
+   useEffect(() => {
+     const handleUpdate = (data: SomeType) => { setState(data); };
+     socket.on("update", handleUpdate);
+     return () => { socket.off("update", handleUpdate); };
+   }, []);
+   \`\`\`
+   NEVER use anonymous inline functions for socket.on — they create listener leaks because socket.off cannot find them.
+3. **Connect/Disconnect lifecycle**: Connect the socket in the top-level App or a provider component's useEffect, and disconnect on cleanup:
+   \`\`\`typescript
+   useEffect(() => {
+     socket.connect();
+     return () => { socket.disconnect(); };
+   }, []);
+   \`\`\`
+4. **Shared types**: Import event types from \`client/src/types/socket-events.ts\` (the copy from the Event Registry). Do NOT invent inline event names — use only events defined in the registry.
 
 ### CONTEXT FROM PRIOR AGENTS
 Architect notes: ${architectNotes}
@@ -834,6 +895,18 @@ You are now operating as the AI Doctor. The Vindicator (deterministic hardener) 
 **Diagnosis: QueryResult Union (TS2339: Property 'length' on 'any[] | QueryResult<never>')**
 - Symptom: db.select() or db.execute() returns a union type that TS can't narrow.
 - Cure: Cast the result: \`const rows = await db.select()... as any[]\`. Or destructure as array: \`const rows: any[] = await db.select()...\`.
+
+**Diagnosis: Socket Listener Leak (MaxListenersExceededWarning)**
+- Symptom: "Possible EventEmitter memory leak detected" or duplicate event handling in the browser.
+- Cure: 1. Locate the \`socket.on(event, handler)\` call. 2. Ensure it is inside a \`useEffect\` with a cleanup that calls \`socket.off(event, handler)\` using the SAME function reference. 3. The handler must be a named const defined BEFORE the \`socket.on\` call, NOT an anonymous arrow. 4. Check the dependency array — if it re-runs, listeners stack.
+
+**Diagnosis: Shared Type Phantom (TS2345: Argument of type 'X' is not assignable to parameter)**
+- Symptom: Socket event payload type mismatch between server emit and client handler.
+- Cure: 1. Verify both server and client import from the Event Registry (\`socket-events.ts\`). 2. Ensure the interfaces \`ServerToClientEvents\` and \`ClientToServerEvents\` match in both copies. 3. If they diverged, copy the server version to the client.
+
+**Diagnosis: Room Scoping Confusion (messages sent to wrong audience)**
+- Symptom: All connected clients receive messages meant for a specific room, or sender doesn't receive their own broadcast.
+- Cure: 1. \`socket.to(room).emit()\` sends to everyone in the room EXCEPT the sender. 2. \`io.to(room).emit()\` sends to everyone in the room INCLUDING the sender. 3. \`io.emit()\` sends to ALL connected clients regardless of room — NEVER use this for room-scoped messages. 4. Verify \`socket.join(room)\` is called before any room-targeted emits.
 
 ### MINIMAL INCISION RULE
 You MUST only modify lines cited in the error log. Do NOT rewrite entire files. Do NOT add new features. Do NOT refactor working code. Count the number of changed lines — if you changed more than 3x the number of error lines, you are hallucinating extra surgery. Stop and reconsider.

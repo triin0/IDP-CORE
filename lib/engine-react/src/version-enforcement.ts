@@ -54,6 +54,8 @@ const KNOWN_GOOD_VERSIONS: Record<string, string> = {
   "@react-three/drei": "^10.0.0",
   "@types/three": "^0.172.0",
   "leva": "^0.10.0",
+  "socket.io": "^4.8.0",
+  "socket.io-client": "^4.8.0",
 };
 
 const BANNED_PACKAGES = ["@libsql/client", "better-sqlite3", "mysql2", "axios", "express-async-errors"];
