@@ -40,14 +40,14 @@ function LexusBody({ color }: { color: string }) {
   return (
     <group ref={groupRef} position={[0, 0.6, 0] as [number, number, number]}>
       <RoundedBox args={[3.8, 0.8, 1.7]} radius={0.15} position={[0, 0, 0] as [number, number, number]}>
-        <meshStandardMaterial color={color} metalness={0.9} roughness={0.15} envMapIntensity={1.2} />
+        <meshPhysicalMaterial color={color} metalness={0.6} roughness={0.35} clearcoat={1} clearcoatRoughness={0.1} envMapIntensity={1.2} />
       </RoundedBox>
       <RoundedBox args={[2.2, 0.7, 1.6]} radius={0.2} position={[0.1, 0.65, 0] as [number, number, number]}>
-        <meshStandardMaterial color={color} metalness={0.85} roughness={0.1} envMapIntensity={1.5} />
+        <meshPhysicalMaterial color={color} metalness={0.5} roughness={0.3} clearcoat={1} clearcoatRoughness={0.1} envMapIntensity={1.5} />
       </RoundedBox>
       <mesh position={[0.1, 0.65, 0] as [number, number, number]}>
         <boxGeometry args={[2.0, 0.5, 1.55]} />
-        <meshStandardMaterial color="#111" metalness={0.3} roughness={0.1} transparent opacity={0.4} />
+        <meshPhysicalMaterial color="#1a2a3a" metalness={0.1} roughness={0.05} transparent opacity={0.5} transmission={0.6} />
       </mesh>
       {[[-1.3, -0.15, 0.85], [-1.3, -0.15, -0.85], [1.3, -0.15, 0.85], [1.3, -0.15, -0.85]].map((pos, i) => (
         <mesh key={i} position={pos as [number, number, number]} rotation={[Math.PI / 2, 0, 0] as [number, number, number]}>
@@ -225,17 +225,20 @@ export default function ShowroomScene() {
           <Canvas camera={{ position: [5, 3, 8] as [number, number, number], fov: 45 }} shadows>
             <AdaptiveDpr pixelated />
             <AdaptiveEvents />
-            <fog attach="fog" args={["#050510", 10, 30]} />
-            <ambientLight intensity={0.2} />
-            <directionalLight position={[10, 10, 5] as [number, number, number]} intensity={1.5} castShadow />
-            <spotLight position={[0, 8, 0] as [number, number, number]} angle={0.4} penumbra={0.8} intensity={2} castShadow color="#c9a96e" />
+            <fog attach="fog" args={["#050510", 12, 35]} />
+            <ambientLight intensity={0.5} />
+            <hemisphereLight args={["#c9a96e", "#050510", 0.4]} />
+            <directionalLight position={[10, 10, 5] as [number, number, number]} intensity={2} castShadow />
+            <spotLight position={[0, 8, 0] as [number, number, number]} angle={0.4} penumbra={0.8} intensity={3} castShadow color="#c9a96e" />
+            <spotLight position={[-5, 5, 3] as [number, number, number]} angle={0.5} penumbra={1} intensity={1.5} color="#ffffff" />
+            <pointLight position={[3, 4, -3] as [number, number, number]} intensity={1} color="#8888ff" />
             <Suspense fallback={null}>
               <LexusBody color={selectedVehicle.color} />
               <PriceTag vehicle={selectedVehicle} />
             </Suspense>
             <ShowroomFloor />
             <ContactShadows position={[0, -0.01, 0] as [number, number, number]} opacity={0.5} blur={2.5} far={4} />
-            <Environment preset="night" />
+            <Environment preset="studio" />
             <OrbitControls
               makeDefault
               minPolarAngle={0.3}
