@@ -195,7 +195,7 @@ Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardenin
   - **FastAPI**: `presence_relay.py` (PresenceManager class with asyncio-safe WebSocket relay, automatic dead connection cleanup, `resolve_conflict()` for deterministic last-write-wins, `get_active_peers()` with timeout filtering); `/ws/presence/{user_id}` WebSocket endpoint and `/api/presence/active` REST endpoint injected into main.py.
   - **Mobile**: `lib/haptic-presence.ts` (6 event types: peer:joined, peer:left, object:moved, object:created, object:deleted, conflict:resolved; mapped to expo-haptics ImpactFeedbackStyle/NotificationFeedbackType; 100ms throttle; `usePresenceHaptics()` WebSocket listener hook); adds expo-haptics dependency.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 823 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests + 50 Engine B Transport & Auth Bridge tests.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 876 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests + 50 Engine B Transport & Auth Bridge tests + 53 Chronos Engine tests.
 
 ## Engine B: The Native Foundry (Pydantic→UE5 Transpiler)
 A transpilation pipeline that reads Engine A's Pydantic schemas and generates type-safe C++/UE5 code with SHA-256 parity.
@@ -224,6 +224,19 @@ A transpilation pipeline that reads Engine A's Pydantic schemas and generates ty
 - `/api/ping` endpoint added to FastAPI server: validates JWT, computes canonical SHA-256, returns `{verified, server_hash, client_hash, integrity_status}`.
 - Live Wire Binary Integrity Test: 4/4 attacks pass — valid ping (200 VERIFIED), altered payload (400 INTEGRITY_HASH_MISMATCH), no hash passthrough (200 NO_HASH), C++ ↔ Python hash parity.
 - C++ transport conformance: 83/83 tests passing.
+
+**Chronos Engine — The Memory** (`lib/engine-native/generated/ChronosEngine.h`): Intelligent persistence bridge wiring ChronosOfflineQueue through the Transport layer:
+- `ChronosEngine`: Singleton orchestrator with configurable `ChronosConfig` (persistence path, max retries, flush batch size, stale threshold, auto-save on enqueue, auto-flush on reconnect).
+- **Auto-Save**: Every `enqueue()` call automatically persists the queue to FArchive binary disk format. Zero data loss on crash.
+- **Crash Recovery**: `recoverFromCrash()` loads pending entries from disk, restores queue state, fires `CrashRecoveryDelegate`, sets state to OFFLINE.
+- **Full Cycle**: Enqueue → Crash → Recovery → Flush — hashes survive binary serialization round-trip with byte-identical SHA-256 parity.
+- **409 Conflict Handling**: `ConflictRecord` + `AuthoritativeManifest` parsing. Server pushes down true state (highestBid, bidCount, serverVersion). `resolveConflict()` updates version map and fires delegate.
+- **State Machine**: `ChronosState` enum (IDLE, FLUSHING, OFFLINE, CONFLICT_RESOLUTION, RECOVERING) with transitions driven by connectivity and flush results.
+- **Connectivity-Aware**: `setOnline(bool)` triggers auto-flush when reconnecting. `ConnectivityChangedDelegate` for UI notification.
+- **Stale Eviction**: `evictStaleEntries()` removes entries older than `staleThresholdSeconds`.
+- **Transport Integration**: `enqueueWithTransport()` pulls userId from `UAuthService`, maps entity keys to API paths for flush routing.
+- **Stats**: `ChronosStats` struct tracks totalEnqueued, totalFlushed, totalConflicts, totalRetries, totalCrashRecoveries, lastFlushTimestamp, lastSaveTimestamp.
+- C++ conformance: 100/100 tests passing.
 
 ## Project Showroom — Physical Runtime
 - **showroom-web** (`artifacts/showroom-web`): React/Vite + Three.js 3D showroom. Hardened by 46 React Vindicator passes. Preview at `/showroom-web/`. WebGL error boundary with graceful fallback for headless/no-GPU environments.

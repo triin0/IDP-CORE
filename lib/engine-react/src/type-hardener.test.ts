@@ -5825,6 +5825,92 @@ console.log("\n=== Engine B Module 0: Sovereign Transport & Auth Bridge ===");
   assert(serializerHeader.includes("class ChronosOfflineQueue"), "Transport: ChronosOfflineQueue available for future use");
 }
 
+// === Engine B: Chronos Engine (The Memory) ===
+console.log("\n=== Engine B: Chronos Engine (The Memory) ===");
+{
+  const fs = await import("fs");
+  const path = await import("path");
+
+  const chronosHeader = fs.default.readFileSync(
+    path.default.resolve("lib/engine-native/generated/ChronosEngine.h"), "utf-8"
+  );
+
+  console.log("  -- ChronosEngine Singleton --");
+  assert(chronosHeader.includes("class ChronosEngine"), "Chronos: ChronosEngine class exists");
+  assert(chronosHeader.includes("static ChronosEngine& Get()"), "Chronos: singleton pattern");
+  assert(chronosHeader.includes("ChronosEngine(const ChronosEngine&) = delete"), "Chronos: copy deleted");
+
+  console.log("  -- Configuration --");
+  assert(chronosHeader.includes("struct ChronosConfig"), "Chronos: ChronosConfig struct");
+  assert(chronosHeader.includes("persistencePath"), "Chronos: config has persistence path");
+  assert(chronosHeader.includes("maxRetries"), "Chronos: config has max retries");
+  assert(chronosHeader.includes("flushBatchSize"), "Chronos: config has flush batch size");
+  assert(chronosHeader.includes("staleThresholdSeconds"), "Chronos: config has stale threshold");
+  assert(chronosHeader.includes("autoSaveOnEnqueue"), "Chronos: config has auto-save flag");
+  assert(chronosHeader.includes("autoFlushOnReconnect"), "Chronos: config has auto-flush on reconnect");
+
+  console.log("  -- Enqueue & Auto-Save --");
+  assert(chronosHeader.includes("void enqueue("), "Chronos: enqueue method");
+  assert(chronosHeader.includes("enqueueWithTransport"), "Chronos: enqueueWithTransport (transport-aware)");
+  assert(chronosHeader.includes("queue_.saveToDisk(config_.persistencePath)"), "Chronos: auto-save on enqueue");
+  assert(chronosHeader.includes("UAuthService::Get()"), "Chronos: pulls userId from auth service");
+
+  console.log("  -- Flush Mechanism --");
+  assert(chronosHeader.includes("FlushReport flush()"), "Chronos: flush() method");
+  assert(chronosHeader.includes("flushWithCallback"), "Chronos: flushWithCallback method");
+  assert(chronosHeader.includes("FlushProgressDelegate"), "Chronos: flush progress delegate");
+  assert(chronosHeader.includes("onFlushProgress"), "Chronos: onFlushProgress setter");
+
+  console.log("  -- 409 Conflict Handling --");
+  assert(chronosHeader.includes("struct ConflictRecord"), "Chronos: ConflictRecord struct");
+  assert(chronosHeader.includes("struct AuthoritativeManifest"), "Chronos: AuthoritativeManifest struct");
+  assert(chronosHeader.includes("resolveConflict"), "Chronos: resolveConflict method");
+  assert(chronosHeader.includes("unresolvedConflictCount"), "Chronos: unresolvedConflictCount method");
+  assert(chronosHeader.includes("ConflictResolvedDelegate"), "Chronos: conflict resolved delegate");
+  assert(chronosHeader.includes("onConflictResolved"), "Chronos: onConflictResolved setter");
+  assert(chronosHeader.includes("versionMap_"), "Chronos: version map for entity tracking");
+
+  console.log("  -- Crash Recovery --");
+  assert(chronosHeader.includes("recoverFromCrash"), "Chronos: recoverFromCrash method");
+  assert(chronosHeader.includes("CrashRecoveryDelegate"), "Chronos: crash recovery delegate");
+  assert(chronosHeader.includes("onCrashRecovery"), "Chronos: onCrashRecovery setter");
+  assert(chronosHeader.includes("RECOVERING"), "Chronos: RECOVERING state");
+  assert(chronosHeader.includes("totalCrashRecoveries"), "Chronos: stats track crash recoveries");
+
+  console.log("  -- State Machine --");
+  assert(chronosHeader.includes("enum class ChronosState"), "Chronos: ChronosState enum");
+  assert(chronosHeader.includes("IDLE"), "Chronos: IDLE state");
+  assert(chronosHeader.includes("FLUSHING"), "Chronos: FLUSHING state");
+  assert(chronosHeader.includes("OFFLINE"), "Chronos: OFFLINE state");
+  assert(chronosHeader.includes("CONFLICT_RESOLUTION"), "Chronos: CONFLICT_RESOLUTION state");
+  assert(chronosHeader.includes("stateToString"), "Chronos: stateToString helper");
+
+  console.log("  -- Connectivity --");
+  assert(chronosHeader.includes("setOnline"), "Chronos: setOnline method");
+  assert(chronosHeader.includes("ConnectivityChangedDelegate"), "Chronos: connectivity delegate");
+  assert(chronosHeader.includes("onConnectivityChanged"), "Chronos: onConnectivityChanged setter");
+
+  console.log("  -- Maintenance --");
+  assert(chronosHeader.includes("evictStaleEntries"), "Chronos: stale entry eviction");
+  assert(chronosHeader.includes("clearFlushed"), "Chronos: clear flushed entries");
+  assert(chronosHeader.includes("saveToDisk"), "Chronos: manual save method");
+  assert(chronosHeader.includes("reset()"), "Chronos: reset method");
+
+  console.log("  -- Stats --");
+  assert(chronosHeader.includes("struct ChronosStats"), "Chronos: ChronosStats struct");
+  assert(chronosHeader.includes("totalEnqueued"), "Chronos: stats totalEnqueued");
+  assert(chronosHeader.includes("totalFlushed"), "Chronos: stats totalFlushed");
+  assert(chronosHeader.includes("totalConflicts"), "Chronos: stats totalConflicts");
+  assert(chronosHeader.includes("totalRetries"), "Chronos: stats totalRetries");
+  assert(chronosHeader.includes("lastFlushTimestamp"), "Chronos: stats lastFlushTimestamp");
+  assert(chronosHeader.includes("lastSaveTimestamp"), "Chronos: stats lastSaveTimestamp");
+
+  console.log("  -- Transport Integration --");
+  assert(chronosHeader.includes("#include \"SovereignTransport.h\""), "Chronos: includes SovereignTransport.h");
+  assert(chronosHeader.includes("USovereignHttpClient"), "Chronos: uses USovereignHttpClient");
+  assert(chronosHeader.includes("pathMap_"), "Chronos: maps entity keys to API paths");
+}
+
 // --- Cross-Engine Summary ---
 console.log("\n" + "=".repeat(60));
 console.log("  PROJECT SHOWROOM — COMPLETE");
