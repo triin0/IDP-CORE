@@ -2820,6 +2820,10 @@ export function hardenGeneratedTypes(
   currentFiles = commandSchemaFix.files;
   allFixes.push(...commandSchemaFix.fixes);
 
+  const conversationalArchitectFix = fixConversationalArchitect(currentFiles);
+  currentFiles = conversationalArchitectFix.files;
+  allFixes.push(...conversationalArchitectFix.fixes);
+
   const viteEnvFix = fixViteEnvTypes(currentFiles);
   currentFiles = viteEnvFix.files;
   allFixes.push(...viteEnvFix.fixes);
@@ -3300,6 +3304,99 @@ export const commandBus = {
         fixes.push(`[${file.path}] Injected exhaustive default:never guard in command action switch`);
         modified = true;
         break;
+      }
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: result, fixes };
+}
+
+function fixConversationalArchitect(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasCommandTypes = files.some(
+    f => (f.path.includes("types/commands") || f.path.includes("commands.ts")) &&
+      f.content.includes("CommandAction"),
+  );
+  const hasAIRoute = files.some(
+    f => f.path.includes("ai-command") || (f.path.startsWith("client/") && f.content.includes("parseNaturalLanguage")),
+  );
+  if (!hasCommandTypes || !hasAIRoute) return { files, fixes };
+
+  const updatedFiles = [...files];
+
+  const hasNLParser = files.some(
+    f => f.path === "client/src/lib/nl-command-parser.ts" && f.content.includes("parseNaturalLanguage"),
+  );
+  if (!hasNLParser && files.some(f => f.path.startsWith("client/"))) {
+    const commandsFile = files.find(f => f.path.includes("types/commands") && f.content.includes("CommandAction"));
+    const actionMatches = commandsFile?.content.match(/"([A-Z_]+)"/g) || [];
+    const actions = [...new Set(actionMatches.map(a => a.replace(/"/g, "")))];
+    const validActionsStr = actions.length > 0
+      ? actions.map(a => `"${a}"`).join(", ")
+      : `"SPAWN_ASSET", "DELETE_NODE", "TRANSFORM_NODE", "UPDATE_MATERIAL", "SET_ENVIRONMENT", "SNAPSHOT_STATE", "UNDO", "REDO"`;
+
+    const nlParserModule = `import type { CommandAction } from "../types/commands";
+import { commandBus } from "./command-bus";
+
+const VALID_ACTIONS = [${validActionsStr}] as const;
+
+export async function parseNaturalLanguage(
+  text: string,
+): Promise<{ success: boolean; command?: CommandAction; error?: string }> {
+  try {
+    const res = await fetch(
+      \`\${import.meta.env.VITE_API_URL || ""}/api/ai-command\`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      },
+    );
+    if (!res.ok) {
+      const err = await res.json();
+      return { success: false, error: err.error || "Request failed" };
+    }
+    const { command } = (await res.json()) as { command: CommandAction };
+    if (!command?.action || !VALID_ACTIONS.includes(command.action as any)) {
+      return { success: false, error: \`Unknown action: \${(command as any)?.action}\` };
+    }
+    commandBus.dispatch(command, "ai");
+    return { success: true, command };
+  } catch (error: unknown) {
+    return { success: false, error: "Network error" };
+  }
+}
+`;
+    updatedFiles.push({
+      path: "client/src/lib/nl-command-parser.ts",
+      content: nlParserModule,
+    });
+    fixes.push("[client/src/lib/nl-command-parser.ts] Injected NL command parser with VALID_ACTIONS guard and command bus integration");
+  }
+
+  const result = updatedFiles.map(file => {
+    if (!file.path.startsWith("server/") || !file.path.match(/\.[tj]sx?$/)) return file;
+    if (!file.path.includes("ai-command")) return file;
+    if (!file.content.includes("JSON.parse")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    if (content.includes("JSON.parse") && !content.includes(".replace(")) {
+      content = content.replace(
+        /const\s+(\w+)\s*(?::\s*\w+)?\s*=\s*JSON\.parse\s*\(\s*(\w+)\s*\)/g,
+        (match, varName, inputVar) => {
+          modified = true;
+          return `const cleaned = ${inputVar}.replace(/^\\\`\\\`\\\`json?\\n?/, "").replace(/\\n?\\\`\\\`\\\`$/, "").trim();\n      const ${varName} = JSON.parse(cleaned)`;
+        },
+      );
+      if (modified) {
+        fixes.push(`[${file.path}] Injected markdown fence stripping before JSON.parse for AI response safety`);
       }
     }
 

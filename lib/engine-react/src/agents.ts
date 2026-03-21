@@ -311,6 +311,20 @@ If the app requires visual editing, AI-driven scene manipulation, or real-time c
    - Socket relay: commands are forwarded to the server via socket, server broadcasts to other clients
 4. **Exhaustive handling**: Every \`switch (command.action)\` MUST include a \`default: never\` guard to catch unhandled actions at compile time.
 
+### CONVERSATIONAL ARCHITECT — AI Scene Control (ONLY if spec involves AI chat, natural language scene control, or conversational 3D)
+If the app requires AI-driven scene manipulation via natural language, you MUST:
+1. **Dependencies**: Add the AI SDK dependency to server/package.json (use the project's configured AI provider).
+2. **File structure**: Include these files in the architecture:
+   - \`client/src/lib/nl-command-parser.ts\` (natural language → CommandAction parser with schema validation)
+   - \`client/src/components/Editor/AICommandBar.tsx\` (chat input UI that dispatches parsed commands)
+   - \`server/src/routes/ai-command.ts\` (API endpoint that calls LLM and returns validated CommandAction JSON)
+3. **Parser contract**: The NLP parser MUST:
+   - Send user text to the server AI endpoint
+   - Receive a typed \`CommandAction\` JSON response
+   - Validate the response matches the \`CommandAction\` union before dispatching
+   - Reject and surface errors for invalid/unrecognized commands
+4. **System prompt constraint**: The server AI endpoint MUST include the full \`CommandAction\` type definition in its system prompt, forcing the LLM to output ONLY valid JSON matching the union. No free-form responses allowed.
+
 ### OUTPUT FORMAT
 Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes": "Brief summary of architectural decisions" }
 Do NOT include any text before or after the JSON.
@@ -510,6 +524,37 @@ If the Architect included a Command Registry (\`commands.ts\`) and command handl
    });
    \`\`\`
 3. **Validation**: ALWAYS validate \`TRANSFORM_NODE\` positions with bounds checking (y >= 0, radial dist <= 100) before broadcasting.
+
+### CONVERSATIONAL ARCHITECT — AI Command Endpoint (ONLY if Architect specified ai-command route or NLP parsing)
+If the Architect included \`server/src/routes/ai-command.ts\` or natural language scene control, you MUST:
+1. **AI Command Route** (\`server/src/routes/ai-command.ts\`): Parse natural language into validated CommandAction:
+   \`\`\`typescript
+   import { Router } from "express";
+   import type { CommandAction } from "../types/commands";
+   const router = Router();
+   const COMMAND_SCHEMA_PROMPT = \`You are a scene command parser. Output ONLY valid JSON matching one of these CommandAction types:
+   - { "action": "SPAWN_ASSET", "payload": { "type": "MODEL"|"LIGHT"|"PRIMITIVE", "src?": "string", "primitive?": "box"|"sphere"|"plane"|"cylinder", "position": [x,y,z] } }
+   - { "action": "DELETE_NODE", "payload": { "id": "string" } }
+   - { "action": "TRANSFORM_NODE", "payload": { "id": "string", "position?": [x,y,z], "rotation?": [x,y,z], "scale?": [x,y,z] } }
+   - { "action": "UPDATE_MATERIAL", "payload": { "id": "string", "color?": "string", "roughness?": number, "metalness?": number } }
+   - { "action": "SET_ENVIRONMENT", "payload": { "preset": "city"|"dawn"|"night"|"studio"|"warehouse" } }
+   Output raw JSON only. No markdown, no explanation, no wrapping.\`;
+   router.post("/", async (req, res) => {
+     const { text } = req.body;
+     if (!text) { res.status(400).json({ error: "text is required" }); return; }
+     try {
+       const aiResponse = await callLLM({ system: COMMAND_SCHEMA_PROMPT, user: text });
+       const parsed: CommandAction = JSON.parse(aiResponse);
+       if (!parsed.action || !parsed.payload) { res.status(422).json({ error: "Invalid command structure" }); return; }
+       res.json({ command: parsed });
+     } catch (error: unknown) {
+       res.status(422).json({ error: "Failed to parse AI response into valid command" });
+     }
+   });
+   export default router;
+   \`\`\`
+2. **System prompt is the guardrail**: The COMMAND_SCHEMA_PROMPT forces the LLM to output ONLY valid CommandAction JSON. It cannot hallucinate actions that don't exist in the union. This is the "Constitutional AI" pattern — the schema IS the constitution.
+3. **Validation**: ALWAYS \`JSON.parse\` the AI response and verify \`action\` and \`payload\` exist before returning to the client. Never trust raw LLM output.
 
 ### ARCHITECT'S DECISIONS
 ${architectNotes}
@@ -819,6 +864,61 @@ If the Architect included a Command Registry (\`commands.ts\`) and \`command-bus
    \`\`\`typescript
    default: { const _exhaustive: never = command; console.error("Unhandled command:", (_exhaustive as any).action); }
    \`\`\`
+
+### CONVERSATIONAL ARCHITECT — AI Chat Command Integration (ONLY if Architect specified nl-command-parser or AICommandBar)
+If the Architect included \`nl-command-parser.ts\` or \`AICommandBar.tsx\`, you MUST:
+1. **NL Command Parser** (\`client/src/lib/nl-command-parser.ts\`): Sends text to server, validates response, dispatches through bus:
+   \`\`\`typescript
+   import type { CommandAction } from "../types/commands";
+   import { commandBus } from "./command-bus";
+   const VALID_ACTIONS = ["SPAWN_ASSET", "DELETE_NODE", "TRANSFORM_NODE", "UPDATE_MATERIAL", "SET_ENVIRONMENT", "SNAPSHOT_STATE", "UNDO", "REDO"] as const;
+   export async function parseNaturalLanguage(text: string): Promise<{ success: boolean; command?: CommandAction; error?: string }> {
+     try {
+       const res = await fetch(\`\${import.meta.env.VITE_API_URL || ""}/api/ai-command\`, {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ text }),
+       });
+       if (!res.ok) { const err = await res.json(); return { success: false, error: err.error }; }
+       const { command } = await res.json() as { command: CommandAction };
+       if (!command?.action || !VALID_ACTIONS.includes(command.action as any)) {
+         return { success: false, error: \`Unknown action: \${(command as any)?.action}\` };
+       }
+       commandBus.dispatch(command, "ai");
+       return { success: true, command };
+     } catch (error: unknown) {
+       return { success: false, error: "Network error" };
+     }
+   }
+   \`\`\`
+   ALWAYS validate \`command.action\` against the known list BEFORE dispatching. NEVER dispatch unvalidated AI output.
+2. **AICommandBar** (\`client/src/components/Editor/AICommandBar.tsx\`): Chat input with validation feedback:
+   \`\`\`typescript
+   import { useState } from "react";
+   import { parseNaturalLanguage } from "../../lib/nl-command-parser";
+   export function AICommandBar() {
+     const [input, setInput] = useState("");
+     const [status, setStatus] = useState<{ type: "idle" | "loading" | "success" | "error"; message?: string }>({ type: "idle" });
+     const handleSubmit = async (e: React.FormEvent) => {
+       e.preventDefault();
+       if (!input.trim()) return;
+       setStatus({ type: "loading" });
+       const result = await parseNaturalLanguage(input);
+       if (result.success) { setStatus({ type: "success", message: \`Executed: \${result.command!.action}\` }); setInput(""); }
+       else { setStatus({ type: "error", message: result.error }); }
+       setTimeout(() => setStatus({ type: "idle" }), 3000);
+     };
+     return (
+       <form onSubmit={handleSubmit}>
+         <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Describe a scene change..." />
+         <button type="submit" disabled={status.type === "loading"}>Send</button>
+         {status.message && <span>{status.message}</span>}
+       </form>
+     );
+   }
+   \`\`\`
+   Place \`<AICommandBar />\` OUTSIDE \`<Canvas />\` alongside the \`<Inspector />\`.
+3. **Security**: The AICommandBar must NEVER execute commands that bypass the command bus. ALL commands — whether from gizmos, keyboard, or AI — flow through \`commandBus.dispatch()\`.
 
 ### SOVEREIGN ASSET CONDUIT — 3D Asset Hardening (ONLY if Architect specified asset-conduit or model components)
 If the Architect included \`asset-conduit.ts\` or a \`components/Models/\` directory, you MUST follow these rules:
@@ -1183,6 +1283,18 @@ You are now operating as the AI Doctor. The Vindicator (deterministic hardener) 
 **Diagnosis: Undo/Redo Desync (history stack diverges from scene state)**
 - Symptom: Undo reverts the wrong action, or redo replays an already-applied command.
 - Cure: 1. The command bus history is append-only — \`dispatch()\` clears the future stack. 2. \`undo()\` pops from history and pushes to future. \`redo()\` pops from future and pushes to history. 3. NEVER mutate the history array directly — use the bus API. 4. Socket-received commands (source: "socket") should NOT be added to the local undo stack — they represent other users' actions.
+
+**Diagnosis: AI Command Hallucination (LLM outputs invalid or invented action)**
+- Symptom: \`parseNaturalLanguage\` returns error "Unknown action", or AI invents actions like "MOVE_CAMERA" that don't exist in the union.
+- Cure: 1. The server system prompt MUST list ALL valid action types explicitly — not describe them abstractly. 2. The client MUST validate \`command.action\` against the \`VALID_ACTIONS\` array before dispatching. 3. If the LLM wraps JSON in markdown code fences, strip them before \`JSON.parse\`: \`response.replace(/^\`\`\`json?\\n?|\\n?\`\`\`$/g, "").trim()\`. 4. NEVER add a new action to the client \`VALID_ACTIONS\` array without also adding it to the \`CommandAction\` union type.
+
+**Diagnosis: AI Response Parse Failure (JSON.parse throws on LLM output)**
+- Symptom: \`SyntaxError: Unexpected token\` when parsing AI response, or 422 from \`/api/ai-command\`.
+- Cure: 1. The LLM response may contain markdown fencing, leading/trailing text, or escaped quotes. Strip with: \`text.replace(/^\`\`\`json?\\n?/,"").replace(/\\n?\`\`\`$/,"").trim()\`. 2. Wrap \`JSON.parse\` in try/catch and return a structured error. 3. If the LLM consistently fails, add \`"response_format": { "type": "json_object" }\` to the API call (OpenAI) or equivalent JSON mode for the provider.
+
+**Diagnosis: Command Bus Bypass (AI chat or gizmo emits directly to socket)**
+- Symptom: Commands execute but don't appear in undo history, or other clients don't receive them.
+- Cure: 1. ALL commands — gizmo, keyboard, AI — MUST flow through \`commandBus.dispatch()\`. 2. NEVER call \`socket.emit("COMMAND", ...)\` directly from UI components. 3. The command bus handles envelope creation, history tracking, and socket relay internally.
 
 ### MINIMAL INCISION RULE
 You MUST only modify lines cited in the error log. Do NOT rewrite entire files. Do NOT add new features. Do NOT refactor working code. Count the number of changed lines — if you changed more than 3x the number of error lines, you are hallucinating extra surgery. Stop and reconsider.

@@ -68,7 +68,7 @@ Generated apps now use a "commercial-grade" visual design by default:
 *   **Vulnerability Database:** OSV
 
 ## Type Hardener (Deterministic AST Post-Processing)
-Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~42 deterministic rewrite passes on generated files after version enforcement in the pipeline:
+Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~43 deterministic rewrite passes on generated files after version enforcement in the pipeline:
 
 1. **fixServerTsconfig** — Rewrites `moduleResolution: "NodeNext"` → `"bundler"` and `module: "NodeNext"` → `"ES2022"`.
 2. **fixBcryptImports** — Swaps `bcrypt` → `bcryptjs` in imports and package.json.
@@ -112,6 +112,7 @@ Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~42 d
 40. **fixVisualSanityGuard** — When PivotControls (R3F gizmo) is detected in client `.tsx` files: creates `client/src/lib/visual-sanity.ts` with floor constraint (y≥0) and radial boundary (dist≤100); injects `visualSanity()` import and guard call after `m.elements[12/13/14]` matrix position extraction to prevent shadow clipping and floating artifacts.
 41. **fixAssetConduit** — When `useGLTF`/`useTexture` detected: creates `client/src/lib/asset-conduit.ts` with validation limits (50k vertices, 1024px textures, allowed format whitelist); injects GPU disposal cleanup (`geometry?.dispose()` + `material.dispose()`) via useEffect into useGLTF components; replaces `meshBasicMaterial` with `meshStandardMaterial` in lit scenes to prevent invisible mesh hallucination.
 42. **fixCommandSchemaExhaustive** — When `CommandAction` discriminated union detected: creates `client/src/lib/command-bus.ts` with dispatch/undo/redo history stack; injects `default: { const _exhaustive: never = command; }` guard into `switch (*.action)` statements missing a default case to enforce exhaustive command handling at compile time.
+43. **fixConversationalArchitect** — When `CommandAction` types + AI command route detected: creates `client/src/lib/nl-command-parser.ts` with `parseNaturalLanguage()` that validates AI responses against `VALID_ACTIONS` extracted from the CommandAction union before dispatching through the command bus; injects markdown fence stripping (`replace(/^\`\`\`json.../...)`) before `JSON.parse` in server AI command routes to prevent LLM response parse failures.
 
 **Key hardener details:**
 - `req.user` typed as `user?: any` to prevent TS2739 with custom TokenPayload types.
@@ -150,5 +151,5 @@ Analysis: The Prompt Hardening successfully prevented the classic "Listener Leak
 
 Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 372 tests covering all 42 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 392 tests covering all 43 passes.
 - Stub collision guard: prevents duplicate declarations when imported symbols match stub candidates.

@@ -3525,6 +3525,115 @@ console.log("\n=== Pass 42e: fixCommandSchemaExhaustive - does not duplicate com
   passed++;
 }
 
+console.log("\n=== Pass 43a: fixConversationalArchitect - injects nl-command-parser.ts when AI route + CommandAction detected ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction =\n  | { action: "SPAWN_ASSET"; payload: { position: [number, number, number] } }\n  | { action: "DELETE_NODE"; payload: { id: string } };\nexport interface CommandEnvelope { id: string; timestamp: number; source: "editor" | "ai"; command: CommandAction; }`,
+    },
+    {
+      path: "server/src/routes/ai-command.ts",
+      content: `import { Router } from "express";\nconst router = Router();\nrouter.post("/", async (req, res) => {\n  const aiResponse = "some response";\n  const parsed = JSON.parse(aiResponse);\n  res.json({ command: parsed });\n});\nexport default router;`,
+    },
+    {
+      path: "client/src/App.tsx",
+      content: `export function App() { return <div />; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const parser = result.files.find(f => f.path === "client/src/lib/nl-command-parser.ts");
+  assert(parser, "should create nl-command-parser.ts");
+  assert(parser!.content.includes("parseNaturalLanguage"), "should export parseNaturalLanguage");
+  assert(parser!.content.includes("VALID_ACTIONS"), "should include VALID_ACTIONS array");
+  assert(parser!.content.includes("SPAWN_ASSET"), "should extract action names from types");
+  assert(parser!.content.includes("DELETE_NODE"), "should include DELETE_NODE");
+  assert(parser!.content.includes("commandBus.dispatch"), "should dispatch through command bus");
+  assert(result.fixes.some(f => f.includes("NL command parser")), "should report parser injection");
+  passed++;
+}
+
+console.log("\n=== Pass 43b: fixConversationalArchitect - injects markdown fence stripping on server ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction = { action: "SPAWN_ASSET"; payload: {} };\nexport interface CommandEnvelope { id: string; timestamp: number; source: "editor"; command: CommandAction; }`,
+    },
+    {
+      path: "server/src/routes/ai-command.ts",
+      content: `import { Router } from "express";\nconst router = Router();\nrouter.post("/", async (req, res) => {\n  const aiResponse = await callLLM(req.body.text);\n  const parsed = JSON.parse(aiResponse);\n  res.json({ command: parsed });\n});\nexport default router;`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/ai-command.ts")!;
+  assert(route.content.includes(".replace("), "should add fence stripping");
+  assert(route.content.includes("cleaned"), "should use cleaned variable");
+  assert(result.fixes.some(f => f.includes("markdown fence stripping")), "should report fence stripping fix");
+  passed++;
+}
+
+console.log("\n=== Pass 43c: fixConversationalArchitect - skips when no CommandAction types ===");
+{
+  const files = [
+    {
+      path: "server/src/routes/ai-command.ts",
+      content: `import { Router } from "express";\nconst router = Router();\nrouter.post("/", async (req, res) => { res.json({}); });\nexport default router;`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.files.some(f => f.path === "client/src/lib/nl-command-parser.ts"), "should not create parser without CommandAction");
+  assert(!result.fixes.some(f => f.includes("NL command")), "should not report NL fix");
+  passed++;
+}
+
+console.log("\n=== Pass 43d: fixConversationalArchitect - does not duplicate nl-command-parser.ts ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction = { action: "SPAWN_ASSET"; payload: {} };\nexport interface CommandEnvelope { id: string; timestamp: number; source: "editor"; command: CommandAction; }`,
+    },
+    {
+      path: "client/src/lib/nl-command-parser.ts",
+      content: `export async function parseNaturalLanguage(text: string) { return { success: true }; }`,
+    },
+    {
+      path: "server/src/routes/ai-command.ts",
+      content: `const router = require("express").Router();\nexport default router;`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const parsers = result.files.filter(f => f.path === "client/src/lib/nl-command-parser.ts");
+  assert(parsers.length === 1, "should not duplicate nl-command-parser.ts");
+  assert(parsers[0].content.includes("parseNaturalLanguage"), "should preserve original");
+  passed++;
+}
+
+console.log("\n=== Pass 43e: fixConversationalArchitect - skips fence stripping when already present ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction = { action: "SPAWN_ASSET"; payload: {} };\nexport interface CommandEnvelope { id: string; timestamp: number; source: "editor"; command: CommandAction; }`,
+    },
+    {
+      path: "server/src/routes/ai-command.ts",
+      content: `import { Router } from "express";\nconst router = Router();\nrouter.post("/", async (req, res) => {\n  const raw = await callLLM(req.body.text);\n  const cleaned = raw.replace(/^\\\`\\\`\\\`json?\\n?/, "").trim();\n  const parsed = JSON.parse(cleaned);\n  res.json({ command: parsed });\n});\nexport default router;`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/ai-command.ts")!;
+  const replaceCount = (route.content.match(/\.replace\(/g) || []).length;
+  assert(replaceCount <= 2, "should not double-inject fence stripping (found " + replaceCount + " .replace calls)");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
