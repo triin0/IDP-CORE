@@ -30,3 +30,9 @@ id = "Mcm5s1vzTBu3ZC0Cv4m3q"
 uri = "file://.local/tasks/interactive-dom-xray-inspector.md"
 type = "text"
 title = "Task #15: Interactive DOM-to-Source X-Ray Inspector"
+
+[[outputs]]
+id = "mlkr2mCYf1K_89k9BCMxc"
+uri = "file://PROJECT_SHOWROOM_AUDIT.md"
+type = "text"
+title = "Project Showroom — Lexus RX300 Vindicator Audit Report"
