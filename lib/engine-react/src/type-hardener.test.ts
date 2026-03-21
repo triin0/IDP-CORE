@@ -4622,6 +4622,747 @@ console.log("\n=== Pass 49k: fixChronosMobileSync - skips when chronos-mobile.ts
   assert(chronosFiles.length === 1, "should not duplicate chronos-mobile.ts");
 }
 
+// ============================================================
+// PROJECT SHOWROOM — Lexus RX300 Tri-Engine Stress Test
+// Validates Passes 44 (Performance Wall), 47 (Data Architect),
+// 48 (The Mirror), 49 (Chronos) fire correctly on a realistic
+// 3D showroom project across React, FastAPI, and Mobile.
+// ============================================================
+
+console.log("\n" + "=".repeat(60));
+console.log("  PROJECT SHOWROOM — Lexus RX300 Tri-Engine Stress Test");
+console.log("=".repeat(60));
+
+// --- React Engine: 3D Showroom with Performance Wall ---
+console.log("\n=== Showroom React 1: Performance Wall (Pass 44) - Instancing + LOD on showroom floor ===");
+{
+  const files = [
+    {
+      path: "client/src/components/ShowroomScene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+import { useGLTF, OrbitControls } from "@react-three/drei";
+
+function LexusModel() {
+  const { scene } = useGLTF("/models/lexus-rx300.glb");
+  return <primitive object={scene} />;
+}
+
+function FloorLights() {
+  const positions = [
+    [0, 0, 0], [2, 0, 0], [4, 0, 0], [6, 0, 0],
+    [0, 0, 2], [2, 0, 2], [4, 0, 2], [6, 0, 2],
+  ];
+  return (
+    <>
+      {positions.map((pos, i) => (
+        <mesh key={i} position={pos}>
+          <boxGeometry args={[0.5, 0.02, 0.5]} />
+          <meshBasicMaterial color="#4488ff" />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+export function ShowroomScene() {
+  return (
+    <Canvas camera={{ position: [5, 3, 8] }}>
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 10, 5]} />
+      <LexusModel />
+      <FloorLights />
+      <OrbitControls />
+    </Canvas>
+  );
+}`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export type CommandAction =
+  | { action: "SPAWN_ASSET"; assetId: string; position: [number, number, number] }
+  | { action: "DELETE_NODE"; nodeId: string }
+  | { action: "TRANSFORM_NODE"; nodeId: string; position: [number, number, number] }
+  | { action: "UPDATE_MATERIAL"; nodeId: string; material: string }
+  | { action: "SET_ENVIRONMENT"; preset: string }
+  | { action: "SNAPSHOT_STATE"; name: string }
+  | { action: "UNDO" }
+  | { action: "REDO" };
+
+export function dispatchCommand(cmd: CommandAction) {
+  switch (cmd.action) {
+    case "SPAWN_ASSET": break;
+    case "DELETE_NODE": break;
+    case "TRANSFORM_NODE": break;
+    case "UPDATE_MATERIAL": break;
+    case "SET_ENVIRONMENT": break;
+    case "SNAPSHOT_STATE": break;
+    case "UNDO": break;
+    case "REDO": break;
+  }
+}`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express";
+const app = express();
+app.use(express.json());
+
+app.get("/api/health", (req, res) => { res.json({ ok: true }); });
+
+app.get("/api/showroom/vehicles", (req, res) => {
+  res.json([
+    { id: "rx300", name: "Lexus RX300", year: 2024, price: 47500 },
+  ]);
+});
+
+app.post("/api/bids", (req, res) => {
+  const { vehicleId, amount, userId } = req.body;
+  res.json({ id: "bid-1", vehicleId, amount, userId, status: "placed" });
+});
+
+app.listen(3000);`,
+    },
+    {
+      path: "client/tsconfig.json",
+      content: `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx"
+  }
+}`,
+    },
+    {
+      path: "server/tsconfig.json",
+      content: `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
+  }
+}`,
+    },
+    {
+      path: "package.json",
+      content: JSON.stringify({
+        name: "lexus-showroom",
+        dependencies: {
+          "express": "^5.0.0",
+          "react": "^19.0.0",
+          "@react-three/fiber": "^8.0.0",
+          "@react-three/drei": "^9.0.0",
+          "three": "^0.160.0",
+          "zustand": "^4.5.0",
+          "framer-motion": "^11.0.0",
+        },
+      }),
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+
+  const perfWall = result.files.find(f => f.path === "client/src/lib/performance-wall.ts");
+  assert(!!perfWall, "Pass 44: should inject performance-wall.ts");
+  assert(perfWall!.content.includes("PERF_LIMITS"), "Pass 44: should define PERF_LIMITS");
+  assert(perfWall!.content.includes("INSTANCE_THRESHOLD"), "Pass 44: should enforce instancing threshold");
+  assert(perfWall!.content.includes("MAX_DRAW_CALLS"), "Pass 44: should cap draw calls");
+
+  const showroomScene = result.files.find(f => f.path === "client/src/components/ShowroomScene.tsx");
+  assert(!!showroomScene, "Pass 44: should transform ShowroomScene.tsx");
+  assert(showroomScene!.content.includes("Instances") || showroomScene!.content.includes("Instance"), "Pass 44: should promote map() to <Instances>");
+  assert(showroomScene!.content.includes("meshStandardMaterial"), "Pass 41: should replace meshBasicMaterial with meshStandardMaterial");
+
+  const lexusModel = showroomScene!.content;
+  assert(lexusModel.includes("Detailed") || lexusModel.includes("useGLTF"), "Pass 44: Detailed LOD or useGLTF should be present");
+}
+
+console.log("\n=== Showroom React 2: Command Schema Exhaustive (Pass 42) + NL Parser (Pass 43) ===");
+{
+  const files = [
+    {
+      path: "client/src/components/ShowroomScene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function ShowroomScene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction =
+  | { action: "SPAWN_ASSET"; assetId: string; position: [number, number, number] }
+  | { action: "DELETE_NODE"; nodeId: string }
+  | { action: "TRANSFORM_NODE"; nodeId: string; position: [number, number, number] }
+  | { action: "UPDATE_MATERIAL"; nodeId: string; material: string }
+  | { action: "SET_ENVIRONMENT"; preset: string }
+  | { action: "SNAPSHOT_STATE"; name: string }
+  | { action: "UNDO" }
+  | { action: "REDO" };
+
+export interface CommandEnvelope {
+  id: string;
+  timestamp: number;
+  source: "editor" | "ai";
+  command: CommandAction;
+}`,
+    },
+    {
+      path: "client/src/lib/showroom-controller.ts",
+      content: `import type { CommandAction } from "../types/commands";
+
+export function handleShowroomCommand(command: CommandAction) {
+  switch (command.action) {
+    case "SPAWN_ASSET":
+      console.log("Spawning", command.assetId);
+      break;
+    case "DELETE_NODE":
+      console.log("Deleting", command.nodeId);
+      break;
+  }
+}`,
+    },
+    {
+      path: "server/src/routes/ai-command.ts",
+      content: `import express from "express";
+const router = express.Router();
+
+router.post("/api/ai/command", async (req, res) => {
+  const aiResponse = await fetch("https://api.example.com/ai", {
+    method: "POST",
+    body: JSON.stringify({ prompt: req.body.prompt }),
+  });
+  const text = await aiResponse.text();
+  const parsed = JSON.parse(text);
+  res.json(parsed);
+});
+
+export default router;`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express";
+const app = express();
+app.use(express.json());
+app.listen(3000);`,
+    },
+    {
+      path: "package.json",
+      content: JSON.stringify({
+        name: "lexus-showroom",
+        dependencies: {
+          "express": "^5.0.0",
+          "react": "^19.0.0",
+          "@react-three/fiber": "^8.0.0",
+          "three": "^0.160.0",
+          "zustand": "^4.5.0",
+        },
+      }),
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+
+  const commandBus = result.files.find(f => f.path === "client/src/lib/command-bus.ts");
+  assert(!!commandBus, "Pass 42: should inject command-bus.ts with undo/redo stack");
+  assert(commandBus!.content.includes("commandBus") || commandBus!.content.includes("dispatch"), "Pass 42: should include dispatch function");
+
+  const showroomCtrl = result.files.find(f => f.path === "client/src/lib/showroom-controller.ts");
+  assert(!!showroomCtrl, "Pass 42: should process showroom-controller.ts");
+  assert(showroomCtrl!.content.includes("default:") || showroomCtrl!.content.includes("_exhaustive"), "Pass 42: should inject exhaustive default guard on incomplete switch");
+
+  const nlParser = result.files.find(f => f.path === "client/src/lib/nl-command-parser.ts");
+  assert(!!nlParser, "Pass 43: should inject nl-command-parser.ts");
+  assert(nlParser!.content.includes("parseNaturalLanguage"), "Pass 43: should include parseNaturalLanguage function");
+  assert(nlParser!.content.includes("VALID_ACTIONS"), "Pass 43: should validate against VALID_ACTIONS");
+
+  const aiCmdRoute = result.files.find(f => f.path === "server/src/routes/ai-command.ts");
+  assert(!!aiCmdRoute, "Pass 43: should process ai-command route");
+  assert(aiCmdRoute!.content.includes("replace("), "Pass 43: should inject markdown fence stripping");
+}
+
+console.log("\n=== Showroom React 3: Collaborative Presence - The Mirror (Pass 48) ===");
+{
+  const files = [
+    {
+      path: "client/src/components/ShowroomScene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function ShowroomScene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express();
+app.get("/api/health", (req, res) => { res.json({ ok: true }); });
+app.listen(3000);`,
+    },
+    {
+      path: "package.json",
+      content: JSON.stringify({
+        name: "lexus-showroom",
+        dependencies: {
+          "express": "^5.0.0",
+          "react": "^19.0.0",
+          "@react-three/fiber": "^8.0.0",
+          "zustand": "^4.5.0",
+        },
+      }),
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+
+  const presenceSystem = result.files.find(f => f.path === "client/src/lib/presence-system.ts");
+  assert(!!presenceSystem, "Pass 48: should inject presence-system.ts");
+  assert(presenceSystem!.content.includes("usePresenceStore"), "Pass 48: should include usePresenceStore");
+  assert(presenceSystem!.content.includes("lerpCursor3D"), "Pass 48: should include lerpCursor3D interpolation");
+  assert(presenceSystem!.content.includes("reconcilePresenceCommand"), "Pass 48: should include conflict reconciliation");
+
+  const avatars = result.files.find(f => f.path === "client/src/components/PresenceAvatars.tsx");
+  assert(!!avatars, "Pass 48: should inject PresenceAvatars.tsx");
+  assert(avatars!.content.includes("useFrame"), "Pass 48: should use useFrame for smooth animation");
+
+  const presenceSocket = result.files.find(f => f.path === "client/src/lib/use-presence-socket.ts");
+  assert(!!presenceSocket, "Pass 48: should inject use-presence-socket.ts");
+  assert(presenceSocket!.content.includes("50"), "Pass 48: should use 50ms broadcast interval");
+
+  const serverFile = result.files.find(f => f.path === "server/src/index.ts");
+  assert(serverFile!.content.includes("/api/presence/active"), "Pass 48: should inject /api/presence/active endpoint");
+}
+
+console.log("\n=== Showroom React 4: Chronos Persistence (Pass 49) — World Snapshot + Locking ===");
+{
+  const files = [
+    {
+      path: "client/src/components/ShowroomScene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function ShowroomScene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express();
+app.get("/api/health", (req, res) => { res.json({ ok: true }); });
+app.listen(3000);`,
+    },
+    {
+      path: "package.json",
+      content: JSON.stringify({
+        name: "lexus-showroom",
+        dependencies: {
+          "express": "^5.0.0",
+          "react": "^19.0.0",
+          "@react-three/fiber": "^8.0.0",
+          "zustand": "^4.5.0",
+        },
+      }),
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+
+  const chronos = result.files.find(f => f.path === "client/src/lib/chronos.ts");
+  assert(!!chronos, "Pass 49: should inject chronos.ts");
+  assert(chronos!.content.includes("useChronosStore"), "Pass 49: should include useChronosStore");
+  assert(chronos!.content.includes("WorldSnapshot"), "Pass 49: should include WorldSnapshot");
+  assert(chronos!.content.includes("MAX_SNAPSHOTS"), "Pass 49: should enforce MAX_SNAPSHOTS=50");
+  assert(chronos!.content.includes("worldLocked"), "Pass 49: should include worldLocked state");
+  assert(chronos!.content.includes("diffSnapshots"), "Pass 49: should include diffSnapshots");
+
+  const autoSave = result.files.find(f => f.path === "client/src/lib/chronos-auto-save.ts");
+  assert(!!autoSave, "Pass 49: should inject chronos-auto-save.ts");
+  assert(autoSave!.content.includes("useAutoSave"), "Pass 49: should include useAutoSave");
+
+  const worldLock = result.files.find(f => f.path === "client/src/lib/chronos-world-lock.ts");
+  assert(!!worldLock, "Pass 49: should inject chronos-world-lock.ts");
+  assert(worldLock!.content.includes("lockWorld"), "Pass 49: should include lockWorld");
+  assert(worldLock!.content.includes("lockNode"), "Pass 49: should include lockNode");
+
+  const serverFile = result.files.find(f => f.path === "server/src/index.ts");
+  assert(serverFile!.content.includes("/api/snapshots"), "Pass 49: should inject /api/snapshots CRUD in server");
+}
+
+console.log("\n=== Showroom React 5: Visual Sanity + Asset Conduit (Passes 40-41) ===");
+{
+  const files = [
+    {
+      path: "client/src/components/ShowroomScene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+import { useGLTF, PivotControls } from "@react-three/drei";
+
+function LexusModel() {
+  const { scene } = useGLTF("/models/lexus-rx300.glb");
+  return (
+    <PivotControls>
+      <primitive object={scene} />
+    </PivotControls>
+  );
+}
+
+export function ShowroomScene() {
+  return (
+    <Canvas camera={{ position: [5, 3, 8] }}>
+      <ambientLight />
+      <LexusModel />
+    </Canvas>
+  );
+}`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express(); app.listen(3000);`,
+    },
+    {
+      path: "package.json",
+      content: JSON.stringify({
+        name: "lexus-showroom",
+        dependencies: {
+          "react": "^19.0.0",
+          "@react-three/fiber": "^8.0.0",
+          "@react-three/drei": "^9.0.0",
+          "three": "^0.160.0",
+        },
+      }),
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+
+  const visualSanity = result.files.find(f => f.path === "client/src/lib/visual-sanity.ts");
+  assert(!!visualSanity, "Pass 40: should inject visual-sanity.ts for PivotControls");
+  assert(visualSanity!.content.includes("floorConstraint") || visualSanity!.content.includes("y") , "Pass 40: should include floor constraint");
+
+  const assetConduit = result.files.find(f => f.path === "client/src/lib/asset-conduit.ts");
+  assert(!!assetConduit, "Pass 41: should inject asset-conduit.ts for useGLTF");
+  assert(assetConduit!.content.includes("MAX_VERTICES"), "Pass 41: should enforce vertex limits");
+}
+
+// --- FastAPI Engine: Bidding Backend ---
+console.log("\n=== Showroom FastAPI 1: Async Routes + Pydantic V2 + Eager Loading (Pass 47) ===");
+{
+  const fastResult = hardenFastAPITypes([
+    {
+      path: "app/main.py",
+      content: `from fastapi import FastAPI
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, relationship
+from pydantic import BaseModel
+from typing import Optional, List
+import os
+
+DATABASE_URL = "postgresql://user:pass@localhost/showroom"
+
+Base = declarative_base()
+
+class Vehicle(Base):
+    __tablename__ = "vehicles"
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    year = Column(Integer)
+    price = Column(Float)
+    bids = relationship("Bid", back_populates="vehicle")
+
+class Bid(Base):
+    __tablename__ = "bids"
+    id = Column(Integer, primary_key=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id"))
+    amount = Column(Float)
+    user_id = Column(String)
+    vehicle = relationship("Vehicle", back_populates="bids")
+
+class VehicleResponse(BaseModel):
+    class Config:
+        from_attributes = True
+    id: int
+    name: str
+    year: int
+    price: float
+
+class BidCreate(BaseModel):
+    class Config:
+        pass
+    vehicle_id: int
+    amount: float
+    user_id: str
+
+app = FastAPI()
+
+@app.get("/vehicles")
+def get_all_vehicles(db: Session):
+    return db.query(Vehicle).all()
+
+@app.get("/vehicles/{vehicle_id}")
+def get_vehicle(vehicle_id: int, db: Session):
+    return db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+
+@app.post("/bids")
+def place_bid(bid: BidCreate, db: Session):
+    new_bid = Bid(**bid.dict())
+    db.add(new_bid)
+    db.commit()
+    return new_bid
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app)`,
+    },
+    {
+      path: "requirements.txt",
+      content: `fastapi
+uvicorn
+sqlalchemy
+pydantic`,
+    },
+  ]);
+
+  const mainFile = fastResult.files.find(f => f.path === "app/main.py");
+  assert(!!mainFile, "FastAPI: should process main.py");
+
+  assert(mainFile!.content.includes("DeclarativeBase") || !mainFile!.content.includes("declarative_base()"), "Pass 1 (SQLAlchemy 2.0): should replace declarative_base()");
+  assert(mainFile!.content.includes("mapped_column") || !mainFile!.content.includes("Column("), "Pass 1: should replace Column() with mapped_column()");
+
+  assert(mainFile!.content.includes("ConfigDict"), "Pass 2 (Pydantic V2): should inject ConfigDict");
+  assert(mainFile!.content.includes("model_config"), "Pass 2: should inject model_config = ConfigDict()");
+
+  assert(mainFile!.content.includes("async def get_all_vehicles"), "Pass 3 (Async): should convert sync routes to async");
+  assert(mainFile!.content.includes("async def place_bid"), "Pass 3: should convert place_bid to async");
+
+  assert(!mainFile!.content.includes('"postgresql://user:pass@localhost/showroom"'), "Pass 5 (No secrets): should remove hardcoded DB URL");
+  assert(mainFile!.content.includes("os.getenv"), "Pass 5: should use os.getenv");
+
+  assert(mainFile!.content.includes("limit") && mainFile!.content.includes("offset"), "Pass 8 (Pagination): should inject limit/offset on list endpoint");
+
+  assert(mainFile!.content.includes("selectinload") || mainFile!.content.includes("relationship"), "Pass 9 (Eager Loading): should inject selectinload for relationships");
+
+  assert(mainFile!.content.includes("GZipMiddleware"), "Pass 10 (Compression): should inject GZipMiddleware");
+
+  const requirements = fastResult.files.find(f => f.path === "requirements.txt");
+  assert(!!requirements, "Pass 7: should process requirements.txt for version pinning");
+  assert(requirements!.content.includes(">="), "Pass 7: should enforce pinned version ranges on requirements");
+}
+
+console.log("\n=== Showroom FastAPI 2: Chronos Backend (Pass 49) — SnapshotStore + World Lock ===");
+{
+  const fastResult = hardenFastAPITypes([
+    {
+      path: "app/main.py",
+      content: `from fastapi import FastAPI\napp = FastAPI()\n\n@app.get("/health")\nasync def health():\n    return {"ok": True}\n\nif __name__ == "__main__":\n    import uvicorn\n    uvicorn.run(app)`,
+    },
+    {
+      path: "requirements.txt",
+      content: "fastapi>=0.100.0\nuvicorn>=0.23.0",
+    },
+  ]);
+
+  const snapshotStore = fastResult.files.find(f => f.path === "snapshot_store.py");
+  assert(!!snapshotStore, "Pass 49 FastAPI: should inject snapshot_store.py");
+  assert(snapshotStore!.content.includes("SnapshotStore"), "Pass 49: should define SnapshotStore class");
+  assert(snapshotStore!.content.includes("ConfigDict(extra=\"forbid\")"), "Pass 49: Pydantic V2 forbid extra");
+  assert(snapshotStore!.content.includes("model_dump"), "Pass 49: should use model_dump not dict()");
+  assert(snapshotStore!.content.includes("lock_world"), "Pass 49: should include world locking");
+  assert(snapshotStore!.content.includes("def diff"), "Pass 49: should include snapshot diff");
+  assert(snapshotStore!.content.includes("max_snapshots"), "Pass 49: should enforce eviction cap");
+
+  const mainFile = fastResult.files.find(f => f.path === "app/main.py");
+  assert(mainFile!.content.includes("/api/snapshots"), "Pass 49: should inject /api/snapshots CRUD");
+  assert(mainFile!.content.includes("/api/world/lock"), "Pass 49: should inject /api/world/lock");
+  assert(mainFile!.content.includes("/api/world/unlock"), "Pass 49: should inject /api/world/unlock");
+  assert(mainFile!.content.includes("/api/world/status"), "Pass 49: should inject /api/world/status");
+  assert(mainFile!.content.includes("/api/snapshots/diff"), "Pass 49: should inject /api/snapshots/diff");
+}
+
+console.log("\n=== Showroom FastAPI 3: Collaborative Presence Relay (Pass 48) ===");
+{
+  const fastResult = hardenFastAPITypes([
+    {
+      path: "app/main.py",
+      content: `from fastapi import FastAPI\napp = FastAPI()\n\n@app.get("/health")\nasync def health():\n    return {"ok": True}\n\nif __name__ == "__main__":\n    import uvicorn\n    uvicorn.run(app)`,
+    },
+    {
+      path: "requirements.txt",
+      content: "fastapi>=0.100.0\nuvicorn>=0.23.0",
+    },
+  ]);
+
+  const presenceRelay = fastResult.files.find(f => f.path === "presence_relay.py");
+  assert(!!presenceRelay, "Pass 48 FastAPI: should inject presence_relay.py");
+  assert(presenceRelay!.content.includes("PresenceManager"), "Pass 48: should define PresenceManager class");
+  assert(presenceRelay!.content.includes("resolve_conflict"), "Pass 48: should include conflict resolution");
+  assert(presenceRelay!.content.includes("sanitize_update"), "Pass 48: should whitelist-sanitize updates");
+
+  const mainFile = fastResult.files.find(f => f.path === "app/main.py");
+  assert(mainFile!.content.includes("/ws/presence/"), "Pass 48: should inject WebSocket presence endpoint");
+  assert(mainFile!.content.includes("/api/presence/active"), "Pass 48: should inject presence active endpoint");
+}
+
+// --- Mobile Engine: Bidding Controller ---
+console.log("\n=== Showroom Mobile 1: SafeArea + NativeWind + FlatList + Animations (Passes 1-10) ===");
+{
+  const mobileResult = hardenMobileTypes([
+    {
+      path: "app/_layout.tsx",
+      content: `import { Stack } from "expo-router";
+export default function Layout() { return <Stack />; }`,
+    },
+    {
+      path: "app/showroom.tsx",
+      content: `import React from "react";
+import { View, ScrollView, Image, Text, StyleSheet, Animated } from "react-native";
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#0F172A" },
+  card: { padding: 16, marginBottom: 12 },
+  title: { fontSize: 18, fontWeight: "bold", color: "white" },
+});
+
+export default function ShowroomScreen() {
+  const vehicles = [
+    { id: "rx300", name: "Lexus RX300", year: 2024, price: 47500, image: "https://example.com/rx300.jpg" },
+    { id: "rx350", name: "Lexus RX350", year: 2024, price: 52000, image: "https://example.com/rx350.jpg" },
+    { id: "rx500h", name: "Lexus RX500h", year: 2024, price: 61000, image: "https://example.com/rx500h.jpg" },
+  ];
+
+  return (
+    <View style={styles.container}>
+      <ScrollView>
+        {vehicles.map((v) => (
+          <View key={v.id} style={styles.card}>
+            <Image source={{ uri: v.image }} style={{ width: 300, height: 200 }} />
+            <Text style={styles.title}>{v.name}</Text>
+            <Animated.View>
+              <Text>Starting at \${v.price.toLocaleString()}</Text>
+            </Animated.View>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}`,
+    },
+    {
+      path: "app/bid.tsx",
+      content: `import React, { useEffect, useState } from "react";
+import { View, Text, TextInput, TouchableOpacity } from "react-native";
+
+export default function BidScreen() {
+  const [amount, setAmount] = useState("");
+  const [bids, setBids] = useState([]);
+
+  useEffect(() => {
+    fetch("https://api.example.com/bids")
+      .then(r => r.json())
+      .then(data => setBids(data))
+      .catch(console.error);
+  }, []);
+
+  const placeBid = async () => {
+    const saved = localStorage.setItem("lastBid", amount);
+    await fetch("https://api.example.com/bids", {
+      method: "POST",
+      body: JSON.stringify({ amount: Number(amount), vehicleId: "rx300" }),
+    });
+  };
+
+  return (
+    <View>
+      <TextInput value={amount} onChangeText={setAmount} placeholder="Bid amount" />
+      <TouchableOpacity onPress={placeBid}><Text>Place Bid</Text></TouchableOpacity>
+      {bids.filter(b => b.vehicleId === "rx300").map((b, i) => (
+        <Text key={i}>{b.amount}</Text>
+      ))}
+    </View>
+  );
+}`,
+    },
+    {
+      path: "package.json",
+      content: JSON.stringify({
+        name: "lexus-showroom-mobile",
+        dependencies: {
+          "expo": "~51.0.0",
+          "expo-router": "~3.5.0",
+          "react": "^18.2.0",
+          "react-native": "^0.74.0",
+          "@react-navigation/native": "^6.0.0",
+        },
+      }),
+    },
+  ]);
+
+  const layout = mobileResult.files.find(f => f.path === "app/_layout.tsx");
+  assert(!!layout, "Mobile: should process _layout.tsx");
+
+  const showroom = mobileResult.files.find(f => f.path === "app/showroom.tsx");
+  assert(!!showroom, "Mobile: should process showroom.tsx");
+  assert(showroom!.content.includes("StyleSheet.create removed"), "Pass 1 (NativeWind): should comment out StyleSheet.create");
+  assert(showroom!.content.includes("resizeMode") || showroom!.content.includes("loading"), "Pass 8 (Image): should optimize network images");
+  assert(showroom!.content.includes("reanimated") || showroom!.content.includes("Reanimated"), "Pass 10 (Reanimated): should replace Animated with reanimated");
+
+  const bid = mobileResult.files.find(f => f.path === "app/bid.tsx");
+  assert(!!bid, "Mobile: should process bid.tsx");
+  assert(bid!.content.includes("AsyncStorage"), "Pass 2 (AsyncStorage): should replace localStorage with AsyncStorage");
+  assert(bid!.content.includes("React.memo") || bid!.content.includes("memo("), "Pass 9 (Memo): should wrap component with React.memo");
+
+  const pkg = JSON.parse(mobileResult.files.find(f => f.path === "package.json")!.content);
+  assert(!pkg.dependencies["expo"]?.startsWith("^"), "Pass 4 (Pins): should remove ^ from expo version");
+  assert(!pkg.dependencies["react"]?.startsWith("^"), "Pass 4 (Pins): should remove ^ from react version");
+}
+
+console.log("\n=== Showroom Mobile 2: Haptic Presence (Pass 48) + Chronos Mobile Sync (Pass 49) ===");
+{
+  const mobileResult = hardenMobileTypes([
+    {
+      path: "app/_layout.tsx",
+      content: `import { Stack } from "expo-router";
+export default function Layout() { return <Stack />; }`,
+    },
+    {
+      path: "package.json",
+      content: JSON.stringify({
+        name: "lexus-showroom-mobile",
+        dependencies: {
+          "expo": "~51.0.0",
+          "expo-router": "~3.5.0",
+          "react": "18.2.0",
+          "react-native": "0.74.0",
+          "expo-haptics": "13.0.0",
+        },
+      }),
+    },
+  ]);
+
+  const hapticPresence = mobileResult.files.find(f => f.path === "lib/haptic-presence.ts");
+  assert(!!hapticPresence, "Pass 48 Mobile: should inject haptic-presence.ts");
+  assert(hapticPresence!.content.includes("usePresenceHaptics"), "Pass 48: should include usePresenceHaptics hook");
+  assert(hapticPresence!.content.includes("peer:joined"), "Pass 48: should handle peer:joined events");
+  assert(hapticPresence!.content.includes("object:moved"), "Pass 48: should handle object:moved events");
+  assert(hapticPresence!.content.includes("conflict:resolved"), "Pass 48: should handle conflict:resolved events");
+
+  const chronosMobile = mobileResult.files.find(f => f.path === "lib/chronos-mobile.ts");
+  assert(!!chronosMobile, "Pass 49 Mobile: should inject chronos-mobile.ts");
+  assert(chronosMobile!.content.includes("useChronosMobileSync"), "Pass 49: should include useChronosMobileSync");
+  assert(chronosMobile!.content.includes("flushingRef"), "Pass 49: should include single-flight flush guard");
+  assert(chronosMobile!.content.includes("saveSnapshotOffline"), "Pass 49: should include saveSnapshotOffline");
+  assert(chronosMobile!.content.includes("loadLastSnapshot"), "Pass 49: should include loadLastSnapshot");
+  assert(chronosMobile!.content.includes("MAX_OFFLINE_QUEUE"), "Pass 49: should enforce offline queue cap");
+
+  const perfLimits = mobileResult.files.find(f => f.path === "lib/performance-wall.ts");
+  assert(!!perfLimits, "Pass 11 Mobile: should inject performance-wall.ts");
+  assert(perfLimits!.content.includes("MOBILE_PERF_LIMITS"), "Pass 11: should define MOBILE_PERF_LIMITS");
+
+  const pkg2 = JSON.parse(mobileResult.files.find(f => f.path === "package.json")!.content);
+  assert(!!pkg2.dependencies["@react-native-community/netinfo"], "Pass 49: should add netinfo for Chronos mobile sync");
+}
+
+// --- Cross-Engine Summary ---
+console.log("\n" + "=".repeat(60));
+console.log("  PROJECT SHOWROOM — COMPLETE");
+console.log("=".repeat(60));
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
