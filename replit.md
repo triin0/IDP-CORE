@@ -160,13 +160,18 @@ Located at `lib/engine-fastapi/src/type-hardener.ts`, runs 7 deterministic rewri
 Wired into `pipeline.ts` and `refine.ts` — runs after code generation, before Golden Path checks. Emits `"type-hardening"` pipeline events via "FastAPI Vindicator" agent.
 
 **Mobile Type Hardener (Mobile Vindicator):**
-Located at `lib/engine-mobile/src/type-hardener.ts`, runs 6 deterministic rewrite passes on generated Expo/React Native files:
+Located at `lib/engine-mobile/src/type-hardener.ts`, runs 11 deterministic rewrite passes on generated Expo/React Native files:
 1. **fixStyleSheetCreate** — Removes `StyleSheet.create()` blocks and converts `style={styles.x}` to `className="x"` (NativeWind mandatory).
 2. **fixLocalStorageUsage** — Replaces `localStorage.getItem/setItem/removeItem` with `AsyncStorage` equivalents (React Native has no localStorage).
 3. **fixSafeAreaProvider** — Injects `SafeAreaProvider` wrapper in `app/_layout.tsx` if missing.
 4. **fixDependencyPins** — Removes `^` and `~` from package.json dependency versions for reproducible builds.
 5. **fixMobileAssetLimits** — Injects `lib/asset-limits.ts` with VRAM-safe limits (1024px max, format whitelist) when image assets detected.
 6. **fixDirectReactNavigation** — Replaces `@react-navigation/native` imports with `expo-router` equivalents (file-based routing mandatory).
+7. **fixFlatListEnforcement** — Replaces `ScrollView` + `.map()` patterns with `FlatList` for virtualized rendering (60fps list performance); auto-extracts data source, key extractor, and render item; updates react-native imports.
+8. **fixImageOptimization** — Injects `resizeMode="cover"` and `loading="lazy"` on network `<Image>` components with URI sources for bandwidth and memory efficiency.
+9. **fixHeavyReRenders** — Wraps components with expensive operations (useEffect, .map, .filter, fetch) in `React.memo()` to prevent unnecessary re-renders; handles default and named exports.
+10. **fixAnimationPerformance** — Replaces core `react-native` `Animated` import with `react-native-reanimated` for native-thread 60fps animations; auto-adds `FadeIn`, `FadeOut`, `SlideInRight` entering animations.
+11. **fixMobilePerformanceConstants** — Injects `lib/performance-wall.ts` with `MOBILE_PERF_LIMITS` (FlatList window size, max simultaneous animations, image cache limits, bundle size caps, target FPS) and `PERF_HINTS` documentation.
 
 Wired into `pipeline.ts` and `refine.ts` — runs after code generation, before Golden Path checks. Emits `"type-hardening"` pipeline events via "Mobile Vindicator" agent.
 

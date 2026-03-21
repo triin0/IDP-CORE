@@ -38,6 +38,26 @@ export function hardenMobileTypes(
   currentFiles = navFix.files;
   allFixes.push(...navFix.fixes);
 
+  const flatListFix = fixFlatListEnforcement(currentFiles);
+  currentFiles = flatListFix.files;
+  allFixes.push(...flatListFix.fixes);
+
+  const imageFix = fixImageOptimization(currentFiles);
+  currentFiles = imageFix.files;
+  allFixes.push(...imageFix.fixes);
+
+  const memoFix = fixHeavyReRenders(currentFiles);
+  currentFiles = memoFix.files;
+  allFixes.push(...memoFix.fixes);
+
+  const animFix = fixAnimationPerformance(currentFiles);
+  currentFiles = animFix.files;
+  allFixes.push(...animFix.fixes);
+
+  const perfConstFix = fixMobilePerformanceConstants(currentFiles);
+  currentFiles = perfConstFix.files;
+  allFixes.push(...perfConstFix.fixes);
+
   return { files: currentFiles, fixes: allFixes };
 }
 
@@ -239,6 +259,227 @@ function fixDirectReactNavigation(files: PipelineFile[]): HardenerResult {
 
     return modified ? { path: file.path, content } : file;
   });
+
+  return { files: result, fixes };
+}
+
+function fixFlatListEnforcement(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const result = files.map(file => {
+    if (!file.path.endsWith(".tsx")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    const scrollMapPattern = /<ScrollView([^>]*)>([\s\S]*?)\.map\(\s*\((\w+)[^)]*\)\s*=>\s*\(?([\s\S]*?)\)?\s*\)([\s\S]*?)<\/ScrollView>/;
+    const match = content.match(scrollMapPattern);
+
+    if (match && content.includes("ScrollView") && content.includes(".map(")) {
+      const [fullMatch, scrollProps, beforeMap, itemVar, mapBody, afterMap] = match;
+
+      const dataSource = content.match(new RegExp(`(\\w+)\\.map\\(\\s*\\(${itemVar}`))?.[1] || "data";
+
+      const keyExtract = mapBody.match(/key=\{([^}]+)\}/)?.[1] || `${itemVar}.id`;
+
+      const renderItem = mapBody
+        .replace(/key=\{[^}]+\}\s*/g, "")
+        .trim();
+
+      const replacement = `<FlatList${scrollProps}\n        data={${dataSource}}\n        keyExtractor={(${itemVar}) => String(${keyExtract})}\n        renderItem={({ item: ${itemVar} }) => (\n          ${renderItem}\n        )}\n      />`;
+
+      content = content.replace(fullMatch, replacement);
+
+      if (content.includes("ScrollView") && !content.includes("<ScrollView")) {
+        content = content.replace(
+          /import\s*\{([^}]*?)ScrollView,?\s*([^}]*?)\}\s*from\s*["']react-native["']/g,
+          (m, before, after) => {
+            let remaining = (before + after).replace(/,\s*,/g, ",").replace(/^,\s*|,\s*$/g, "").trim();
+            if (!remaining.includes("FlatList")) {
+              remaining = remaining ? `${remaining}, FlatList` : "FlatList";
+            }
+            return `import { ${remaining} } from "react-native"`;
+          },
+        );
+      } else {
+        content = content.replace(
+          /import\s*\{([^}]*?)\}\s*from\s*["']react-native["']/,
+          (m, imports) => {
+            if (!imports.includes("FlatList")) {
+              return `import { ${imports.trim()}, FlatList } from "react-native"`;
+            }
+            return m;
+          },
+        );
+      }
+
+      modified = true;
+      fixes.push(`[${file.path}] Replaced ScrollView + .map() with FlatList for virtualized rendering (60fps list performance)`);
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: result, fixes };
+}
+
+function fixImageOptimization(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const result = files.map(file => {
+    if (!file.path.endsWith(".tsx")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    const imgPattern = /<Image\s+([^>]*?)source=\{\{[^}]*uri:\s*([^}]+)\}\}([^>]*?)\/>/g;
+    if (imgPattern.test(content)) {
+      content = content.replace(
+        /<Image\s+([^>]*?)source=\{\{([^}]*?uri:\s*[^}]+)\}\}([^>]*?)\/>/g,
+        (match, before, sourceInner, after) => {
+          let props = before + after;
+          if (!props.includes("resizeMode")) {
+            props = props.trim() + ' resizeMode="cover"';
+          }
+          if (!props.includes("loading") && !match.includes("loading=")) {
+            props = props.trim() + ' loading="lazy"';
+          }
+          return `<Image ${props.trim()} source={{${sourceInner}}} />`;
+        },
+      );
+      modified = true;
+      fixes.push(`[${file.path}] Injected resizeMode="cover" and loading="lazy" on network Image components`);
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: result, fixes };
+}
+
+function fixHeavyReRenders(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const result = files.map(file => {
+    if (!file.path.endsWith(".tsx")) return file;
+    if (file.path.includes("_layout")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    const componentPattern = /^(export\s+(?:default\s+)?)?function\s+([A-Z]\w+)\s*\(/m;
+    const match = content.match(componentPattern);
+
+    if (match && !content.includes("React.memo") && !content.includes("memo(")) {
+      const [fullMatch, exportPrefix, componentName] = match;
+
+      const hasExpensiveOps = content.includes("useEffect") ||
+        content.includes(".map(") ||
+        content.includes(".filter(") ||
+        content.includes("fetch(");
+
+      if (hasExpensiveOps) {
+        const isDefaultExport = exportPrefix?.includes("default");
+        const isExport = !!exportPrefix;
+
+        if (isDefaultExport) {
+          content = content.replace(
+            new RegExp(`export\\s+default\\s+function\\s+${componentName}\\s*\\(`),
+            `function ${componentName}(`,
+          );
+          content += `\nexport default React.memo(${componentName});\n`;
+        } else if (isExport) {
+          content = content.replace(
+            new RegExp(`export\\s+function\\s+${componentName}\\s*\\(`),
+            `function ${componentName}(`,
+          );
+          content += `\nexport const Memoized${componentName} = React.memo(${componentName});\nexport { Memoized${componentName} as ${componentName} };\n`;
+        }
+
+        if (!content.includes("import React") && !content.includes("import * as React")) {
+          content = `import React from "react";\n` + content;
+        }
+
+        modified = true;
+        fixes.push(`[${file.path}] Wrapped ${componentName} in React.memo() to prevent unnecessary re-renders`);
+      }
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: result, fixes };
+}
+
+function fixAnimationPerformance(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const result = files.map(file => {
+    if (!file.path.endsWith(".tsx") && !file.path.endsWith(".ts")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    if (content.includes("from \"react-native\"") && content.includes("Animated") &&
+      !content.includes("react-native-reanimated")) {
+      const importMatch = content.match(
+        /import\s*\{([^}]*?)\bAnimated\b([^}]*?)\}\s*from\s*["']react-native["']/,
+      );
+      if (importMatch) {
+        const [fullImport, before, after] = importMatch;
+        const remaining = (before + after).replace(/,\s*,/g, ",").replace(/^,\s*|,\s*$/g, "").trim();
+        if (remaining) {
+          content = content.replace(fullImport, `import { ${remaining} } from "react-native"`);
+        } else {
+          content = content.replace(fullImport, "");
+        }
+
+        content = `import Animated, { FadeIn, FadeOut, SlideInRight } from "react-native-reanimated";\n` + content;
+        modified = true;
+        fixes.push(`[${file.path}] Replaced react-native Animated with react-native-reanimated for 60fps native animations`);
+      }
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: result, fixes };
+}
+
+function fixMobilePerformanceConstants(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasPerfFile = files.some(
+    f => f.path === "lib/performance-wall.ts" && f.content.includes("MOBILE_PERF_LIMITS"),
+  );
+  if (hasPerfFile) return { files, fixes };
+
+  const hasScreens = files.some(f => f.path.startsWith("app/") && f.path.endsWith(".tsx"));
+  if (!hasScreens) return { files, fixes };
+
+  const MOBILE_PERF_MODULE = `export const MOBILE_PERF_LIMITS = {
+  MAX_LIST_ITEMS_BEFORE_VIRTUALIZATION: 20,
+  MAX_IMAGE_DIMENSION: 1024,
+  MAX_SIMULTANEOUS_ANIMATIONS: 3,
+  TARGET_FPS: 60,
+  MAX_BUNDLE_SIZE_KB: 500,
+  IMAGE_CACHE_SIZE_MB: 50,
+  FLATLIST_WINDOW_SIZE: 5,
+  FLATLIST_MAX_TO_RENDER_PER_BATCH: 10,
+  FLATLIST_INITIAL_NUM_TO_RENDER: 10,
+} as const;
+
+export const PERF_HINTS = {
+  USE_FLATLIST: "Replace ScrollView + .map() with FlatList for virtualized rendering",
+  USE_REANIMATED: "Use react-native-reanimated instead of core Animated for 60fps animations",
+  USE_MEMO: "Wrap heavy components in React.memo() to prevent unnecessary re-renders",
+  USE_CALLBACK: "Use useCallback() for event handlers passed as props",
+  LAZY_IMAGES: "Use loading='lazy' and resizeMode='cover' for network images",
+} as const;
+`;
+
+  const result = [...files, { path: "lib/performance-wall.ts", content: MOBILE_PERF_MODULE }];
+  fixes.push("[lib/performance-wall.ts] Injected MOBILE_PERF_LIMITS constants (FlatList window, animation caps, image cache, bundle limits)");
 
   return { files: result, fixes };
 }
