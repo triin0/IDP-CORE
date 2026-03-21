@@ -122,6 +122,46 @@ async def health():
     return {"ok": True, "engine": "FastAPI Vindicator (12 passes)"}
 
 
+class PingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    client_version: str
+    user_id: str
+    client_timestamp: int
+
+
+@app.post("/api/ping")
+async def ping(ping: PingRequest, request: Request):
+    from security import verify_token, TokenError
+    import hashlib, json
+
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        token_str = auth_header[7:]
+        try:
+            verify_token(token_str, expected_user_id=ping.user_id)
+        except TokenError as e:
+            raise HTTPException(status_code=403, detail={"error": "Identity Rejected", "code": e.code})
+    elif not AUTH_DISABLED:
+        raise HTTPException(status_code=403, detail={"error": "Identity Rejected", "code": "NO_TOKEN"})
+
+    payload_dict = {"client_timestamp": ping.client_timestamp, "client_version": ping.client_version, "user_id": ping.user_id}
+    canonical = json.dumps(payload_dict, separators=(",", ":"), ensure_ascii=False)
+    server_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    client_hash = request.headers.get("x-payload-hash", "")
+    verified = (client_hash == server_hash) if client_hash else False
+
+    return {
+        "verified": verified,
+        "server_hash": server_hash,
+        "client_hash": client_hash,
+        "server_timestamp": int(datetime.utcnow().timestamp()),
+        "server_version": "1.0.0",
+        "user_id": ping.user_id,
+        "integrity_status": "VERIFIED" if verified else ("NO_HASH" if not client_hash else "MISMATCH"),
+    }
+
+
 @app.get("/api/vehicles", response_model=list[VehicleResponse])
 async def get_vehicles(
     db: Session = Depends(get_db),

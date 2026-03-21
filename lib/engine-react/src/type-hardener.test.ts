@@ -5745,6 +5745,86 @@ class BidConstrained(BaseModel):
   assert(result.fixes.some((f: string) => f.includes("→")), "Engine B: fix log shows type mappings");
 }
 
+// === Engine B Module 0: Sovereign Transport & Auth Bridge ===
+console.log("\n=== Engine B Module 0: Sovereign Transport & Auth Bridge ===");
+{
+  const fs = await import("fs");
+  const path = await import("path");
+
+  const transportHeader = fs.default.readFileSync(
+    path.default.resolve("lib/engine-native/generated/SovereignTransport.h"), "utf-8"
+  );
+  const serializerHeader = fs.default.readFileSync(
+    path.default.resolve("lib/engine-native/generated/SovereignSerializer.h"), "utf-8"
+  );
+
+  console.log("  -- USovereignHttpClient Structure --");
+  assert(transportHeader.includes("class USovereignHttpClient"), "Transport: USovereignHttpClient class exists");
+  assert(transportHeader.includes("static USovereignHttpClient& Get()"), "Transport: singleton pattern (static Get())");
+  assert(transportHeader.includes("USovereignHttpClient(const USovereignHttpClient&) = delete"), "Transport: copy constructor deleted (true singleton)");
+  assert(transportHeader.includes("PreparedRequest prepareRequest"), "Transport: prepareRequest method");
+  assert(transportHeader.includes("void routeResponse"), "Transport: routeResponse method");
+  assert(transportHeader.includes("setBaseUrl"), "Transport: setBaseUrl method");
+  assert(transportHeader.includes("X-Payload-Hash"), "Transport: X-Payload-Hash header enforcement");
+  assert(transportHeader.includes("X-Client-Engine"), "Transport: X-Client-Engine header");
+
+  console.log("  -- Automatic Hash Interception --");
+  assert(transportHeader.includes("SovereignSHA256::hash"), "Transport: uses SovereignSHA256 for hashing");
+  assert(transportHeader.includes("payload.canonicalize()"), "Transport: calls canonicalize() before hashing");
+  assert(transportHeader.includes("HttpMethod::POST"), "Transport: POST method enum");
+  assert(transportHeader.includes("HttpMethod::PUT"), "Transport: PUT method enum");
+  assert(transportHeader.includes("HttpMethod::PATCH"), "Transport: PATCH method enum");
+  assert(transportHeader.includes("isMutating"), "Transport: checks mutating methods for hash");
+
+  console.log("  -- Header Enforcement --");
+  assert(transportHeader.includes("\"Authorization\""), "Transport: Authorization header key");
+  assert(transportHeader.includes("\"Bearer \" + auth.getToken()"), "Transport: Bearer token format");
+  assert(transportHeader.includes("\"Content-Type\""), "Transport: Content-Type header");
+
+  console.log("  -- Delegate System (Status Code Routing) --");
+  assert(transportHeader.includes("IntegrityFaultDelegate"), "Transport: IntegrityFaultDelegate typedef");
+  assert(transportHeader.includes("IdentityExpiredDelegate"), "Transport: IdentityExpiredDelegate typedef");
+  assert(transportHeader.includes("StateConflictDelegate"), "Transport: StateConflictDelegate typedef");
+  assert(transportHeader.includes("case 400:"), "Transport: routes 400 → IntegrityFault");
+  assert(transportHeader.includes("case 403:"), "Transport: routes 403 → IdentityExpired");
+  assert(transportHeader.includes("case 409:"), "Transport: routes 409 → StateConflict");
+  assert(transportHeader.includes("onIntegrityFault"), "Transport: onIntegrityFault setter");
+  assert(transportHeader.includes("onIdentityExpired"), "Transport: onIdentityExpired setter");
+  assert(transportHeader.includes("onStateConflict"), "Transport: onStateConflict setter");
+
+  console.log("  -- UAuthService Structure --");
+  assert(transportHeader.includes("class UAuthService"), "Transport: UAuthService class exists");
+  assert(transportHeader.includes("static UAuthService& Get()"), "Transport: auth singleton pattern");
+  assert(transportHeader.includes("UAuthService(const UAuthService&) = delete"), "Transport: auth copy deleted");
+  assert(transportHeader.includes("std::string token"), "Transport: token stored as private FString");
+  assert(transportHeader.includes("mutable std::mutex authMutex_"), "Transport: thread-safe auth (mutex)");
+  assert(transportHeader.includes("isAuthenticated()"), "Transport: isAuthenticated method");
+  assert(transportHeader.includes("isTokenExpired()"), "Transport: isTokenExpired method");
+  assert(transportHeader.includes("setTokenDirect"), "Transport: setTokenDirect for secure storage");
+  assert(transportHeader.includes("clearAuth()"), "Transport: clearAuth method");
+
+  console.log("  -- PingRequest/Response --");
+  assert(transportHeader.includes("struct PingRequest"), "Transport: PingRequest struct");
+  assert(transportHeader.includes("struct PingResponse"), "Transport: PingResponse struct");
+  assert(transportHeader.includes("toSovereignJson()"), "Transport: PingRequest has toSovereignJson()");
+  assert(transportHeader.includes("fromJson"), "Transport: PingResponse has fromJson parser");
+  assert(transportHeader.includes("preparePingRequest"), "Transport: preparePingRequest helper");
+  assert(transportHeader.includes("verifyPingIntegrity"), "Transport: verifyPingIntegrity helper");
+
+  console.log("  -- Diagnostics & Interceptors --");
+  assert(transportHeader.includes("TransportDiagnostic"), "Transport: TransportDiagnostic struct");
+  assert(transportHeader.includes("getDiagnostics()"), "Transport: getDiagnostics method");
+  assert(transportHeader.includes("RequestInterceptor"), "Transport: RequestInterceptor typedef");
+  assert(transportHeader.includes("addInterceptor"), "Transport: addInterceptor method");
+  assert(transportHeader.includes("MAX_DIAGNOSTICS"), "Transport: diagnostic buffer limit");
+
+  console.log("  -- Serializer Integration --");
+  assert(transportHeader.includes("#include \"SovereignSerializer.h\""), "Transport: includes SovereignSerializer.h");
+  assert(serializerHeader.includes("class JsonValue"), "Transport: JsonValue available from serializer");
+  assert(serializerHeader.includes("struct SovereignSHA256"), "Transport: SovereignSHA256 available from serializer");
+  assert(serializerHeader.includes("class ChronosOfflineQueue"), "Transport: ChronosOfflineQueue available for future use");
+}
+
 // --- Cross-Engine Summary ---
 console.log("\n" + "=".repeat(60));
 console.log("  PROJECT SHOWROOM — COMPLETE");

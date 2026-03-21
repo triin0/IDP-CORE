@@ -195,7 +195,7 @@ Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardenin
   - **FastAPI**: `presence_relay.py` (PresenceManager class with asyncio-safe WebSocket relay, automatic dead connection cleanup, `resolve_conflict()` for deterministic last-write-wins, `get_active_peers()` with timeout filtering); `/ws/presence/{user_id}` WebSocket endpoint and `/api/presence/active` REST endpoint injected into main.py.
   - **Mobile**: `lib/haptic-presence.ts` (6 event types: peer:joined, peer:left, object:moved, object:created, object:deleted, conflict:resolved; mapped to expo-haptics ImpactFeedbackStyle/NotificationFeedbackType; 100ms throttle; `usePresenceHaptics()` WebSocket listener hook); adds expo-haptics dependency.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 773 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 823 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests + 50 Engine B Transport & Auth Bridge tests.
 
 ## Engine B: The Native Foundry (Pydantic→UE5 Transpiler)
 A transpilation pipeline that reads Engine A's Pydantic schemas and generates type-safe C++/UE5 code with SHA-256 parity.
@@ -216,6 +216,14 @@ A transpilation pipeline that reads Engine A's Pydantic schemas and generates ty
 - Generates `Validate*()` functions with constraint checks (ge, le, gt, lt, max_length, min_length).
 - Generates `ToSovereignJson()` serializer functions using `Sovereign::JsonValue`.
 - C++ conformance: 21/21 tests passing (10 hell payloads + 3 SHA-256 NIST + 8 Chronos).
+
+**Module 0 — Sovereign Transport & Auth Bridge** (`lib/engine-native/generated/SovereignTransport.h`): Native C++ communication layer enforcing Tier 5 Root of Trust:
+- `USovereignHttpClient`: Singleton HTTP client wrapping IHttpRequest. Automatic interception: every outgoing POST/PUT/PATCH calls `canonicalize()` + `SovereignSHA256::hash()` and appends `X-Payload-Hash` + `Authorization: Bearer <JWT>` headers. Delegate system: 400→`OnIntegrityFault`, 403→`OnIdentityExpired`, 409→`OnStateConflict`. Request interceptors, diagnostic buffer (last 500 requests).
+- `UAuthService`: Singleton auth service with thread-safe (mutex) token storage. `setTokenDirect()` for secure token injection, `isAuthenticated()`/`isTokenExpired()` with real-time clock checks, `clearAuth()` for logout. Zero-Trust: tokens accessible only by `USovereignHttpClient`.
+- `PingRequest`/`PingResponse`: Live wire test structures with `toSovereignJson()` and `fromJson()` parsers. `preparePingRequest()` + `verifyPingIntegrity()` helpers.
+- `/api/ping` endpoint added to FastAPI server: validates JWT, computes canonical SHA-256, returns `{verified, server_hash, client_hash, integrity_status}`.
+- Live Wire Binary Integrity Test: 4/4 attacks pass — valid ping (200 VERIFIED), altered payload (400 INTEGRITY_HASH_MISMATCH), no hash passthrough (200 NO_HASH), C++ ↔ Python hash parity.
+- C++ transport conformance: 83/83 tests passing.
 
 ## Project Showroom — Physical Runtime
 - **showroom-web** (`artifacts/showroom-web`): React/Vite + Three.js 3D showroom. Hardened by 46 React Vindicator passes. Preview at `/showroom-web/`. WebGL error boundary with graceful fallback for headless/no-GPU environments.
