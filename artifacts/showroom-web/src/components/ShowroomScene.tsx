@@ -1,7 +1,23 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Environment, ContactShadows, AdaptiveDpr, AdaptiveEvents, RoundedBox, Text, MeshReflectorMaterial } from "@react-three/drei";
-import { Suspense, useState, useRef, useCallback, useMemo } from "react";
+import { Suspense, useState, useRef, useCallback, useMemo, Component, type ReactNode, type ErrorInfo } from "react";
 import * as THREE from "three";
+
+class WebGLErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.warn("[ShowroomScene] WebGL unavailable, showing fallback:", error.message);
+  }
+  render() { return this.state.hasError ? this.props.fallback : this.props.children; }
+}
+
+function detectWebGL(): boolean {
+  try {
+    const c = document.createElement("canvas");
+    return !!(c.getContext("webgl2") || c.getContext("webgl") || c.getContext("experimental-webgl"));
+  } catch { return false; }
+}
 
 const API_BASE = "http://localhost:8000";
 
@@ -184,31 +200,53 @@ export default function ShowroomScene() {
     }
   }, [selectedVehicle]);
 
+  const webglAvailable = useMemo(() => detectWebGL(), []);
+
+  const canvasFallback = (
+    <div style={{
+      width: "100%", height: "100%", display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center", background: "radial-gradient(ellipse at center, #111 0%, #050510 70%)",
+    }}>
+      <div style={{ fontSize: 64, marginBottom: 16 }}>🚗</div>
+      <div style={{ color: "#c9a96e", fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{selectedVehicle.name}</div>
+      <div style={{ color: "#666", fontSize: 14, maxWidth: 320, textAlign: "center", lineHeight: 1.6 }}>
+        3D view requires WebGL. Open in a browser with GPU support to see the full interactive showroom.
+      </div>
+      <div style={{ color: "#c9a96e", fontSize: 24, fontWeight: 800, marginTop: 16 }}>
+        ${selectedVehicle.price.toLocaleString()}
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#050510", overflow: "hidden" }}>
-      <Canvas camera={{ position: [5, 3, 8] as [number, number, number], fov: 45 }} shadows>
-        <AdaptiveDpr pixelated />
-        <AdaptiveEvents />
-        <fog attach="fog" args={["#050510", 10, 30]} />
-        <ambientLight intensity={0.2} />
-        <directionalLight position={[10, 10, 5] as [number, number, number]} intensity={1.5} castShadow />
-        <spotLight position={[0, 8, 0] as [number, number, number]} angle={0.4} penumbra={0.8} intensity={2} castShadow color="#c9a96e" />
-        <Suspense fallback={null}>
-          <LexusBody color={selectedVehicle.color} />
-          <PriceTag vehicle={selectedVehicle} />
-        </Suspense>
-        <ShowroomFloor />
-        <ContactShadows position={[0, -0.01, 0] as [number, number, number]} opacity={0.5} blur={2.5} far={4} />
-        <Environment preset="night" />
-        <OrbitControls
-          makeDefault
-          minPolarAngle={0.3}
-          maxPolarAngle={Math.PI / 2.2}
-          minDistance={4}
-          maxDistance={15}
-          enablePan={false}
-        />
-      </Canvas>
+      <WebGLErrorBoundary fallback={canvasFallback}>
+        {webglAvailable ? (
+          <Canvas camera={{ position: [5, 3, 8] as [number, number, number], fov: 45 }} shadows>
+            <AdaptiveDpr pixelated />
+            <AdaptiveEvents />
+            <fog attach="fog" args={["#050510", 10, 30]} />
+            <ambientLight intensity={0.2} />
+            <directionalLight position={[10, 10, 5] as [number, number, number]} intensity={1.5} castShadow />
+            <spotLight position={[0, 8, 0] as [number, number, number]} angle={0.4} penumbra={0.8} intensity={2} castShadow color="#c9a96e" />
+            <Suspense fallback={null}>
+              <LexusBody color={selectedVehicle.color} />
+              <PriceTag vehicle={selectedVehicle} />
+            </Suspense>
+            <ShowroomFloor />
+            <ContactShadows position={[0, -0.01, 0] as [number, number, number]} opacity={0.5} blur={2.5} far={4} />
+            <Environment preset="night" />
+            <OrbitControls
+              makeDefault
+              minPolarAngle={0.3}
+              maxPolarAngle={Math.PI / 2.2}
+              minDistance={4}
+              maxDistance={15}
+              enablePan={false}
+            />
+          </Canvas>
+        ) : canvasFallback}
+      </WebGLErrorBoundary>
 
       <div style={{
         position: "absolute", top: 24, left: 28, fontFamily: "'Inter', sans-serif",
