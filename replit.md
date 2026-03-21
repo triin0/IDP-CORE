@@ -195,7 +195,7 @@ Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardenin
   - **FastAPI**: `presence_relay.py` (PresenceManager class with asyncio-safe WebSocket relay, automatic dead connection cleanup, `resolve_conflict()` for deterministic last-write-wins, `get_active_peers()` with timeout filtering); `/ws/presence/{user_id}` WebSocket endpoint and `/api/presence/active` REST endpoint injected into main.py.
   - **Mobile**: `lib/haptic-presence.ts` (6 event types: peer:joined, peer:left, object:moved, object:created, object:deleted, conflict:resolved; mapped to expo-haptics ImpactFeedbackStyle/NotificationFeedbackType; 100ms throttle; `usePresenceHaptics()` WebSocket listener hook); adds expo-haptics dependency.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 876 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests + 50 Engine B Transport & Auth Bridge tests + 53 Chronos Engine tests.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 962 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests + 50 Engine B Transport & Auth Bridge tests + 53 Chronos Engine tests + 86 Biological Forge tests.
 
 ## Engine B: The Native Foundry (Pydantic→UE5 Transpiler)
 A transpilation pipeline that reads Engine A's Pydantic schemas and generates type-safe C++/UE5 code with SHA-256 parity.
@@ -237,6 +237,21 @@ A transpilation pipeline that reads Engine A's Pydantic schemas and generates ty
 - **Transport Integration**: `enqueueWithTransport()` pulls userId from `UAuthService`, maps entity keys to API paths for flush routing.
 - **Stats**: `ChronosStats` struct tracks totalEnqueued, totalFlushed, totalConflicts, totalRetries, totalCrashRecoveries, lastFlushTimestamp, lastSaveTimestamp.
 - C++ conformance: 100/100 tests passing.
+
+**Biological Forge — The Asset Assembler** (`lib/engine-native/generated/BiologicalForge.h`): Deterministic genetic-to-visual mapper that reads SHA-256 hashes and manifests UE5 visual assets:
+- **Genome Parser**: `GeneticGenomeParser` slices 256-bit hashes into 16 gene loci — 3 bytes primary color (R/G/B), 3 bytes accent color, 1 byte each for metallic/roughness/emission/opacity/subsurface/anisotropy/normal/displacement, 2 bytes for mesh index/scale/UV/animation.
+- **Visual Phenotype**: `FVisualPhenotype` — complete visual description (colors, material, morphology, classification, LOD chain) with SHA-256 phenotype hash for integrity verification.
+- **Material Profile**: `FOrganicMaterialProfile` — 10 material properties (metallic, roughness, emission, opacity, subsurface scattering, anisotropy, fresnel, normal intensity, displacement, specular).
+- **Morphology**: `FMorphologyDescriptor` — 16 mesh families (Sphere→Geodesic), 3-axis scale, UV tiling, animation frequency.
+- **Classification**: 6 phenotype classes (ORGANIC, CRYSTALLINE, METALLIC, ETHEREAL, VOLCANIC, AQUEOUS) auto-classified from material properties and color luminance.
+- **LOD Chain**: 4-level LOD generation (LOD0 full → LOD3 10% triangles) with shadow/emission culling per level.
+- **UE5 Code Generation**: `generateUE5MaterialInstance()` outputs complete `USTRUCT(BlueprintType)` with `UPROPERTY(EditAnywhere)` and `ClampMin`/`ClampMax` meta.
+- **Batch Forge**: Process multiple entities in one call with progress delegate.
+- **Payload Forge**: `forgeFromPayload(JsonValue)` — hash a JSON payload and forge directly.
+- **Reproducibility**: `verifyForgeReproducibility()` double-forges and verifies determinism.
+- **Audit Trail**: `ForgeAuditEntry` records every forge operation with timestamps and verification status.
+- **Cache**: `phenotypeCache_` prevents redundant forging; cache hits skip delegates.
+- C++ conformance: 176/176 tests passing.
 
 ## Project Showroom — Physical Runtime
 - **showroom-web** (`artifacts/showroom-web`): React/Vite + Three.js 3D showroom. Hardened by 46 React Vindicator passes. Preview at `/showroom-web/`. WebGL error boundary with graceful fallback for headless/no-GPU environments.

@@ -5911,6 +5911,129 @@ console.log("\n=== Engine B: Chronos Engine (The Memory) ===");
   assert(chronosHeader.includes("pathMap_"), "Chronos: maps entity keys to API paths");
 }
 
+// === Engine B: Biological Forge (The Asset Assembler) ===
+console.log("\n=== Engine B: Biological Forge (The Asset Assembler) ===");
+{
+  const fs = await import("fs");
+  const path = await import("path");
+
+  const forgeHeader = fs.default.readFileSync(
+    path.default.resolve("lib/engine-native/generated/BiologicalForge.h"), "utf-8"
+  );
+
+  console.log("  -- Forge Singleton --");
+  assert(forgeHeader.includes("class BiologicalForge"), "Forge: BiologicalForge class exists");
+  assert(forgeHeader.includes("static BiologicalForge& Get()"), "Forge: singleton pattern");
+  assert(forgeHeader.includes("BiologicalForge(const BiologicalForge&) = delete"), "Forge: copy deleted");
+
+  console.log("  -- Genome Parser --");
+  assert(forgeHeader.includes("class GeneticGenomeParser"), "Forge: GeneticGenomeParser class");
+  assert(forgeHeader.includes("hashToBytes"), "Forge: hashToBytes hex decoder");
+  assert(forgeHeader.includes("struct GenomeLocus"), "Forge: GenomeLocus struct");
+  assert(forgeHeader.includes("extractLocus"), "Forge: extractLocus method");
+  assert(forgeHeader.includes("extractColor"), "Forge: extractColor method");
+  assert(forgeHeader.includes("normalizedValue"), "Forge: normalized value [0,1]");
+  assert(forgeHeader.includes("hexCharToNibble"), "Forge: hex char parser");
+
+  console.log("  -- Visual Phenotype --");
+  assert(forgeHeader.includes("struct FVisualPhenotype"), "Forge: FVisualPhenotype struct");
+  assert(forgeHeader.includes("FLinearColor primaryColor"), "Forge: primary color field");
+  assert(forgeHeader.includes("FLinearColor accentColor"), "Forge: accent color field");
+  assert(forgeHeader.includes("FOrganicMaterialProfile material"), "Forge: material profile field");
+  assert(forgeHeader.includes("FMorphologyDescriptor morphology"), "Forge: morphology descriptor field");
+  assert(forgeHeader.includes("PhenotypeClass classification"), "Forge: classification field");
+  assert(forgeHeader.includes("phenotypeHash"), "Forge: phenotype hash for integrity");
+  assert(forgeHeader.includes("computePhenotypeHash"), "Forge: hash computation method");
+  assert(forgeHeader.includes("verifyIntegrity"), "Forge: integrity verification");
+
+  console.log("  -- Color System --");
+  assert(forgeHeader.includes("struct FLinearColor"), "Forge: FLinearColor struct (UE5 compatible)");
+  assert(forgeHeader.includes("toHex()"), "Forge: toHex() color conversion");
+  assert(forgeHeader.includes("luminance()"), "Forge: luminance() calculation");
+
+  console.log("  -- Material Profile --");
+  assert(forgeHeader.includes("struct FOrganicMaterialProfile"), "Forge: FOrganicMaterialProfile struct");
+  assert(forgeHeader.includes("float metallic"), "Forge: metallic property");
+  assert(forgeHeader.includes("float roughness"), "Forge: roughness property");
+  assert(forgeHeader.includes("float emissionIntensity"), "Forge: emission intensity");
+  assert(forgeHeader.includes("float opacity"), "Forge: opacity property");
+  assert(forgeHeader.includes("float subsurfaceScattering"), "Forge: subsurface scattering");
+  assert(forgeHeader.includes("float anisotropy"), "Forge: anisotropy property");
+  assert(forgeHeader.includes("float fresnelPower"), "Forge: fresnel power");
+  assert(forgeHeader.includes("float normalIntensity"), "Forge: normal map intensity");
+  assert(forgeHeader.includes("float displacementHeight"), "Forge: displacement height");
+  assert(forgeHeader.includes("float specular"), "Forge: specular property");
+
+  console.log("  -- Morphology --");
+  assert(forgeHeader.includes("struct FMorphologyDescriptor"), "Forge: FMorphologyDescriptor struct");
+  assert(forgeHeader.includes("baseMeshIndex"), "Forge: base mesh index");
+  assert(forgeHeader.includes("meshFamilyName"), "Forge: mesh family name resolver");
+  assert(forgeHeader.includes("scaleX"), "Forge: scale X");
+  assert(forgeHeader.includes("uvTilingU"), "Forge: UV tiling U");
+  assert(forgeHeader.includes("animationFrequency"), "Forge: animation frequency");
+  assert(forgeHeader.includes("\"Sphere\""), "Forge: Sphere mesh family");
+  assert(forgeHeader.includes("\"Icosphere\""), "Forge: Icosphere mesh family");
+  assert(forgeHeader.includes("\"Dodecahedron\""), "Forge: Dodecahedron mesh family");
+
+  console.log("  -- Phenotype Classification --");
+  assert(forgeHeader.includes("enum class PhenotypeClass"), "Forge: PhenotypeClass enum");
+  assert(forgeHeader.includes("ORGANIC"), "Forge: ORGANIC class");
+  assert(forgeHeader.includes("CRYSTALLINE"), "Forge: CRYSTALLINE class");
+  assert(forgeHeader.includes("METALLIC"), "Forge: METALLIC class");
+  assert(forgeHeader.includes("ETHEREAL"), "Forge: ETHEREAL class");
+  assert(forgeHeader.includes("VOLCANIC"), "Forge: VOLCANIC class");
+  assert(forgeHeader.includes("AQUEOUS"), "Forge: AQUEOUS class");
+  assert(forgeHeader.includes("phenotypeClassToString"), "Forge: classification to string");
+
+  console.log("  -- LOD System --");
+  assert(forgeHeader.includes("struct FLODProfile"), "Forge: FLODProfile struct");
+  assert(forgeHeader.includes("lodLevel"), "Forge: LOD level");
+  assert(forgeHeader.includes("screenSizeThreshold"), "Forge: screen size threshold");
+  assert(forgeHeader.includes("triangleReductionFactor"), "Forge: triangle reduction factor");
+  assert(forgeHeader.includes("castsShadow"), "Forge: shadow casting flag");
+  assert(forgeHeader.includes("hasEmission"), "Forge: emission flag per LOD");
+  assert(forgeHeader.includes("lodChain"), "Forge: LOD chain on phenotype");
+  assert(forgeHeader.includes("generateLODChain"), "Forge: LOD chain generation");
+
+  console.log("  -- Forge Operations --");
+  assert(forgeHeader.includes("FVisualPhenotype forge("), "Forge: forge() method");
+  assert(forgeHeader.includes("forgeBatch"), "Forge: batch forge");
+  assert(forgeHeader.includes("forgeFromPayload"), "Forge: forge from JsonValue payload");
+  assert(forgeHeader.includes("verifyForgeReproducibility"), "Forge: reproducibility verification");
+  assert(forgeHeader.includes("generateUE5MaterialInstance"), "Forge: UE5 USTRUCT generation");
+  assert(forgeHeader.includes("phenotypeCache_"), "Forge: phenotype cache");
+  assert(forgeHeader.includes("clearCache"), "Forge: cache clear method");
+
+  console.log("  -- UE5 Code Generation --");
+  assert(forgeHeader.includes("USTRUCT(BlueprintType)"), "Forge: generates USTRUCT");
+  assert(forgeHeader.includes("GENERATED_BODY()"), "Forge: generates GENERATED_BODY");
+  assert(forgeHeader.includes("UPROPERTY(EditAnywhere"), "Forge: generates UPROPERTY");
+  assert(forgeHeader.includes("FForgedMaterial_"), "Forge: struct name includes hash prefix");
+  assert(forgeHeader.includes("ClampMin"), "Forge: clamp metadata on UPROPERTYs");
+
+  console.log("  -- Audit & Stats --");
+  assert(forgeHeader.includes("struct ForgeAuditEntry"), "Forge: ForgeAuditEntry struct");
+  assert(forgeHeader.includes("struct ForgeStats"), "Forge: ForgeStats struct");
+  assert(forgeHeader.includes("auditTrail_"), "Forge: audit trail storage");
+  assert(forgeHeader.includes("totalForged"), "Forge: stats totalForged");
+  assert(forgeHeader.includes("totalVerified"), "Forge: stats totalVerified");
+  assert(forgeHeader.includes("totalFailed"), "Forge: stats totalFailed");
+  assert(forgeHeader.includes("classificationDistribution"), "Forge: classification distribution");
+
+  console.log("  -- Delegates --");
+  assert(forgeHeader.includes("ForgeCompleteDelegate"), "Forge: forge complete delegate");
+  assert(forgeHeader.includes("BatchForgeProgressDelegate"), "Forge: batch progress delegate");
+  assert(forgeHeader.includes("ForgeIntegrityFailureDelegate"), "Forge: integrity failure delegate");
+  assert(forgeHeader.includes("onForgeComplete"), "Forge: onForgeComplete setter");
+  assert(forgeHeader.includes("onBatchProgress"), "Forge: onBatchProgress setter");
+  assert(forgeHeader.includes("onIntegrityFailure"), "Forge: onIntegrityFailure setter");
+
+  console.log("  -- Serializer Integration --");
+  assert(forgeHeader.includes("#include \"SovereignSerializer.h\""), "Forge: includes SovereignSerializer.h");
+  assert(forgeHeader.includes("SovereignSHA256::hash"), "Forge: uses SovereignSHA256 for hashing");
+  assert(forgeHeader.includes("JsonValue"), "Forge: uses JsonValue for payload forging");
+}
+
 // --- Cross-Engine Summary ---
 console.log("\n" + "=".repeat(60));
 console.log("  PROJECT SHOWROOM — COMPLETE");
