@@ -48,6 +48,14 @@ const TYPES_MAP: Record<string, string> = {
   "multer": "@types/multer",
 };
 
+const KNOWN_GOOD_VERSIONS: Record<string, string> = {
+  "three": "^0.172.0",
+  "@react-three/fiber": "^9.1.0",
+  "@react-three/drei": "^10.0.0",
+  "@types/three": "^0.172.0",
+  "leva": "^0.10.0",
+};
+
 const BANNED_PACKAGES = ["@libsql/client", "better-sqlite3", "mysql2", "axios", "express-async-errors"];
 
 const PACKAGE_SUBSTITUTIONS: Record<string, { replacement: string; version: string }> = {
@@ -230,6 +238,25 @@ function enforceVersions(
       fixes.push(`Added missing ${typePkg} for ${pkg_name}`);
       modified = true;
     }
+  }
+
+  for (const [knownPkg, knownVersion] of Object.entries(KNOWN_GOOD_VERSIONS)) {
+    if (deps[knownPkg] && deps[knownPkg] !== knownVersion) {
+      fixes.push(`${knownPkg}: ${deps[knownPkg]} → ${knownVersion} (pinned)`);
+      deps[knownPkg] = knownVersion;
+      modified = true;
+    }
+    if (devDeps[knownPkg] && devDeps[knownPkg] !== knownVersion) {
+      fixes.push(`${knownPkg} (dev): ${devDeps[knownPkg]} → ${knownVersion} (pinned)`);
+      devDeps[knownPkg] = knownVersion;
+      modified = true;
+    }
+  }
+
+  if (deps["three"] && !devDeps["@types/three"]) {
+    devDeps["@types/three"] = KNOWN_GOOD_VERSIONS["@types/three"];
+    fixes.push("Added missing @types/three for three");
+    modified = true;
   }
 
   if (modified) {

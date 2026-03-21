@@ -2792,5 +2792,57 @@ export function hardenGeneratedTypes(
   currentFiles = secretsFix.files;
   allFixes.push(...secretsFix.fixes);
 
+  const useRefFix = fixUninitializedUseRefs(currentFiles);
+  currentFiles = useRefFix.files;
+  allFixes.push(...useRefFix.fixes);
+
   return { files: currentFiles, fixes: allFixes };
+}
+
+function fixUninitializedUseRefs(
+  files: Array<{ path: string; content: string }>,
+): { files: Array<{ path: string; content: string }>; fixes: string[] } {
+  const fixes: string[] = [];
+  const updatedFiles = files.map(file => {
+    if (!file.path.match(/\.[tj]sx?$/) || file.path.endsWith(".d.ts")) return file;
+
+    const lines = file.content.split("\n");
+    let modified = false;
+
+    const fixedLines = lines.map(line => {
+      const idx = line.indexOf("useRef<");
+      if (idx === -1) return line;
+
+      let depth = 0;
+      let typeStart = idx + 7;
+      let typeEnd = -1;
+      for (let i = typeStart; i < line.length; i++) {
+        if (line[i] === "<") depth++;
+        if (line[i] === ">") {
+          if (depth === 0) { typeEnd = i; break; }
+          depth--;
+        }
+      }
+      if (typeEnd === -1) return line;
+
+      const after = line.substring(typeEnd + 1).trimStart();
+      if (!after.startsWith("()")) return line;
+
+      const typeParam = line.substring(typeStart, typeEnd);
+      if (typeParam.includes("null") || typeParam.trim() === "undefined") return line;
+
+      const parenIdx = line.indexOf("()", typeEnd);
+      if (parenIdx === -1) return line;
+
+      modified = true;
+      return line.substring(0, parenIdx) + "(null!)" + line.substring(parenIdx + 2);
+    });
+
+    if (modified) {
+      fixes.push(`[${file.path}] Fixed uninitialized useRef<T>() → useRef<T>(null!)`);
+      return { path: file.path, content: fixedLines.join("\n") };
+    }
+    return file;
+  });
+  return { files: updatedFiles, fixes };
 }

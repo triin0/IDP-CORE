@@ -2854,6 +2854,81 @@ export const db = drizzle(pool, { schema });`,
     "should not touch regular namespace imports");
 }
 
+console.log("\n=== Pass 35: fixUninitializedUseRefs - fixes useRef<THREE.Mesh>() ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { useRef } from "react";
+import * as THREE from "three";
+const meshRef = useRef<THREE.Mesh>();
+const groupRef = useRef<THREE.Group>();`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const fixed = result.files.find(f => f.path.includes("Scene.tsx"))!;
+  assert(fixed.content.includes("useRef<THREE.Mesh>(null!)"), "should add null! to THREE.Mesh ref");
+  assert(fixed.content.includes("useRef<THREE.Group>(null!)"), "should add null! to THREE.Group ref");
+  assert(result.fixes.some(f => f.includes("useRef")), "should report useRef fix");
+  passed++;
+}
+
+console.log("\n=== Pass 35b: fixUninitializedUseRefs - fixes generic useRef<HTMLDivElement>() ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Panel.tsx",
+      content: `import { useRef } from "react";
+const divRef = useRef<HTMLDivElement>();
+const inputRef = useRef<HTMLInputElement>();`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const fixed = result.files.find(f => f.path.includes("Panel.tsx"))!;
+  assert(fixed.content.includes("useRef<HTMLDivElement>(null!)"), "should add null! to HTMLDivElement ref");
+  assert(fixed.content.includes("useRef<HTMLInputElement>(null!)"), "should add null! to HTMLInputElement ref");
+  passed++;
+}
+
+console.log("\n=== Pass 35c: fixUninitializedUseRefs - skips refs already initialized ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Timer.tsx",
+      content: `import { useRef } from "react";
+const intervalRef = useRef<number | null>(null);
+const meshRef = useRef<THREE.Mesh>(null!);
+const countRef = useRef<number>(0);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const fixed = result.files.find(f => f.path.includes("Timer.tsx"))!;
+  assert(fixed.content.includes("useRef<number | null>(null)"), "should not modify ref with null init");
+  assert(fixed.content.includes("useRef<THREE.Mesh>(null!)"), "should not modify ref with null! init");
+  assert(fixed.content.includes("useRef<number>(0)"), "should not modify ref with value init");
+  assert(!result.fixes.some(f => f.includes("Timer.tsx")), "should not report fixes for already-initialized refs");
+  passed++;
+}
+
+console.log("\n=== Pass 35d: fixUninitializedUseRefs - handles ReturnType<typeof setInterval> ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Ticker.tsx",
+      content: `const timerRef = useRef<ReturnType<typeof setInterval>>();`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const fixed = result.files.find(f => f.path.includes("Ticker.tsx"))!;
+  assert(fixed.content.includes("useRef<ReturnType<typeof setInterval>>(null!)"),
+    "should add null! to ReturnType ref");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

@@ -100,6 +100,15 @@ You MUST use these exact versions. Using older versions will FAIL the security a
 
 Do NOT include axios — use native fetch() instead. Do NOT use @libsql/client, better-sqlite3, or the \`postgres\` package. The ONLY database driver allowed is \`pg\` (node-postgres). Import as: \`import pg from "pg"\` or \`import { Pool } from "pg"\`.
 
+**3D / Three.js projects (ONLY if spec requires 3D visualization):**
+If the user's prompt involves 3D visualization, spatial data, or interactive 3D scenes, add these to client/package.json dependencies:
+- three: "^0.172.0"
+- @react-three/fiber: "^9.1.0"
+- @react-three/drei: "^10.0.0"
+And to client/package.json devDependencies:
+- @types/three: "^0.172.0"
+Do NOT add these packages for standard 2D web apps.
+
 **@types/ packages (CRITICAL):** If the spec requires packages that don't ship their own TypeScript types, you MUST add the corresponding \`@types/\` package to \`server/package.json\` devDependencies. Common ones:
 - cookie-parser → @types/cookie-parser
 - bcryptjs → @types/bcryptjs
@@ -230,6 +239,7 @@ The Backend and Frontend agents will generate these files. Your job is to ensure
 5. **Do NOT use dompurify or isomorphic-dompurify** — these packages are BANNED (CVEs).
 6. **server/tsconfig.json**: Use \`"module": "CommonJS"\`, \`"moduleResolution": "Node"\`. Do NOT use \`"NodeNext"\` — it causes resolution failures.
 7. **createInsertSchema / drizzle-zod**: Add \`drizzle-zod: "^0.7.0"\` to server dependencies if any schema file will use \`createInsertSchema\`.
+8. **Three.js projects**: If the spec requires 3D, the client/tsconfig.json MUST include \`"skipLibCheck": true\`. Import Three.js types explicitly: \`import * as THREE from "three"\`. Do NOT use \`import type * as THREE from "three"\` — it causes TS2693 when THREE is used as a value.
 
 ### OUTPUT FORMAT
 Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes": "Brief summary of architectural decisions" }
@@ -543,6 +553,15 @@ The app MUST work without a backend by providing realistic seed data:
 6. **Type event handlers correctly**: \`onChange={(e: React.ChangeEvent<HTMLInputElement>) => ...}\`, not \`(e: any)\`.
 7. **framer-motion imports**: Use \`import { motion, AnimatePresence } from "framer-motion"\` — these are named exports, NOT default exports.
 8. **react-router-dom v7**: Use \`<Routes><Route path="/" element={<Page />} /></Routes>\`. Do NOT use \`<Switch>\` (that's v5).
+9. **Three.js / R3F rules (ONLY for 3D projects)**:
+   - Import Three.js namespace as VALUE: \`import * as THREE from "three"\` — do NOT use \`import type * as THREE\`.
+   - Typed refs: \`useRef<THREE.Group>(null!)\`, \`useRef<THREE.Mesh>(null!)\` — always initialize with \`null!\` to satisfy React 19's \`useRef\` signature.
+   - Canvas must import from \`@react-three/fiber\`: \`import { Canvas, useFrame, useThree } from "@react-three/fiber"\`.
+   - Drei helpers from \`@react-three/drei\`: \`import { OrbitControls, Environment, Text, Html } from "@react-three/drei"\`.
+   - Wrap \`<Canvas>\` in an Error Boundary component to prevent WebGL crashes from breaking the full UI.
+   - \`useFrame\` callback gets \`(state, delta)\` — type \`state\` as \`RootState\` from \`@react-three/fiber\` and \`delta\` as \`number\`.
+   - Do NOT spread unknown props onto Three.js primitives (\`<mesh {...props}>\`) — explicitly pass position, rotation, scale.
+   - For color props, use string hex values: \`color="#4f46e5"\` not \`color={new THREE.Color(...)}\` in JSX.
 
 ### CONTEXT FROM PRIOR AGENTS
 Architect notes: ${architectNotes}
@@ -791,6 +810,7 @@ When dependency audit fails, update package.json versions:
 5. **Do NOT use dompurify or isomorphic-dompurify** — BANNED.
 6. **Do NOT add \`"type": "module"\`** to server/package.json — the backend uses CommonJS (\`"module": "CommonJS"\` in tsconfig).
 7. **catch blocks**: Always type as \`catch (error: unknown)\`.
+8. **Three.js / R3F fixes**: If fixing 3D code, \`import * as THREE from "three"\` (NOT \`import type * as THREE\`). useRef must be initialized: \`useRef<THREE.Mesh>(null!)\`. Do NOT add React import to .tsx files.
 
 ### OUTPUT FORMAT
 Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes": "Brief explanation of each fix applied" }
