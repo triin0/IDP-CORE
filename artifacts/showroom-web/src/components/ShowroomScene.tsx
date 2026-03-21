@@ -103,7 +103,7 @@ function ShowroomFloor() {
 function PriceTag({ vehicle }: { vehicle: Vehicle }) {
   return (
     <group position={[0, 3.2, 0] as [number, number, number]}>
-      <Text fontSize={0.35} color="#c9a96e" anchorX="center" anchorY="bottom" font="/fonts/inter-bold.woff">
+      <Text fontSize={0.35} color="#c9a96e" anchorX="center" anchorY="bottom">
         {vehicle.name}
       </Text>
       <Text fontSize={0.2} color="#888" anchorX="center" anchorY="top" position={[0, -0.1, 0] as [number, number, number]}>
@@ -234,6 +234,8 @@ export default function ShowroomScene() {
             <pointLight position={[3, 4, -3] as [number, number, number]} intensity={1} color="#8888ff" />
             <Suspense fallback={null}>
               <LexusBody color={selectedVehicle.color} />
+            </Suspense>
+            <Suspense fallback={null}>
               <PriceTag vehicle={selectedVehicle} />
             </Suspense>
             <ShowroomFloor />
