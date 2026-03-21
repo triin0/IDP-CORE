@@ -196,4 +196,9 @@ Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardenin
   - **Mobile**: `lib/haptic-presence.ts` (6 event types: peer:joined, peer:left, object:moved, object:created, object:deleted, conflict:resolved; mapped to expo-haptics ImpactFeedbackStyle/NotificationFeedbackType; 100ms throttle; `usePresenceHaptics()` WebSocket listener hook); adds expo-haptics dependency.
 
 Test suite at `lib/engine-react/src/type-hardener.test.ts` — 659 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300).
+
+## Project Showroom — Physical Runtime
+- **showroom-web** (`artifacts/showroom-web`): React/Vite + Three.js 3D showroom. Hardened by 46 React Vindicator passes. Preview at `/showroom-web/`.
+- **showroom-api** (`showroom-api/`): FastAPI backend on port 8000. Hardened by 12 FastAPI Vindicator passes. SQLite local DB (`showroom.db`). Uses `SHOWROOM_DATABASE_URL` env var (defaults to SQLite). Endpoints: `/api/vehicles`, `/api/bids`, `/api/snapshots` (Chronos), `/ws/presence/{user_id}` (Mirror), `/api/world/lock|unlock|status`.
+- Workflows: "Showroom API (FastAPI)" and "artifacts/showroom-web: web".
 - Stub collision guard: prevents duplicate declarations when imported symbols match stub candidates.
