@@ -2929,6 +2929,151 @@ console.log("\n=== Pass 35d: fixUninitializedUseRefs - handles ReturnType<typeof
   passed++;
 }
 
+console.log("\n=== Stub collision: skips stub when symbol already imported ===");
+{
+  const files = [
+    {
+      path: "server/src/schema/index.ts",
+      content: `import { pgTable, varchar, text, integer } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+
+export const datasets = pgTable("datasets", {
+  id: varchar("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+});
+
+export const insertDatasetSchema = createInsertSchema(datasets);`,
+    },
+    {
+      path: "server/src/routes/datasets.ts",
+      content: `import { insertDatasetSchema } from "../schema/index.js";
+import { SomeUnknownType } from "../schema/index.js";
+
+export function registerRoutes(app: any) {
+  app.post("/api/datasets", (req: any, res: any) => {
+    const parsed = insertDatasetSchema.parse(req.body);
+    res.json(parsed);
+  });
+}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const schemaFile = result.files.find(f => f.path === "server/src/schema/index.ts")!;
+  const hasDoubleInsert = (schemaFile.content.match(/insertDatasetSchema/g) || []).length;
+  assert(hasDoubleInsert <= 3, "should not inject duplicate insertDatasetSchema stub (found " + hasDoubleInsert + " occurrences)");
+  assert(!schemaFile.content.includes("export const insertDatasetSchema = {} as any"), "should not inject stub for already-declared symbol");
+  passed++;
+}
+
+console.log("\n=== Pass 36: fixViteEnvTypes - injects vite/client into tsconfig when import.meta.env is used ===");
+{
+  const files = [
+    {
+      path: "client/tsconfig.json",
+      content: JSON.stringify({
+        compilerOptions: {
+          target: "ES2022",
+          module: "ESNext",
+          moduleResolution: "Bundler",
+          jsx: "react-jsx",
+          strict: true,
+          noEmit: true,
+        },
+        include: ["src/**/*"],
+      }, null, 2),
+    },
+    {
+      path: "client/src/lib/api.ts",
+      content: `const API_URL = import.meta.env.VITE_API_URL || "/api";
+export function getApiUrl() { return API_URL; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const tsconfig = result.files.find(f => f.path === "client/tsconfig.json")!;
+  const parsed = JSON.parse(tsconfig.content);
+  assert(Array.isArray(parsed.compilerOptions.types), "should have types array");
+  assert(parsed.compilerOptions.types.includes("vite/client"), "should include vite/client");
+  assert(result.fixes.some(f => f.includes("vite/client")), "should report vite/client fix");
+  passed++;
+}
+
+console.log("\n=== Pass 36b: fixViteEnvTypes - creates vite-env.d.ts when no tsconfig exists ===");
+{
+  const files = [
+    {
+      path: "client/src/lib/api.ts",
+      content: `const url = import.meta.env.VITE_API_URL;`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const envDts = result.files.find(f => f.path === "client/src/vite-env.d.ts");
+  assert(envDts !== undefined, "should create vite-env.d.ts");
+  assert(envDts!.content.includes('/// <reference types="vite/client" />'), "should have reference directive");
+  passed++;
+}
+
+console.log("\n=== Pass 36c: fixViteEnvTypes - skips when vite-env.d.ts already exists ===");
+{
+  const files = [
+    {
+      path: "client/src/vite-env.d.ts",
+      content: '/// <reference types="vite/client" />\n',
+    },
+    {
+      path: "client/src/lib/api.ts",
+      content: `const url = import.meta.env.VITE_API_URL;`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("vite/client")), "should not fix when vite-env.d.ts exists");
+  passed++;
+}
+
+console.log("\n=== Pass 36d: fixViteEnvTypes - skips when tsconfig already has vite/client ===");
+{
+  const files = [
+    {
+      path: "client/tsconfig.json",
+      content: JSON.stringify({
+        compilerOptions: {
+          types: ["vite/client"],
+          jsx: "react-jsx",
+        },
+      }, null, 2),
+    },
+    {
+      path: "client/src/lib/api.ts",
+      content: `const url = import.meta.env.VITE_API_URL;`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("vite/client")), "should not fix when tsconfig already has vite/client");
+  passed++;
+}
+
+console.log("\n=== Pass 36e: fixViteEnvTypes - skips when no import.meta.env usage ===");
+{
+  const files = [
+    {
+      path: "client/tsconfig.json",
+      content: JSON.stringify({ compilerOptions: { jsx: "react-jsx" } }, null, 2),
+    },
+    {
+      path: "client/src/App.tsx",
+      content: `export function App() { return <div>Hello</div>; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("vite/client")), "should not fix when no import.meta.env");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

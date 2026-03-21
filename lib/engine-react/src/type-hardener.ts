@@ -1266,6 +1266,9 @@ function fixMissingTypeStubs(
 
     const stubs: string[] = [];
     for (const name of missingTypes) {
+      const alreadyImported = new RegExp(`import\\s+[^;]*\\b${name}\\b[^;]*from\\s+['"]`).test(file.content);
+      const alreadyDeclared = new RegExp(`(?:export\\s+)?(?:const|let|var|type|interface|enum|class|function)\\s+${name}\\b`).test(file.content);
+      if (alreadyImported || alreadyDeclared) continue;
       if (/Schema$/.test(name)) {
         stubs.push(`export const ${name} = {} as any;`);
       } else if (/Input$|Output$|Params$|Response$|Request$|Data$|Config$|Options$|Props$/.test(name)) {
@@ -1275,8 +1278,9 @@ function fixMissingTypeStubs(
       }
     }
 
+    if (stubs.length === 0) return file;
     const content = file.content + "\n\n" + stubs.join("\n") + "\n";
-    fixes.push(`[${file.path}] Generated stub types: ${[...missingTypes].join(", ")}`);
+    fixes.push(`[${file.path}] Generated stub types: ${stubs.map(s => s.match(/(?:const|type|interface)\s+(\w+)/)?.[1]).filter(Boolean).join(", ")}`);
     return { path: file.path, content };
   });
 
@@ -2796,6 +2800,10 @@ export function hardenGeneratedTypes(
   currentFiles = useRefFix.files;
   allFixes.push(...useRefFix.fixes);
 
+  const viteEnvFix = fixViteEnvTypes(currentFiles);
+  currentFiles = viteEnvFix.files;
+  allFixes.push(...viteEnvFix.fixes);
+
   return { files: currentFiles, fixes: allFixes };
 }
 
@@ -2844,5 +2852,66 @@ function fixUninitializedUseRefs(
     }
     return file;
   });
+  return { files: updatedFiles, fixes };
+}
+
+function fixViteEnvTypes(
+  files: Array<{ path: string; content: string }>,
+): { files: Array<{ path: string; content: string }>; fixes: string[] } {
+  const fixes: string[] = [];
+
+  const usesImportMetaEnv = files.some(f =>
+    f.path.startsWith("client/") &&
+    f.path.match(/\.[tj]sx?$/) &&
+    !f.path.endsWith(".d.ts") &&
+    f.content.includes("import.meta.env")
+  );
+
+  if (!usesImportMetaEnv) return { files, fixes };
+
+  const hasViteEnvDts = files.some(f =>
+    f.path === "client/src/vite-env.d.ts" ||
+    f.path === "client/vite-env.d.ts"
+  );
+
+  const clientTsconfig = files.find(f => f.path === "client/tsconfig.json");
+  let tsconfigHasViteClient = false;
+
+  if (clientTsconfig) {
+    try {
+      const config = JSON.parse(clientTsconfig.content);
+      const types = config?.compilerOptions?.types;
+      if (Array.isArray(types) && types.includes("vite/client")) {
+        tsconfigHasViteClient = true;
+      }
+    } catch {}
+  }
+
+  if (hasViteEnvDts || tsconfigHasViteClient) {
+    return { files, fixes };
+  }
+
+  const updatedFiles = [...files];
+
+  if (clientTsconfig) {
+    try {
+      const config = JSON.parse(clientTsconfig.content);
+      if (!config.compilerOptions) config.compilerOptions = {};
+      if (!Array.isArray(config.compilerOptions.types)) {
+        config.compilerOptions.types = [];
+      }
+      config.compilerOptions.types.push("vite/client");
+      const idx = updatedFiles.findIndex(f => f.path === "client/tsconfig.json");
+      updatedFiles[idx] = { path: "client/tsconfig.json", content: JSON.stringify(config, null, 2) + "\n" };
+      fixes.push("[client/tsconfig.json] Added 'vite/client' to compilerOptions.types for import.meta.env support");
+    } catch {}
+  } else {
+    updatedFiles.push({
+      path: "client/src/vite-env.d.ts",
+      content: '/// <reference types="vite/client" />\n',
+    });
+    fixes.push("[client/src/vite-env.d.ts] Injected vite/client reference for import.meta.env support");
+  }
+
   return { files: updatedFiles, fixes };
 }

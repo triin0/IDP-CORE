@@ -105,6 +105,8 @@ Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~35 d
 33. **fixDuplicateIdentifiers** — Removes duplicate import names and cross-line declarations.
 34. **fixMissingPackageDeps** — Strips banned packages (dompurify), adds missing deps.
 35. **fixHardcodedSecrets** — Replaces literal secrets with `process.env.*`.
+36. **fixUninitializedUseRefs** — Converts `useRef<T>()` → `useRef<T>(null!)` for React 19 compatibility.
+37. **fixViteEnvTypes** — Injects `vite/client` into client `tsconfig.json` types (or creates `vite-env.d.ts`) when `import.meta.env` is detected, preventing TS2339 on `ImportMeta`.
 
 **Key hardener details:**
 - `req.user` typed as `user?: any` to prevent TS2739 with custom TokenPayload types.
@@ -124,4 +126,5 @@ System prompts in `lib/engine-react/src/agents.ts` now include explicit "Soverei
 
 Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 256 tests covering all ~35 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 286 tests covering all 37 passes.
+- Stub collision guard: prevents duplicate declarations when imported symbols match stub candidates.
