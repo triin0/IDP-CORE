@@ -266,6 +266,18 @@ If the user's prompt involves a 3D editor, visual scene manipulation, drag-to-mo
    - \`client/src/lib/visual-sanity.ts\` (bounds validation for transform operations)
 3. **Event Registry**: If real-time, add \`NODE_UPDATE\`, \`NODE_DELETE\` events to the socket event registry with position/rotation/scale payloads.
 
+### SOVEREIGN ASSET CONDUIT — 3D Asset Pipeline (ONLY if spec involves GLB/GLTF models, textures, or 3D assets)
+If the user's prompt involves loading 3D models, textures, audio, or external assets, you MUST:
+1. **Dependencies**: Add \`@gltf-transform/core: "^4.1.0"\` and \`@gltf-transform/functions: "^4.1.0"\` to client/package.json dependencies.
+2. **File structure**: Include these files in the architecture:
+   - \`client/src/lib/asset-conduit.ts\` (asset validation and optimization pipeline)
+   - \`client/src/components/Models/\` directory for generated GLTF/GLB React components
+3. **Asset constraints**: Document these limits in the architecture notes:
+   - Geometry: max 50,000 vertices per mesh
+   - Textures: max 1024x1024 resolution (WebP preferred)
+   - Materials: meshStandardMaterial only (no custom shaders unless explicitly requested)
+4. **Disposal mandate**: Every model component MUST dispose geometry and materials on unmount via useEffect cleanup.
+
 ### OUTPUT FORMAT
 Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes": "Brief summary of architectural decisions" }
 Do NOT include any text before or after the JSON.
@@ -699,6 +711,50 @@ If the Architect included \`useEditorStore.ts\`, \`Inspector.tsx\`, \`SovereignG
    }
    \`\`\`
 
+### SOVEREIGN ASSET CONDUIT — 3D Asset Hardening (ONLY if Architect specified asset-conduit or model components)
+If the Architect included \`asset-conduit.ts\` or a \`components/Models/\` directory, you MUST follow these rules:
+1. **useGLTF Disposal Pattern** (CRITICAL): Every component using \`useGLTF\` MUST dispose geometry and materials on unmount:
+   \`\`\`typescript
+   import { useGLTF } from "@react-three/drei";
+   import { useEffect } from "react";
+   export function Model({ url }: { url: string }) {
+     const { scene, nodes, materials } = useGLTF(url);
+     useEffect(() => {
+       return () => {
+         Object.values(nodes).forEach((node) => {
+           if ("geometry" in node) (node as THREE.Mesh).geometry?.dispose();
+         });
+         Object.values(materials).forEach((mat) => (mat as THREE.Material).dispose());
+       };
+     }, [nodes, materials]);
+     return <primitive object={scene} />;
+   }
+   \`\`\`
+   NEVER return \`<primitive object={scene} />\` without a cleanup useEffect — this creates GPU memory leaks.
+2. **PBR Material Enforcement**: Use ONLY \`meshStandardMaterial\` or \`meshPhysicalMaterial\`. NEVER use \`meshBasicMaterial\` for lit scenes (it ignores lights → "invisible" mesh hallucination). Set explicit \`roughness\` and \`metalness\` values:
+   \`\`\`typescript
+   <meshStandardMaterial color="#888" roughness={0.7} metalness={0.3} />
+   \`\`\`
+3. **useTexture with Disposal**: When loading textures via \`useTexture\`, dispose on unmount:
+   \`\`\`typescript
+   const texture = useTexture("/textures/diffuse.webp");
+   useEffect(() => {
+     return () => { texture.dispose(); };
+   }, [texture]);
+   \`\`\`
+4. **Asset Conduit Validator** (\`client/src/lib/asset-conduit.ts\`):
+   \`\`\`typescript
+   export const ASSET_LIMITS = {
+     MAX_VERTICES: 50_000,
+     MAX_TEXTURE_RES: 1024,
+     ALLOWED_FORMATS: [".glb", ".gltf", ".webp", ".png", ".mp3", ".ogg"],
+   } as const;
+   export function validateAssetUrl(url: string): boolean {
+     const ext = url.slice(url.lastIndexOf(".")).toLowerCase();
+     return ASSET_LIMITS.ALLOWED_FORMATS.includes(ext as any);
+   }
+   \`\`\`
+
 ### CONTEXT FROM PRIOR AGENTS
 Architect notes: ${architectNotes}
 Backend notes: ${backendNotes}
@@ -994,6 +1050,18 @@ You are now operating as the AI Doctor. The Vindicator (deterministic hardener) 
 **Diagnosis: Leva Inspector Outside Canvas (TS2786 or "useControls not in Canvas")**
 - Symptom: Leva controls don't render, or error about hooks used outside provider.
 - Cure: 1. \`<Inspector />\` MUST be placed OUTSIDE \`<Canvas />\` in the JSX tree — Leva renders its own DOM portal. 2. The Inspector component returns \`null\`. 3. Import \`useControls\` from \`"leva"\`, NOT from drei or fiber.
+
+**Diagnosis: GPU Memory Leak (VRAM exhaustion, frame drops after scene changes)**
+- Symptom: Memory usage grows on every scene load/unload. FPS degrades over time. Browser tab crashes after repeated navigation.
+- Cure: 1. Every component using \`useGLTF\` or \`useTexture\` MUST have a \`useEffect\` cleanup that disposes geometry and materials. 2. \`Object.values(nodes).forEach(n => { if ("geometry" in n) (n as THREE.Mesh).geometry?.dispose(); })\`. 3. \`Object.values(materials).forEach(m => (m as THREE.Material).dispose())\`. 4. For textures: \`texture.dispose()\` in cleanup.
+
+**Diagnosis: Invisible Mesh Hallucination (object exists but renders transparent/invisible)**
+- Symptom: Mesh is in the scene graph (visible in devtools) but invisible in the viewport. No errors in console.
+- Cure: 1. Check material type — \`meshBasicMaterial\` ignores scene lights and renders black in lit scenes. Replace with \`meshStandardMaterial\`. 2. Ensure \`roughness\` and \`metalness\` are set explicitly (defaults can cause near-invisible reflection-only surfaces). 3. Check normals — inverted normals render the inside face. Add \`side={THREE.DoubleSide}\` to diagnose, then fix the model.
+
+**Diagnosis: Asset Format Rejection (file fails to load or renders corrupted)**
+- Symptom: useGLTF throws parsing error, texture shows magenta placeholder, or audio doesn't play.
+- Cure: 1. Validate file extension against allowed formats: \`.glb\`, \`.gltf\`, \`.webp\`, \`.png\`, \`.mp3\`, \`.ogg\`. 2. FBX/OBJ/DAE are NOT supported — convert to GLB before loading. 3. For textures, prefer WebP over PNG/JPEG for VRAM efficiency. 4. Verify the asset URL is accessible from the client (CORS headers).
 
 ### MINIMAL INCISION RULE
 You MUST only modify lines cited in the error log. Do NOT rewrite entire files. Do NOT add new features. Do NOT refactor working code. Count the number of changed lines — if you changed more than 3x the number of error lines, you are hallucinating extra surgery. Stop and reconsider.

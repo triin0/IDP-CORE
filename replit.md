@@ -68,7 +68,7 @@ Generated apps now use a "commercial-grade" visual design by default:
 *   **Vulnerability Database:** OSV
 
 ## Type Hardener (Deterministic AST Post-Processing)
-Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~40 deterministic rewrite passes on generated files after version enforcement in the pipeline:
+Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~41 deterministic rewrite passes on generated files after version enforcement in the pipeline:
 
 1. **fixServerTsconfig** — Rewrites `moduleResolution: "NodeNext"` → `"bundler"` and `module: "NodeNext"` → `"ES2022"`.
 2. **fixBcryptImports** — Swaps `bcrypt` → `bcryptjs` in imports and package.json.
@@ -110,6 +110,7 @@ Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~40 d
 38. **fixR3FTupleCasts** — Casts `position`, `rotation`, `scale` array literals in client `.tsx` files to `[number, number, number]` tuple type (kills TS2322 in React Three Fiber projects).
 39. **fixViteEnvTypes** — Injects `vite/client` into client `tsconfig.json` types (or creates `vite-env.d.ts`) when `import.meta.env` is detected, preventing TS2339 on `ImportMeta`.
 40. **fixVisualSanityGuard** — When PivotControls (R3F gizmo) is detected in client `.tsx` files: creates `client/src/lib/visual-sanity.ts` with floor constraint (y≥0) and radial boundary (dist≤100); injects `visualSanity()` import and guard call after `m.elements[12/13/14]` matrix position extraction to prevent shadow clipping and floating artifacts.
+41. **fixAssetConduit** — When `useGLTF`/`useTexture` detected: creates `client/src/lib/asset-conduit.ts` with validation limits (50k vertices, 1024px textures, allowed format whitelist); injects GPU disposal cleanup (`geometry?.dispose()` + `material.dispose()`) via useEffect into useGLTF components; replaces `meshBasicMaterial` with `meshStandardMaterial` in lit scenes to prevent invisible mesh hallucination.
 
 **Key hardener details:**
 - `req.user` typed as `user?: any` to prevent TS2739 with custom TokenPayload types.
@@ -148,5 +149,5 @@ Analysis: The Prompt Hardening successfully prevented the classic "Listener Leak
 
 Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 323 tests covering all 40 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 352 tests covering all 41 passes.
 - Stub collision guard: prevents duplicate declarations when imported symbols match stub candidates.

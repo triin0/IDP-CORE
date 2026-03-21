@@ -3287,6 +3287,143 @@ console.log("\n=== Pass 40e: fixVisualSanityGuard - computes correct relative im
   passed++;
 }
 
+console.log("\n=== Pass 41a: fixAssetConduit - injects asset-conduit.ts when useGLTF detected ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Models/Chair.tsx",
+      content: `import { useGLTF } from "@react-three/drei";\nexport function Chair() {\n  const { scene, nodes, materials } = useGLTF("/models/chair.glb");\n  return <primitive object={scene} />;\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const conduit = result.files.find(f => f.path === "client/src/lib/asset-conduit.ts");
+  assert(conduit, "should create asset-conduit.ts");
+  assert(conduit!.content.includes("ASSET_LIMITS"), "should contain ASSET_LIMITS");
+  assert(conduit!.content.includes("MAX_VERTICES: 50_000"), "should enforce 50k vertex limit");
+  assert(conduit!.content.includes("MAX_TEXTURE_RES: 1024"), "should enforce 1024 texture limit");
+  assert(conduit!.content.includes("validateAssetUrl"), "should include validation function");
+  assert(result.fixes.some(f => f.includes("asset conduit")), "should report conduit injection");
+  passed++;
+}
+
+console.log("\n=== Pass 41b: fixAssetConduit - injects disposal cleanup for useGLTF ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Models/Table.tsx",
+      content: `import { useGLTF } from "@react-three/drei";\nexport function Table() {\n  const { scene, nodes, materials } = useGLTF("/models/table.glb");\n  return <primitive object={scene} />;\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const table = result.files.find(f => f.path.includes("Table.tsx"))!;
+  assert(table.content.includes("geometry?.dispose"), "should inject geometry disposal");
+  assert(table.content.includes(".dispose()"), "should inject material disposal");
+  assert(table.content.includes("useEffect"), "should use useEffect for cleanup");
+  assert(result.fixes.some(f => f.includes("GPU disposal cleanup")), "should report disposal fix");
+  passed++;
+}
+
+console.log("\n=== Pass 41c: fixAssetConduit - replaces meshBasicMaterial in lit scenes ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";\nimport { useTexture } from "@react-three/drei";\nexport function Scene() {\n  return (\n    <Canvas>\n      <ambientLight />\n      <mesh>\n        <boxGeometry />\n        <meshBasicMaterial color="red" />\n      </mesh>\n    </Canvas>\n  );\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const scene = result.files.find(f => f.path.includes("Scene.tsx"))!;
+  assert(!scene.content.includes("meshBasicMaterial"), "should remove meshBasicMaterial");
+  assert(scene.content.includes("meshStandardMaterial"), "should replace with meshStandardMaterial");
+  assert(result.fixes.some(f => f.includes("meshStandardMaterial")), "should report material replacement");
+  passed++;
+}
+
+console.log("\n=== Pass 41d: fixAssetConduit - skips when no asset hooks detected ===");
+{
+  const files = [
+    {
+      path: "client/src/components/App.tsx",
+      content: `import { useState } from "react";\nexport function App() {\n  return <div>Hello</div>;\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.files.some(f => f.path === "client/src/lib/asset-conduit.ts"), "should not create asset-conduit.ts without asset hooks");
+  assert(!result.fixes.some(f => f.includes("asset conduit")), "should not report conduit fix");
+  passed++;
+}
+
+console.log("\n=== Pass 41e: fixAssetConduit - does not double-inject disposal ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Models/Lamp.tsx",
+      content: `import { useGLTF } from "@react-three/drei";\nimport { useEffect } from "react";\nexport function Lamp() {\n  const { scene, nodes, materials } = useGLTF("/models/lamp.glb");\n  useEffect(() => {\n    return () => {\n      Object.values(nodes).forEach((n) => { if ("geometry" in n) (n as any).geometry?.dispose(); });\n      Object.values(materials).forEach((m) => (m as any).dispose());\n    };\n  }, [nodes, materials]);\n  return <primitive object={scene} />;\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const lamp = result.files.find(f => f.path.includes("Lamp.tsx"))!;
+  const disposeCount = (lamp.content.match(/geometry\?\.dispose/g) || []).length;
+  assert(disposeCount === 1, "should not duplicate disposal cleanup (found " + disposeCount + ")");
+  passed++;
+}
+
+console.log("\n=== Pass 41f: fixAssetConduit - does not replace meshBasicMaterial without lights ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Flat.tsx",
+      content: `import { useTexture } from "@react-three/drei";\nexport function Flat() {\n  return (\n    <mesh>\n      <planeGeometry />\n      <meshBasicMaterial color="blue" />\n    </mesh>\n  );\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const flat = result.files.find(f => f.path.includes("Flat.tsx"))!;
+  assert(flat.content.includes("meshBasicMaterial"), "should preserve meshBasicMaterial in unlit scene");
+  passed++;
+}
+
+console.log("\n=== Pass 41g: fixAssetConduit - does not duplicate asset-conduit.ts ===");
+{
+  const files = [
+    {
+      path: "client/src/lib/asset-conduit.ts",
+      content: `export const ASSET_LIMITS = { MAX_VERTICES: 50_000 } as const;`,
+    },
+    {
+      path: "client/src/components/Models/Car.tsx",
+      content: `import { useGLTF } from "@react-three/drei";\nexport function Car() {\n  const { scene } = useGLTF("/car.glb");\n  return <primitive object={scene} />;\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const conduitFiles = result.files.filter(f => f.path === "client/src/lib/asset-conduit.ts");
+  assert(conduitFiles.length === 1, "should not duplicate asset-conduit.ts");
+  assert(conduitFiles[0].content.includes("MAX_VERTICES: 50_000"), "should preserve original");
+  passed++;
+}
+
+console.log("\n=== Pass 41h: fixAssetConduit - adds useEffect import when missing ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Models/Desk.tsx",
+      content: `import { useGLTF } from "@react-three/drei";\nexport function Desk() {\n  const { scene, nodes, materials } = useGLTF("/models/desk.glb");\n  return <primitive object={scene} />;\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const desk = result.files.find(f => f.path.includes("Desk.tsx"))!;
+  assert(desk.content.includes("useEffect"), "should have useEffect in file");
+  assert(desk.content.includes('from "react"') || desk.content.includes("from 'react'"), "should import from react");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

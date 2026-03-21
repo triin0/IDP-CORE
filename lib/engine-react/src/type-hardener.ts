@@ -2812,6 +2812,10 @@ export function hardenGeneratedTypes(
   currentFiles = visualSanityFix.files;
   allFixes.push(...visualSanityFix.fixes);
 
+  const assetConduitFix = fixAssetConduit(currentFiles);
+  currentFiles = assetConduitFix.files;
+  allFixes.push(...assetConduitFix.fixes);
+
   const viteEnvFix = fixViteEnvTypes(currentFiles);
   currentFiles = viteEnvFix.files;
   allFixes.push(...viteEnvFix.fixes);
@@ -3073,6 +3077,136 @@ function fixVisualSanityGuard(
     }
 
     return { path: file.path, content };
+  });
+
+  return { files: result, fixes };
+}
+
+function fixAssetConduit(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const ASSET_CONDUIT_MODULE = `export const ASSET_LIMITS = {
+  MAX_VERTICES: 50_000,
+  MAX_TEXTURE_RES: 1024,
+  ALLOWED_FORMATS: [".glb", ".gltf", ".webp", ".png", ".mp3", ".ogg"],
+} as const;
+
+export function validateAssetUrl(url: string): boolean {
+  const ext = url.slice(url.lastIndexOf(".")).toLowerCase();
+  return ASSET_LIMITS.ALLOWED_FORMATS.includes(ext as any);
+}
+`;
+
+  const hasGLTFUsage = files.some(
+    f => f.path.startsWith("client/") && f.content.includes("useGLTF"),
+  );
+  const hasTextureUsage = files.some(
+    f => f.path.startsWith("client/") && f.content.includes("useTexture"),
+  );
+
+  if (!hasGLTFUsage && !hasTextureUsage) return { files, fixes };
+
+  const updatedFiles = [...files];
+
+  const hasConduitFile = files.some(
+    f => f.path === "client/src/lib/asset-conduit.ts" && f.content.includes("ASSET_LIMITS"),
+  );
+  if (!hasConduitFile) {
+    updatedFiles.push({
+      path: "client/src/lib/asset-conduit.ts",
+      content: ASSET_CONDUIT_MODULE,
+    });
+    fixes.push("[client/src/lib/asset-conduit.ts] Injected asset conduit with validation limits (50k verts, 1024px textures)");
+  }
+
+  const result = updatedFiles.map(file => {
+    if (!file.path.startsWith("client/") || !file.path.endsWith(".tsx")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    if (content.includes("useGLTF") && !content.includes(".dispose()")) {
+      const useGLTFMatch = content.match(/const\s+\{([^}]+)\}\s*=\s*useGLTF\s*\(/);
+      if (useGLTFMatch) {
+        const destructured = useGLTFMatch[1];
+        const hasNodes = destructured.includes("nodes");
+        const hasMaterials = destructured.includes("materials");
+        const hasScene = destructured.includes("scene");
+
+        if ((hasNodes || hasMaterials || hasScene) && !content.includes("geometry?.dispose")) {
+          const disposeLines: string[] = [];
+          if (hasNodes) {
+            disposeLines.push(
+              `    Object.values(nodes).forEach((node) => {`,
+              `      if ("geometry" in node) (node as any).geometry?.dispose();`,
+              `    });`,
+            );
+          }
+          if (hasMaterials) {
+            disposeLines.push(
+              `    Object.values(materials).forEach((mat) => (mat as any).dispose());`,
+            );
+          }
+
+          const disposeBlock = [
+            `  useEffect(() => {`,
+            `    return () => {`,
+            ...disposeLines,
+            `    };`,
+            `  }, [${[hasNodes ? "nodes" : "", hasMaterials ? "materials" : ""].filter(Boolean).join(", ")}]);`,
+          ].join("\n");
+
+          const returnIdx = content.indexOf("return (");
+          if (returnIdx === -1) {
+            const returnJsxIdx = content.indexOf("return <");
+            if (returnJsxIdx !== -1) {
+              content = content.slice(0, returnJsxIdx) + disposeBlock + "\n\n  " + content.slice(returnJsxIdx);
+              modified = true;
+            }
+          } else {
+            content = content.slice(0, returnIdx) + disposeBlock + "\n\n  " + content.slice(returnIdx);
+            modified = true;
+          }
+
+          if (modified && !content.includes('import { useEffect') && !content.includes('import {useEffect')) {
+            if (content.includes('from "react"') || content.includes("from 'react'")) {
+              content = content.replace(
+                /import\s+\{([^}]+)\}\s+from\s+["']react["']/,
+                (match, imports) => {
+                  if (imports.includes("useEffect")) return match;
+                  return `import { ${imports.trim()}, useEffect } from "react"`;
+                },
+              );
+            } else {
+              content = `import { useEffect } from "react";\n` + content;
+            }
+          }
+
+          if (modified) {
+            fixes.push(`[${file.path}] Injected GPU disposal cleanup for useGLTF (geometry + materials)`);
+          }
+        }
+      }
+    }
+
+    if (content.includes("meshBasicMaterial")) {
+      const hasLights = content.includes("ambientLight") ||
+        content.includes("directionalLight") ||
+        content.includes("pointLight") ||
+        content.includes("spotLight") ||
+        content.includes("Environment") ||
+        content.includes("Light");
+
+      if (hasLights) {
+        content = content.replace(/meshBasicMaterial/g, "meshStandardMaterial");
+        fixes.push(`[${file.path}] Replaced meshBasicMaterial with meshStandardMaterial in lit scene (prevents invisible mesh hallucination)`);
+        modified = true;
+      }
+    }
+
+    return modified ? { path: file.path, content } : file;
   });
 
   return { files: result, fixes };

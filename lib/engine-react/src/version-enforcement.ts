@@ -55,6 +55,8 @@ const KNOWN_GOOD_VERSIONS: Record<string, string> = {
   "@types/three": "^0.172.0",
   "leva": "^0.10.0",
   "zustand": "^5.0.0",
+  "@gltf-transform/core": "^4.1.0",
+  "@gltf-transform/functions": "^4.1.0",
   "socket.io": "^4.8.0",
   "socket.io-client": "^4.8.0",
 };
