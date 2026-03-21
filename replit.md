@@ -147,6 +147,29 @@ Run 35 Results (Project ID `ab7587c0`):
 
 Analysis: The Prompt Hardening successfully prevented the classic "Listener Leak" and "Shared Type Phantom" hallucinations. Minor residual TypeScript strictness errors (TS2693 schema-as-type, TS2322 tuple length) bypassed the build breaker due to passing hash integrity, mapping the next targets for static Vindicator passes (37 and 38). The system is officially capable of deterministic, real-time 3D generation.
 
+**FastAPI Type Hardener (Python Vindicator):**
+Located at `lib/engine-fastapi/src/type-hardener.ts`, runs 7 deterministic rewrite passes on generated Python files:
+1. **fixLegacySQLAlchemy** — Replaces `declarative_base()` with `DeclarativeBase`, `Column()` with `mapped_column()` (SQLAlchemy 2.0 mandatory).
+2. **fixPydanticV1Patterns** — Replaces `Optional[X]` with `X | None` (PEP 604), `List[X]` with `list[X]` (PEP 585), `class Config:` with `model_config = ConfigDict()` (Pydantic V2).
+3. **fixSyncRouteHandlers** — Converts sync `def` route handlers to `async def` when preceded by FastAPI decorators.
+4. **fixRawSQLStrings** — Detects f-string SQL injection patterns and replaces with parameterized `text()` queries.
+5. **fixHardcodedSecrets** — Replaces hardcoded database URLs and secret keys with `os.getenv()` lookups.
+6. **fixMissingConfigDict** — Injects `ConfigDict(extra="forbid")` on Create models and `ConfigDict(from_attributes=True)` on Response models (over-posting prevention).
+7. **fixRequirementsVersions** — Enforces pinned `>=` versions for core Python stack (FastAPI, uvicorn, Pydantic, SQLAlchemy, etc.) in requirements.txt.
+
+Wired into `pipeline.ts` and `refine.ts` — runs after code generation, before Golden Path checks. Emits `"type-hardening"` pipeline events via "FastAPI Vindicator" agent.
+
+**Mobile Type Hardener (Mobile Vindicator):**
+Located at `lib/engine-mobile/src/type-hardener.ts`, runs 6 deterministic rewrite passes on generated Expo/React Native files:
+1. **fixStyleSheetCreate** — Removes `StyleSheet.create()` blocks and converts `style={styles.x}` to `className="x"` (NativeWind mandatory).
+2. **fixLocalStorageUsage** — Replaces `localStorage.getItem/setItem/removeItem` with `AsyncStorage` equivalents (React Native has no localStorage).
+3. **fixSafeAreaProvider** — Injects `SafeAreaProvider` wrapper in `app/_layout.tsx` if missing.
+4. **fixDependencyPins** — Removes `^` and `~` from package.json dependency versions for reproducible builds.
+5. **fixMobileAssetLimits** — Injects `lib/asset-limits.ts` with VRAM-safe limits (1024px max, format whitelist) when image assets detected.
+6. **fixDirectReactNavigation** — Replaces `@react-navigation/native` imports with `expo-router` equivalents (file-based routing mandatory).
+
+Wired into `pipeline.ts` and `refine.ts` — runs after code generation, before Golden Path checks. Emits `"type-hardening"` pipeline events via "Mobile Vindicator" agent.
+
 **Disk Mirror Utility:**
 `lib/engine-react/src/mirror-to-disk.ts` — Reads hardened project files from Postgres and writes them to `active-build/` on disk for filesystem verification.
 

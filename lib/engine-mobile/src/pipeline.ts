@@ -3,6 +3,7 @@ import { db, projectsTable } from "@workspace/db";
 import { callWithRetry, emitPipelineEvent } from "@workspace/engine-common";
 import { buildMobilePipelinePrompt, MOBILE_SPEC_PROMPT } from "./prompts";
 import { runMobileGoldenPathChecks } from "./golden-path";
+import { hardenMobileTypes } from "./type-hardener";
 
 interface PipelineFile {
   path: string;
@@ -160,6 +161,22 @@ export async function runPipeline(
     if (!hasAppJson) throw new Error("Generation failed: app.json is missing from output");
 
     emitPipelineEvent(projectId, "stage:start", {
+      stage: "type-hardening",
+      agent: "Mobile Vindicator",
+      message: "Running Mobile type hardener (NativeWind, AsyncStorage, SafeArea, asset limits)...",
+    });
+
+    const hardened = hardenMobileTypes(result.files);
+    result.files = hardened.files;
+    const hardeningFixes = hardened.fixes;
+
+    emitPipelineEvent(projectId, "stage:complete", {
+      stage: "type-hardening",
+      agent: "Mobile Vindicator",
+      message: `Type hardening complete: ${hardeningFixes.length} fixes applied`,
+    });
+
+    emitPipelineEvent(projectId, "stage:start", {
       stage: "golden-path",
       agent: "Mobile Golden Path",
       message: "Running Mobile Golden Path compliance checks...",
@@ -192,6 +209,7 @@ export async function runPipeline(
           stages: [
             { role: "Mobile Architect", label: "Spec", status: "completed" },
             { role: "Mobile Architect", label: "Code Generation", status: "completed" },
+            { role: "Mobile Vindicator", label: "Type Hardening", status: "completed" },
             { role: "Mobile Golden Path", label: "Golden Path", status: criticalFailures.length > 0 ? "failed" : "completed" },
           ],
         },

@@ -3,6 +3,7 @@ import { db, projectsTable } from "@workspace/db";
 import { callWithRetry, emitPipelineEvent } from "@workspace/engine-common";
 import { buildFastAPIPipelinePrompt, FASTAPI_SPEC_PROMPT } from "./prompts";
 import { runFastAPIGoldenPathChecks } from "./golden-path";
+import { hardenFastAPITypes } from "./type-hardener";
 
 interface PipelineFile {
   path: string;
@@ -158,6 +159,22 @@ export async function runPipeline(
     if (!hasRequirements) throw new Error("Generation failed: requirements.txt is missing from output");
 
     emitPipelineEvent(projectId, "stage:start", {
+      stage: "type-hardening",
+      agent: "FastAPI Vindicator",
+      message: "Running Python type hardener (SQLAlchemy 2.0, Pydantic V2, async, SQL injection)...",
+    });
+
+    const hardened = hardenFastAPITypes(result.files);
+    result.files = hardened.files;
+    const hardeningFixes = hardened.fixes;
+
+    emitPipelineEvent(projectId, "stage:complete", {
+      stage: "type-hardening",
+      agent: "FastAPI Vindicator",
+      message: `Type hardening complete: ${hardeningFixes.length} fixes applied`,
+    });
+
+    emitPipelineEvent(projectId, "stage:start", {
       stage: "golden-path",
       agent: "FastAPI Golden Path",
       message: "Running Python Golden Path compliance checks...",
@@ -190,6 +207,7 @@ export async function runPipeline(
           stages: [
             { role: "FastAPI Architect", label: "Spec", status: "completed" },
             { role: "FastAPI Architect", label: "Code Generation", status: "completed" },
+            { role: "FastAPI Vindicator", label: "Type Hardening", status: "completed" },
             { role: "FastAPI Golden Path", label: "Golden Path", status: criticalFailures.length > 0 ? "failed" : "completed" },
           ],
         },

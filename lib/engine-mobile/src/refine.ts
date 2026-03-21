@@ -3,6 +3,7 @@ import { db, projectsTable } from "@workspace/db";
 import { callWithRetry } from "@workspace/engine-common";
 import type { RefineResult } from "@workspace/engine-common";
 import { runMobileGoldenPathChecks } from "./golden-path";
+import { hardenMobileTypes } from "./type-hardener";
 
 export async function refineProject(
   projectId: string,
@@ -72,6 +73,9 @@ Do NOT include any text before or after the JSON.`,
     if (!jsonMatch) throw new Error("Failed to parse refinement JSON");
     result = JSON.parse(jsonMatch[0]);
   }
+
+  const hardened = hardenMobileTypes(result.files);
+  result.files = hardened.files;
 
   const goldenPathChecks = runMobileGoldenPathChecks(result.files);
   const passed = goldenPathChecks.filter((c) => c.passed).length;
