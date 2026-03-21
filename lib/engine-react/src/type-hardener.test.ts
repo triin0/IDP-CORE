@@ -3202,6 +3202,91 @@ console.log("\n=== Pass 38d: fixR3FTupleCasts - handles expressions in arrays ==
   passed++;
 }
 
+console.log("\n=== Pass 40a: fixVisualSanityGuard - injects visual-sanity.ts when PivotControls detected ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Editor/SovereignGizmo.tsx",
+      content: `import { PivotControls } from "@react-three/drei";\nexport function SovereignGizmo({ id, children }) {\n  return (\n    <PivotControls visible={true} onDragEnd={(m) => {\n      const pos = [m.elements[12], m.elements[13], m.elements[14]];\n      socket.emit("NODE_UPDATE", { id, position: pos });\n    }}>\n      <group>{children}</group>\n    </PivotControls>\n  );\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const sanityFile = result.files.find(f => f.path === "client/src/lib/visual-sanity.ts");
+  assert(sanityFile, "should create visual-sanity.ts");
+  assert(sanityFile!.content.includes("visualSanity"), "should contain visualSanity function");
+  assert(sanityFile!.content.includes("y < 0"), "should include floor constraint");
+  assert(sanityFile!.content.includes("dist > 100"), "should include radial boundary");
+  assert(result.fixes.some(f => f.includes("visual sanity bounds guard")), "should report injection fix");
+  passed++;
+}
+
+console.log("\n=== Pass 40b: fixVisualSanityGuard - injects guard call after matrix extraction ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Editor/SovereignGizmo.tsx",
+      content: `import { PivotControls } from "@react-three/drei";\nexport function SovereignGizmo({ id, children }) {\n  return (\n    <PivotControls onDragEnd={(m) => {\n      const pos = [m.elements[12], m.elements[13], m.elements[14]];\n      socket.emit("NODE_UPDATE", { id, position: pos });\n    }}>\n      <group>{children}</group>\n    </PivotControls>\n  );\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const gizmo = result.files.find(f => f.path.includes("SovereignGizmo"))!;
+  assert(gizmo.content.includes('import { visualSanity }'), "should add visualSanity import");
+  assert(gizmo.content.includes("if (!visualSanity(pos)) return;"), "should inject guard after pos extraction");
+  passed++;
+}
+
+console.log("\n=== Pass 40c: fixVisualSanityGuard - skips when no PivotControls ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";\nexport function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.files.some(f => f.path === "client/src/lib/visual-sanity.ts"), "should not create visual-sanity.ts without PivotControls");
+  assert(!result.fixes.some(f => f.includes("visual sanity")), "should not report visual sanity fix");
+  passed++;
+}
+
+console.log("\n=== Pass 40d: fixVisualSanityGuard - does not double-inject when file already exists ===");
+{
+  const files = [
+    {
+      path: "client/src/lib/visual-sanity.ts",
+      content: `export function visualSanity(pos: [number, number, number]): boolean {\n  return pos[1] >= 0;\n}`,
+    },
+    {
+      path: "client/src/components/Editor/SovereignGizmo.tsx",
+      content: `import { PivotControls } from "@react-three/drei";\nimport { visualSanity } from "../../lib/visual-sanity";\nexport function SovereignGizmo({ id, children }) {\n  return (\n    <PivotControls onDragEnd={(m) => {\n      const pos = [m.elements[12], m.elements[13], m.elements[14]];\n      if (!visualSanity(pos)) return;\n      socket.emit("NODE_UPDATE", { id, position: pos });\n    }}>\n      <group>{children}</group>\n    </PivotControls>\n  );\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const sanityFiles = result.files.filter(f => f.path === "client/src/lib/visual-sanity.ts");
+  assert(sanityFiles.length === 1, "should not duplicate visual-sanity.ts");
+  assert(sanityFiles[0].content.includes("pos[1] >= 0"), "should preserve original implementation");
+  passed++;
+}
+
+console.log("\n=== Pass 40e: fixVisualSanityGuard - computes correct relative import path ===");
+{
+  const files = [
+    {
+      path: "client/src/components/deep/nested/Gizmo.tsx",
+      content: `import { PivotControls } from "@react-three/drei";\nexport function Gizmo() {\n  return (\n    <PivotControls onDragEnd={(m) => {\n      const pos = [m.elements[12], m.elements[13], m.elements[14]];\n      console.log(pos);\n    }}>\n      <mesh />\n    </PivotControls>\n  );\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const gizmo = result.files.find(f => f.path.includes("Gizmo.tsx"))!;
+  assert(gizmo.content.includes('../../../lib/visual-sanity'), "should compute correct relative path for deep nesting");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

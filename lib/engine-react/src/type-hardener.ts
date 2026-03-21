@@ -2808,6 +2808,10 @@ export function hardenGeneratedTypes(
   currentFiles = r3fTupleFix.files;
   allFixes.push(...r3fTupleFix.fixes);
 
+  const visualSanityFix = fixVisualSanityGuard(currentFiles);
+  currentFiles = visualSanityFix.files;
+  allFixes.push(...visualSanityFix.fixes);
+
   const viteEnvFix = fixViteEnvTypes(currentFiles);
   currentFiles = viteEnvFix.files;
   allFixes.push(...viteEnvFix.fixes);
@@ -2997,4 +3001,95 @@ function fixViteEnvTypes(
   }
 
   return { files: updatedFiles, fixes };
+}
+
+function fixVisualSanityGuard(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const VISUAL_SANITY_FN = `export function visualSanity(pos: [number, number, number]): boolean {
+  const [x, y, z] = pos;
+  if (y < 0) return false;
+  const dist = Math.sqrt(x * x + z * z);
+  if (dist > 100) return false;
+  return true;
+}
+`;
+
+  const hasPivotControls = files.some(
+    f => f.path.startsWith("client/") && f.path.endsWith(".tsx") && f.content.includes("PivotControls"),
+  );
+  if (!hasPivotControls) return { files, fixes };
+
+  const hasVisualSanityFile = files.some(
+    f => f.path === "client/src/lib/visual-sanity.ts" && f.content.includes("visualSanity"),
+  );
+
+  const updatedFiles = [...files];
+
+  if (!hasVisualSanityFile) {
+    updatedFiles.push({
+      path: "client/src/lib/visual-sanity.ts",
+      content: VISUAL_SANITY_FN,
+    });
+    fixes.push("[client/src/lib/visual-sanity.ts] Injected visual sanity bounds guard for PivotControls editor");
+  }
+
+  const result = updatedFiles.map(file => {
+    if (!file.path.startsWith("client/") || !file.path.endsWith(".tsx")) return file;
+    if (!file.content.includes("PivotControls")) return file;
+    if (!file.content.includes("onDragEnd")) return file;
+
+    let content = file.content;
+
+    if (content.includes("m.elements[12]") && !content.includes("visualSanity")) {
+      const importPath = getRelativeImportPath(file.path, "client/src/lib/visual-sanity.ts");
+      if (!content.includes("visual-sanity")) {
+        const lastImportIdx = content.lastIndexOf("\nimport ");
+        if (lastImportIdx !== -1) {
+          const lineEnd = content.indexOf("\n", lastImportIdx + 1);
+          content = content.slice(0, lineEnd + 1) +
+            `import { visualSanity } from "${importPath}";\n` +
+            content.slice(lineEnd + 1);
+        } else {
+          content = `import { visualSanity } from "${importPath}";\n` + content;
+        }
+      }
+
+      const matrixExtractRegex = /const\s+(\w+)\s*(?::\s*\[number,\s*number,\s*number\])?\s*=\s*\[m\.elements\[12\],\s*m\.elements\[13\],\s*m\.elements\[14\]\];?\s*\n/g;
+      let match: RegExpExecArray | null;
+      while ((match = matrixExtractRegex.exec(content)) !== null) {
+        const varName = match[1];
+        const afterMatch = content.slice(match.index + match[0].length);
+        if (!afterMatch.trimStart().startsWith("if") || !afterMatch.includes("visualSanity")) {
+          const indent = match[0].match(/^(\s*)/)?.[1] || "          ";
+          const guardLine = `${indent}if (!visualSanity(${varName})) return;\n`;
+          const insertPos = match.index + match[0].length;
+          content = content.slice(0, insertPos) + guardLine + content.slice(insertPos);
+          fixes.push(`[${file.path}] Injected visualSanity guard after matrix position extraction`);
+        }
+      }
+    }
+
+    return { path: file.path, content };
+  });
+
+  return { files: result, fixes };
+}
+
+function getRelativeImportPath(fromPath: string, toPath: string): string {
+  const fromParts = fromPath.split("/").slice(0, -1);
+  const toParts = toPath.split("/");
+  const toFile = toParts.pop()!.replace(/\.ts$/, "");
+
+  let common = 0;
+  while (common < fromParts.length && common < toParts.length && fromParts[common] === toParts[common]) {
+    common++;
+  }
+
+  const ups = fromParts.length - common;
+  const prefix = ups === 0 ? "./" : "../".repeat(ups);
+  const remaining = toParts.slice(common);
+  return prefix + [...remaining, toFile].join("/");
 }

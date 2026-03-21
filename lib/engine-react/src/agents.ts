@@ -256,6 +256,16 @@ If the user's prompt involves real-time features, live collaboration, multiplaye
 3. **File structure**: Include \`server/src/socket.ts\` (Socket.io server setup) and \`client/src/lib/socket.ts\` (client connection singleton) in the file structure.
 4. **Shared types**: Both server and client MUST import from the same Event Registry interface. Copy the types file into \`client/src/types/socket-events.ts\` (do NOT import across workspaces).
 
+### SOVEREIGN VISUAL EDITOR PROTOCOL — 3D Editor Apps (ONLY if spec requires interactive 3D editing / visual manipulation)
+If the user's prompt involves a 3D editor, visual scene manipulation, drag-to-move objects, or Unity/Godot-style tools, you MUST:
+1. **Dependencies**: Add \`zustand: "^5.0.0"\` and \`leva: "^0.10.0"\` to client/package.json dependencies (in addition to R3F deps).
+2. **File structure**: Include these files in the architecture:
+   - \`client/src/store/useEditorStore.ts\` (Zustand selection store)
+   - \`client/src/components/Editor/Inspector.tsx\` (Leva-based property inspector)
+   - \`client/src/components/Editor/SovereignGizmo.tsx\` (PivotControls wrapper)
+   - \`client/src/lib/visual-sanity.ts\` (bounds validation for transform operations)
+3. **Event Registry**: If real-time, add \`NODE_UPDATE\`, \`NODE_DELETE\` events to the socket event registry with position/rotation/scale payloads.
+
 ### OUTPUT FORMAT
 Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes": "Brief summary of architectural decisions" }
 Do NOT include any text before or after the JSON.
@@ -624,6 +634,71 @@ If the Architect included \`socket.io-client\` in dependencies, you MUST follow 
    \`\`\`
 4. **Shared types**: Import event types from \`client/src/types/socket-events.ts\` (the copy from the Event Registry). Do NOT invent inline event names — use only events defined in the registry.
 
+### SOVEREIGN VISUAL EDITOR PROTOCOL — 3D Editor Apps (ONLY if Architect specified editor/gizmo files)
+If the Architect included \`useEditorStore.ts\`, \`Inspector.tsx\`, \`SovereignGizmo.tsx\`, or \`visual-sanity.ts\` in the file structure, you MUST follow these rules:
+1. **Zustand Selection Store** (\`client/src/store/useEditorStore.ts\`):
+   \`\`\`typescript
+   import { create } from "zustand";
+   interface EditorState {
+     selectedId: string | null;
+     mode: "translate" | "rotate" | "scale";
+     setSelected: (id: string | null) => void;
+     setMode: (mode: "translate" | "rotate" | "scale") => void;
+   }
+   export const useEditorStore = create<EditorState>((set) => ({
+     selectedId: null,
+     mode: "translate",
+     setSelected: (id) => set({ selectedId: id }),
+     setMode: (mode) => set({ mode }),
+   }));
+   \`\`\`
+   Use Zustand (NOT useState) for selection — React state is too slow for 60FPS gizmo frame loops.
+2. **Inspector** (\`client/src/components/Editor/Inspector.tsx\`): Use \`leva\` useControls for dynamic property panels. Return \`null\` — Leva renders its own GUI outside the Canvas:
+   \`\`\`typescript
+   import { useControls, folder } from "leva";
+   import { useEditorStore } from "../../store/useEditorStore";
+   export function Inspector() {
+     const { selectedId, setMode } = useEditorStore();
+     useControls("Scene Settings", {
+       EditorMode: { value: "translate", options: ["translate", "rotate", "scale"], onChange: (v: "translate" | "rotate" | "scale") => setMode(v) },
+     }, { collapsed: true });
+     return null;
+   }
+   \`\`\`
+   Place \`<Inspector />\` OUTSIDE \`<Canvas />\` in the JSX tree.
+3. **SovereignGizmo** (\`client/src/components/Editor/SovereignGizmo.tsx\`): Use \`PivotControls\` from drei (NOT legacy TransformControls):
+   \`\`\`typescript
+   import { PivotControls } from "@react-three/drei";
+   import { useEditorStore } from "../../store/useEditorStore";
+   import { visualSanity } from "../../lib/visual-sanity";
+   export function SovereignGizmo({ id, children, position }: { id: string; children: React.ReactNode; position?: [number, number, number] }) {
+     const { selectedId, setSelected } = useEditorStore();
+     const isSelected = selectedId === id;
+     return (
+       <PivotControls visible={isSelected} activeAxes={[true, true, true]} depthTest={false} fixed scale={75}
+         onDragEnd={(m) => {
+           const pos: [number, number, number] = [m.elements[12], m.elements[13], m.elements[14]];
+           if (visualSanity(pos)) { /* emit NODE_UPDATE via socket or state */ }
+         }}>
+         <group onClick={(e) => { e.stopPropagation(); setSelected(id); }}>
+           {children}
+         </group>
+       </PivotControls>
+     );
+   }
+   \`\`\`
+   Use \`onDragEnd\` (NOT onDrag) for socket emissions — keeps network clean at 120Hz local frames.
+4. **Visual Sanity Guard** (\`client/src/lib/visual-sanity.ts\`): ALWAYS validate transforms before emitting:
+   \`\`\`typescript
+   export function visualSanity(pos: [number, number, number]): boolean {
+     const [x, y, z] = pos;
+     if (y < 0) return false;
+     const dist = Math.sqrt(x * x + z * z);
+     if (dist > 100) return false;
+     return true;
+   }
+   \`\`\`
+
 ### CONTEXT FROM PRIOR AGENTS
 Architect notes: ${architectNotes}
 Backend notes: ${backendNotes}
@@ -907,6 +982,18 @@ You are now operating as the AI Doctor. The Vindicator (deterministic hardener) 
 **Diagnosis: Room Scoping Confusion (messages sent to wrong audience)**
 - Symptom: All connected clients receive messages meant for a specific room, or sender doesn't receive their own broadcast.
 - Cure: 1. \`socket.to(room).emit()\` sends to everyone in the room EXCEPT the sender. 2. \`io.to(room).emit()\` sends to everyone in the room INCLUDING the sender. 3. \`io.emit()\` sends to ALL connected clients regardless of room — NEVER use this for room-scoped messages. 4. Verify \`socket.join(room)\` is called before any room-targeted emits.
+
+**Diagnosis: Gizmo Selection Flicker (PivotControls visible toggling)**
+- Symptom: PivotControls gizmo flickers or disappears during drag, or selection state desynchronizes with the 3D scene.
+- Cure: 1. Selection state MUST live in a Zustand store, NEVER in React useState — useState triggers re-renders that interrupt the frame loop. 2. Use \`e.stopPropagation()\` on the click handler inside \`<group>\` to prevent click-through to the canvas background. 3. Set \`depthTest={false}\` and \`fixed={true}\` on PivotControls to prevent z-fighting.
+
+**Diagnosis: Transform Shadow Clip (object sinks below ground or flies off-screen)**
+- Symptom: After dragging a gizmo, the object position is NaN, negative Y, or beyond world bounds.
+- Cure: 1. Extract position from the drag matrix: \`[m.elements[12], m.elements[13], m.elements[14]]\`. 2. Validate with \`visualSanity()\` before emitting: floor constraint (y >= 0), radial boundary (dist <= 100). 3. If validation fails, do NOT emit the update — the object snaps back to its last valid position.
+
+**Diagnosis: Leva Inspector Outside Canvas (TS2786 or "useControls not in Canvas")**
+- Symptom: Leva controls don't render, or error about hooks used outside provider.
+- Cure: 1. \`<Inspector />\` MUST be placed OUTSIDE \`<Canvas />\` in the JSX tree — Leva renders its own DOM portal. 2. The Inspector component returns \`null\`. 3. Import \`useControls\` from \`"leva"\`, NOT from drei or fiber.
 
 ### MINIMAL INCISION RULE
 You MUST only modify lines cited in the error log. Do NOT rewrite entire files. Do NOT add new features. Do NOT refactor working code. Count the number of changed lines — if you changed more than 3x the number of error lines, you are hallucinating extra surgery. Stop and reconsider.
