@@ -16,6 +16,7 @@ Transformations applied:
 """
 import os
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from sqlalchemy import create_engine, Integer, String, Float, ForeignKey, DateTime
@@ -51,6 +52,7 @@ class Bid(Base):
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     user_id: Mapped[str] = mapped_column(String, nullable=False)
     payload_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    state_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     vehicle = relationship("Vehicle", back_populates="bids")
 
@@ -69,6 +71,7 @@ class BidCreate(BaseModel):
     vehicle_id: int
     amount: float
     user_id: str
+    state_version: int | None = None
 
 
 class BidResponse(BaseModel):
@@ -78,6 +81,7 @@ class BidResponse(BaseModel):
     amount: float
     user_id: str
     payload_hash: str | None = None
+    state_version: int | None = None
 
 
 app = FastAPI(title="Lexus RX300 Showroom API", version="1.0.0")
@@ -135,15 +139,55 @@ async def get_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
     return v
 
 
-@app.post("/api/bids", response_model=BidResponse)
+@app.post("/api/bids")
 async def create_bid(bid: BidCreate, request: Request, db: Session = Depends(get_db)):
-    bid_data = bid.model_dump()
+    from state_arbiter import state_arbiter
+    entity_key = f"vehicle:{bid.vehicle_id}:bids"
+
+    accepted, new_version = state_arbiter.check_and_increment(entity_key, bid.state_version)
+
+    if not accepted:
+        current_bids = db.query(Bid).filter(
+            Bid.vehicle_id == bid.vehicle_id
+        ).order_by(Bid.created_at.desc()).limit(10).all()
+
+        manifest = {
+            "highestBid": max((b.amount for b in current_bids), default=0),
+            "bidCount": len(current_bids),
+            "recentBids": [
+                {"id": b.id, "amount": b.amount, "user_id": b.user_id}
+                for b in current_bids[:5]
+            ],
+        }
+
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": "Shadow Branch Detected",
+                "detail": "Your state version is stale. Another operation has modified this entity.",
+                "code": "STATE_VERSION_CONFLICT",
+                "clientVersion": bid.state_version,
+                "serverVersion": new_version,
+                "authoritativeManifest": manifest,
+            },
+        )
+
+    bid_data = bid.model_dump(exclude={"state_version"})
     bid_data["payload_hash"] = getattr(request.state, "payload_hash", None)
+    bid_data["state_version"] = new_version
     new_bid = Bid(**bid_data)
     db.add(new_bid)
     db.commit()
     db.refresh(new_bid)
-    return new_bid
+
+    return {
+        "id": new_bid.id,
+        "vehicle_id": new_bid.vehicle_id,
+        "amount": new_bid.amount,
+        "user_id": new_bid.user_id,
+        "payload_hash": new_bid.payload_hash,
+        "state_version": new_version,
+    }
 
 
 @app.get("/api/bids/{vehicle_id}", response_model=list[BidResponse])
@@ -253,6 +297,51 @@ async def integrity_status():
         "rejection": "400 Integrity Fault on hash mismatch",
         "audit": "payload_hash column on bids table",
     }
+
+
+@app.get("/api/state/versions")
+async def get_state_versions():
+    from state_arbiter import state_arbiter
+    return {
+        "versions": state_arbiter.get_all_versions(),
+        "protocol": "monotonic-version + LWW",
+    }
+
+
+@app.get("/api/state/version/{vehicle_id}")
+async def get_vehicle_state_version(vehicle_id: int):
+    from state_arbiter import state_arbiter
+    entity_key = f"vehicle:{vehicle_id}:bids"
+    return {
+        "entity": entity_key,
+        "version": state_arbiter.get_version(entity_key),
+    }
+
+
+@app.get("/api/state/manifest/{vehicle_id}")
+async def get_authoritative_manifest(vehicle_id: int, db: Session = Depends(get_db)):
+    from state_arbiter import state_arbiter
+    entity_key = f"vehicle:{vehicle_id}:bids"
+    current_bids = db.query(Bid).filter(
+        Bid.vehicle_id == vehicle_id
+    ).order_by(Bid.created_at.desc()).limit(20).all()
+
+    return {
+        "entity": entity_key,
+        "stateVersion": state_arbiter.get_version(entity_key),
+        "highestBid": max((b.amount for b in current_bids), default=0),
+        "bidCount": len(current_bids),
+        "recentBids": [
+            {"id": b.id, "amount": b.amount, "user_id": b.user_id, "state_version": b.state_version}
+            for b in current_bids[:10]
+        ],
+    }
+
+
+@app.get("/api/state/history")
+async def get_state_history(entity: str | None = None, limit: int = Query(default=50, le=200)):
+    from state_arbiter import state_arbiter
+    return {"history": state_arbiter.get_history(entity, limit)}
 
 
 if __name__ == "__main__":

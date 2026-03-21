@@ -182,16 +182,40 @@ export default function ShowroomScene() {
 
   const [vehicleIdx, setVehicleIdx] = useState(0);
   const [lastBid, setLastBid] = useState<string | null>(null);
+  const stateVersions = useRef<Record<string, number>>({});
   const selectedVehicle = vehicles[vehicleIdx];
 
   const handleBid = useCallback(async (amount: number) => {
     try {
-      const payload = { vehicle_id: selectedVehicle.id, amount, user_id: "dev-user-001" };
+      const versionKey = `vehicle:${selectedVehicle.id}:bids`;
+      const currentVersion = stateVersions.current[versionKey] ?? null;
+      const payload: Record<string, unknown> = {
+        vehicle_id: selectedVehicle.id,
+        amount,
+        user_id: "dev-user-001",
+      };
+      if (currentVersion !== null) {
+        payload.state_version = currentVersion;
+      }
       const resp = await verifiedFetch(`${API_BASE}/api/bids`, payload);
+
       if (resp.ok) {
         const data = await resp.json();
+        if (data.state_version != null) {
+          stateVersions.current[versionKey] = data.state_version;
+        }
         const hashNote = data.payload_hash ? ` [SHA-256: ${data.payload_hash.slice(0, 12)}…]` : "";
-        setLastBid(`Bid of $${amount.toLocaleString()} placed on ${selectedVehicle.name}${hashNote}`);
+        const versionNote = data.state_version != null ? ` [v${data.state_version}]` : "";
+        setLastBid(`Bid of $${amount.toLocaleString()} placed on ${selectedVehicle.name}${hashNote}${versionNote}`);
+      } else if (resp.status === 409) {
+        const conflict = await resp.json();
+        if (conflict.code === "STATE_VERSION_CONFLICT") {
+          stateVersions.current[versionKey] = conflict.serverVersion;
+          const manifest = conflict.authoritativeManifest;
+          setLastBid(
+            `SHADOW BRANCH — state corrected. Highest bid: $${manifest.highestBid?.toLocaleString() ?? "?"} (v${conflict.serverVersion}). Retry your bid.`
+          );
+        }
       } else {
         const err = await resp.json().catch(() => null);
         if (err?.code === "INTEGRITY_HASH_MISMATCH") {

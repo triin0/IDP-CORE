@@ -208,4 +208,12 @@ Test suite at `lib/engine-react/src/type-hardener.test.ts` — 659 tests coverin
 - **Audit Trail**: `payload_hash` column on `bids` table stores verified SHA-256 for forensic reconciliation.
 - **Backward Compatible**: Requests without `X-Payload-Hash` pass through (legacy client support).
 - **Serialization Trap Avoidance**: Both sides use deep recursive key sorting before hashing. Backend also tries raw-body hash as fallback to handle edge cases in number representation.
+
+## Tier 5 — Shadow Branch Eradication (State Versioning)
+- **State Arbiter** (`showroom-api/state_arbiter.py`): Monotonic version counter per entity (e.g. `vehicle:1:bids`). Thread-safe with `threading.Lock`. Maintains version history (last 200 transitions).
+- **Conflict Detection**: `BidCreate` schema accepts optional `state_version`. If client version < server version → 409 Conflict with `STATE_VERSION_CONFLICT` code + `authoritativeManifest` (highest bid, bid count, recent bids).
+- **Authoritative Manifest**: On conflict, server pushes down the true state so the client can correct its local reality and retry.
+- **Frontend Tracking**: `stateVersions` ref tracks per-vehicle versions. On 409, syncs to server version and displays shadow branch warning. On success, updates local version.
+- **Endpoints**: `/api/state/versions`, `/api/state/version/{vehicle_id}`, `/api/state/manifest/{vehicle_id}`, `/api/state/history`.
+- **Audit Trail**: `state_version` column on `bids` table records which version each bid was committed at.
 - Stub collision guard: prevents duplicate declarations when imported symbols match stub candidates.
