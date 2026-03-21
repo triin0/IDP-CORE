@@ -5623,6 +5623,128 @@ const ws = new WebSocket(authenticatedUrl);
   assert(frontendHook.includes("new WebSocket(authenticatedUrl)"), "Vindicator Frontend: connects with authenticated URL");
 }
 
+// === Engine B: Native Foundry Transpiler Tests ===
+console.log("\n=== Engine B: Native Foundry Transpiler ===");
+{
+  const transpilerModule = await import("../../engine-native/src/transpiler");
+  const { transpilePydanticToUE5, parsePydanticSource, mapPythonTypeToCpp } = transpilerModule;
+
+  console.log("  -- Pydantic Parser --");
+
+  const showroomSource = `
+class VehicleResponse(BaseModel):
+    id: int
+    name: str
+    year: int
+    price: float
+    color: str
+    model_url: str | None
+    model_config = ConfigDict(from_attributes=True)
+
+class BidCreate(BaseModel):
+    vehicle_id: int
+    amount: float
+    user_id: str
+    payload_hash: str | None = None
+    state_version: int | None = None
+
+class BidResponse(BaseModel):
+    id: int
+    vehicle_id: int
+    amount: float
+    user_id: str
+    payload_hash: str | None = None
+    state_version: int | None = None
+`;
+
+  const models = parsePydanticSource(showroomSource);
+  assert(models.length === 3, "Engine B Parser: finds 3 Pydantic models");
+  assert(models[0].name === "VehicleResponse", "Engine B Parser: first model is VehicleResponse");
+  assert(models[1].name === "BidCreate", "Engine B Parser: second model is BidCreate");
+  assert(models[2].name === "BidResponse", "Engine B Parser: third model is BidResponse");
+
+  const vehicle = models[0];
+  assert(vehicle.fields.length >= 5, "Engine B Parser: VehicleResponse has >= 5 fields");
+  assert(vehicle.fields.some(f => f.name === "id" && f.pythonType === "int"), "Engine B Parser: id field is int");
+  assert(vehicle.fields.some(f => f.name === "name" && f.pythonType === "str"), "Engine B Parser: name field is str");
+  assert(vehicle.fields.some(f => f.name === "price" && f.pythonType === "float"), "Engine B Parser: price field is float");
+  assert(vehicle.fields.some(f => f.name === "model_url" && f.isOptional), "Engine B Parser: model_url is optional");
+
+  const bidCreate = models[1];
+  assert(bidCreate.fields.some(f => f.name === "payload_hash" && f.isOptional), "Engine B Parser: payload_hash is optional");
+  assert(bidCreate.fields.some(f => f.name === "state_version" && f.isOptional), "Engine B Parser: state_version is optional");
+
+  console.log("  -- Type Mapping --");
+
+  const intMap = mapPythonTypeToCpp("int", false);
+  assert(intMap.cppType === "int32", "Engine B TypeMap: int → int32");
+  const floatMap = mapPythonTypeToCpp("float", false);
+  assert(floatMap.cppType === "double", "Engine B TypeMap: float → double (precision parity)");
+  const strMap = mapPythonTypeToCpp("str", false);
+  assert(strMap.cppType === "FString", "Engine B TypeMap: str → FString");
+  const boolMap = mapPythonTypeToCpp("bool", false);
+  assert(boolMap.cppType === "bool", "Engine B TypeMap: bool → bool");
+  const optMap = mapPythonTypeToCpp("int", true);
+  assert(optMap.cppType === "TOptional<int32>", "Engine B TypeMap: Optional[int] → TOptional<int32>");
+  const listMap = mapPythonTypeToCpp("list[str]", false);
+  assert(listMap.cppType === "TArray<FString>", "Engine B TypeMap: list[str] → TArray<FString>");
+
+  console.log("  -- USTRUCT Generation --");
+
+  const result = transpilePydanticToUE5(showroomSource);
+  assert(result.headers.length === 3, "Engine B Transpiler: generates 3 headers");
+  assert(result.sources.length === 3, "Engine B Transpiler: generates 3 serializers");
+
+  const vehicleHeader = result.headers.find((h: any) => h.path.includes("VehicleResponse"));
+  assert(!!vehicleHeader, "Engine B Transpiler: generates VehicleResponse.h");
+  assert(vehicleHeader.content.includes("USTRUCT(BlueprintType)"), "Engine B Transpiler: header has USTRUCT macro");
+  assert(vehicleHeader.content.includes("GENERATED_BODY()"), "Engine B Transpiler: header has GENERATED_BODY");
+  assert(vehicleHeader.content.includes("UPROPERTY"), "Engine B Transpiler: all fields have UPROPERTY");
+  assert(vehicleHeader.content.includes("FVehicleResponse"), "Engine B Transpiler: struct name is FVehicleResponse");
+  assert(vehicleHeader.content.includes("int32 Id"), "Engine B Transpiler: id is int32");
+  assert(vehicleHeader.content.includes("double Price"), "Engine B Transpiler: price is double (not float)");
+  assert(vehicleHeader.content.includes("FString Name"), "Engine B Transpiler: name is FString");
+  assert(vehicleHeader.content.includes("TOptional<FString> ModelUrl"), "Engine B Transpiler: model_url is TOptional<FString>");
+
+  const bidHeader = result.headers.find((h: any) => h.path.includes("BidCreate"));
+  assert(!!bidHeader, "Engine B Transpiler: generates BidCreate.h");
+  assert(bidHeader.content.includes("TOptional<FString> PayloadHash"), "Engine B Transpiler: payload_hash is TOptional<FString>");
+  assert(bidHeader.content.includes("TOptional<int32> StateVersion"), "Engine B Transpiler: state_version is TOptional<int32>");
+
+  console.log("  -- Serializer Generation --");
+
+  const vehicleSerializer = result.sources.find((s: any) => s.path.includes("VehicleResponse"));
+  assert(!!vehicleSerializer, "Engine B Transpiler: generates VehicleResponseSerializer.cpp");
+  assert(vehicleSerializer.content.includes("ToSovereignJson"), "Engine B Serializer: has ToSovereignJson function");
+  assert(vehicleSerializer.content.includes("Sovereign::JsonValue"), "Engine B Serializer: uses Sovereign::JsonValue");
+  assert(vehicleSerializer.content.includes("TCHAR_TO_UTF8"), "Engine B Serializer: converts FString to UTF-8");
+
+  console.log("  -- Validation Logic --");
+
+  const constrainedSource = `
+class BidConstrained(BaseModel):
+    amount: float = Field(ge=0)
+    user_id: str = Field(min_length=1, max_length=100)
+    vehicle_id: int = Field(ge=1)
+`;
+  const constrainedResult = transpilePydanticToUE5(constrainedSource);
+  const constrainedHeader = constrainedResult.headers[0];
+  assert(constrainedHeader.content.includes("ValidateBidConstrained"), "Engine B Validator: generates Validate function");
+  assert(constrainedHeader.content.includes("must be >= 0"), "Engine B Validator: checks ge=0 for amount");
+  assert(constrainedHeader.content.includes("must be >= 1"), "Engine B Validator: checks ge=1 for vehicle_id");
+  assert(constrainedHeader.content.includes("exceeds max length 100"), "Engine B Validator: checks max_length=100");
+  assert(constrainedHeader.content.includes("below min length 1"), "Engine B Validator: checks min_length=1");
+
+  console.log("  -- Edge Cases --");
+
+  const emptyResult = transpilePydanticToUE5("# No models here\nclass NotAModel:\n    pass\n");
+  assert(emptyResult.headers.length === 0, "Engine B Edge: no BaseModel = no output");
+  assert(emptyResult.diagnostics.some((d: any) => d.message.includes("No Pydantic")), "Engine B Edge: warns about missing models");
+
+  assert(result.fixes.length > 0, "Engine B: produces fix log");
+  assert(result.fixes.some((f: string) => f.includes("→")), "Engine B: fix log shows type mappings");
+}
+
 // --- Cross-Engine Summary ---
 console.log("\n" + "=".repeat(60));
 console.log("  PROJECT SHOWROOM — COMPLETE");

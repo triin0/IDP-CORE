@@ -195,7 +195,27 @@ Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardenin
   - **FastAPI**: `presence_relay.py` (PresenceManager class with asyncio-safe WebSocket relay, automatic dead connection cleanup, `resolve_conflict()` for deterministic last-write-wins, `get_active_peers()` with timeout filtering); `/ws/presence/{user_id}` WebSocket endpoint and `/api/presence/active` REST endpoint injected into main.py.
   - **Mobile**: `lib/haptic-presence.ts` (6 event types: peer:joined, peer:left, object:moved, object:created, object:deleted, conflict:resolved; mapped to expo-haptics ImpactFeedbackStyle/NotificationFeedbackType; 100ms throttle; `usePresenceHaptics()` WebSocket listener hook); adds expo-haptics dependency.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 659 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300).
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 773 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests.
+
+## Engine B: The Native Foundry (Pydantic→UE5 Transpiler)
+A transpilation pipeline that reads Engine A's Pydantic schemas and generates type-safe C++/UE5 code with SHA-256 parity.
+
+**Module 1 — Hell Payload Oracle** (`lib/engine-native/src/hell_payload_oracle.py`): Generates 10 golden hash test vectors from Python canonical JSON.
+
+**Module 2 — Sovereign C++ Serializer** (`lib/engine-native/generated/SovereignSerializer.h`): Self-contained header with:
+- `SovereignSHA256`: Embedded SHA-256 (no OpenSSL dependency, UE5-safe). Passes NIST test vectors.
+- `JsonValue`: Canonical JSON serializer with recursive key-sorted objects, Python-parity shortest-round-trip float normalization (Grisu-style precision search), proper string escaping.
+- `ChronosOfflineQueue`: Offline-first queue with enqueue/flush/conflict detection, FArchive-style binary disk persistence (magic `0x43485230`), hash-at-enqueue integrity.
+
+**Module 3 — Chronos C++**: Queue enqueue/flush/conflict-detection/saveToDisk/loadFromDisk. Binary format with magic header. Payload hash computed at enqueue time.
+
+**Module 4 — USTRUCT Transpiler** (`lib/engine-native/src/transpiler.ts`): TypeScript transpiler that:
+- Parses Pydantic `class X(BaseModel):` definitions with field types, optionality, Field() constraints.
+- Maps Python types to UE5 types (str→FString, int→int32, float→double, Optional→TOptional, list→TArray, dict→TMap).
+- Generates `USTRUCT(BlueprintType)` headers with `UPROPERTY` macros and `GENERATED_BODY()`.
+- Generates `Validate*()` functions with constraint checks (ge, le, gt, lt, max_length, min_length).
+- Generates `ToSovereignJson()` serializer functions using `Sovereign::JsonValue`.
+- C++ conformance: 21/21 tests passing (10 hell payloads + 3 SHA-256 NIST + 8 Chronos).
 
 ## Project Showroom — Physical Runtime
 - **showroom-web** (`artifacts/showroom-web`): React/Vite + Three.js 3D showroom. Hardened by 46 React Vindicator passes. Preview at `/showroom-web/`. WebGL error boundary with graceful fallback for headless/no-GPU environments.
