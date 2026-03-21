@@ -1222,9 +1222,11 @@ function fixMissingTypeStubs(
       if (!targetFile) continue;
 
       for (const name of names) {
-        if (/^[A-Z]/.test(name)) {
-          const exportCheck = new RegExp(`(?:export\\s+)?(?:interface|type|enum|class)\\s+${name}\\b`);
+        if (/^[A-Z]/.test(name) || /[Ss]chema|[Vv]alidator/.test(name)) {
+          const exportCheck = new RegExp(`(?:export\\s+)?(?:interface|type|enum|class|const|let|var|function)\\s+${name}\\b`);
           if (!exportCheck.test(targetFile.content)) {
+            const reExportCheck = /export\s*\*\s*from\s*/;
+            if (reExportCheck.test(targetFile.content)) continue;
             if (!typeImports.has(targetFile.path)) typeImports.set(targetFile.path, new Set());
             typeImports.get(targetFile.path)!.add(name);
           }
@@ -1241,7 +1243,13 @@ function fixMissingTypeStubs(
 
     const stubs: string[] = [];
     for (const name of missingTypes) {
-      stubs.push(`export interface ${name} { [key: string]: unknown; }`);
+      if (/Schema$/.test(name)) {
+        stubs.push(`export const ${name} = {} as any;`);
+      } else if (/Input$|Output$|Params$|Response$|Request$|Data$|Config$|Options$|Props$/.test(name)) {
+        stubs.push(`export type ${name} = any;`);
+      } else {
+        stubs.push(`export interface ${name} { [key: string]: unknown; }`);
+      }
     }
 
     const content = file.content + "\n\n" + stubs.join("\n") + "\n";
@@ -2209,6 +2217,87 @@ function fixJwtTypeIssues(
   return { files: updatedFiles, fixes };
 }
 
+function fixDuplicateIdentifiers(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const updatedFiles = files.map(file => {
+    if (!file.path.match(/\.[tj]sx?$/)) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    content = content.replace(
+      /((?:import|export)\s*(?:type\s*)?\{)([^}]+)(\}\s*from\s*['"][^'"]+['"])/g,
+      (full, prefix, names, suffix) => {
+        const parts = names.split(",").map((s: string) => s.trim()).filter(Boolean);
+        const seen = new Set<string>();
+        const deduped: string[] = [];
+        for (const part of parts) {
+          const name = part.split(/\s+as\s+/)[0].trim();
+          if (seen.has(name)) {
+            fixes.push(`[${file.path}] Removed duplicate '${name}' from import/export`);
+            modified = true;
+            continue;
+          }
+          seen.add(name);
+          deduped.push(part);
+        }
+        if (deduped.length === parts.length) return full;
+        return `${prefix} ${deduped.join(", ")} ${suffix}`;
+      }
+    );
+
+    const lines = content.split("\n");
+    const seenDeclarations = new Set<string>();
+    const finalLines: string[] = [];
+    let skipBlock = false;
+    let braceDepth = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (skipBlock) {
+        for (const ch of line) {
+          if (ch === "{") braceDepth++;
+          if (ch === "}") braceDepth--;
+        }
+        if (braceDepth <= 0) skipBlock = false;
+        continue;
+      }
+
+      const declMatch = line.match(
+        /^(?:export\s+)?(?:const|let|var|type|interface|function|class|enum)\s+(\w+)/
+      );
+
+      if (declMatch) {
+        const id = declMatch[1];
+        if (seenDeclarations.has(id)) {
+          fixes.push(`[${file.path}] Removed duplicate declaration '${id}'`);
+          modified = true;
+          const openBraces = (line.match(/\{/g) || []).length;
+          const closeBraces = (line.match(/\}/g) || []).length;
+          const balance = openBraces - closeBraces;
+          if (balance > 0) {
+            skipBlock = true;
+            braceDepth = balance;
+          }
+          continue;
+        }
+        seenDeclarations.add(id);
+      }
+
+      finalLines.push(line);
+    }
+
+    if (!modified) return file;
+    return { ...file, content: finalLines.join("\n") };
+  });
+
+  return { files: updatedFiles, fixes };
+}
+
 function fixMissingPackageDeps(
   files: Array<{ path: string; content: string }>,
 ): HardenerResult {
@@ -2540,6 +2629,10 @@ export function hardenGeneratedTypes(
   const missingTypeExportsFix = fixMissingTypeExports(currentFiles);
   currentFiles = missingTypeExportsFix.files;
   allFixes.push(...missingTypeExportsFix.fixes);
+
+  const dedupeFix = fixDuplicateIdentifiers(currentFiles);
+  currentFiles = dedupeFix.files;
+  allFixes.push(...dedupeFix.fixes);
 
   const missingDepsFix = fixMissingPackageDeps(currentFiles);
   currentFiles = missingDepsFix.files;

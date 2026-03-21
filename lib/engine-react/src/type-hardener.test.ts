@@ -2478,8 +2478,8 @@ console.log("\n=== Pass 29b: fixMissingTypeExports - stubs lowercase schema name
 
   const result = hardenGeneratedTypes(files);
   const types = result.files.find(f => f.path === "server/src/types.ts")!;
-  assert(types.content.includes("export const loginSchema = z.any();"), "should stub loginSchema with z.any()");
-  assert(types.content.includes("export const registerSchema = z.any();"), "should stub registerSchema with z.any()");
+  assert(types.content.includes("loginSchema") && types.content.match(/export\s+const\s+loginSchema/), "should stub loginSchema with z.any()");
+  assert(types.content.includes("registerSchema") && types.content.match(/export\s+const\s+registerSchema/), "should stub registerSchema with z.any()");
 }
 
 console.log("\n=== Pass 29c: fixMissingTypeExports - skips already exported names ===");
@@ -2626,6 +2626,107 @@ const result = await db.select().from(expenses).where(
   assert(route.content.includes("lt"), "should have lt import");
   assert(route.content.includes("gte"), "should have gte import");
   assert(route.content.match(/import\s*\{.*lt.*\}\s*from\s*['"]drizzle-orm['"]/), "should include lt in drizzle-orm import");
+}
+
+console.log("\n=== Pass 32b: fixMissingTypeStubs - stubs Schema-suffixed imports as const ===");
+{
+  const files = [
+    {
+      path: "server/src/routes/auth.ts",
+      content: `import { LoginSchema, RegisterSchema } from '../types';
+router.post('/login', validateRequest(LoginSchema), handler);
+router.post('/register', validateRequest(RegisterSchema), handler);`,
+    },
+    {
+      path: "server/src/types/index.ts",
+      content: `export interface User { id: string; email: string; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const types = result.files.find(f => f.path === "server/src/types/index.ts")!;
+  assert(types.content.includes("export const LoginSchema"), "should stub LoginSchema as const");
+  assert(types.content.includes("export const RegisterSchema"), "should stub RegisterSchema as const");
+}
+
+console.log("\n=== Pass 33: fixDuplicateIdentifiers - deduplicates import names ===");
+{
+  const files = [
+    {
+      path: "server/src/types/api.ts",
+      content: `import { insertProductSchema, insertProductSchema, SelectProduct } from './schema';
+export type { insertProductSchema, SelectProduct };`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const api = result.files.find(f => f.path === "server/src/types/api.ts")!;
+  const importMatch = api.content.match(/import\s*\{([^}]+)\}/);
+  const importNames = importMatch![1].split(",").map((s: string) => s.trim());
+  const dupeCount = importNames.filter((n: string) => n.startsWith("insertProductSchema")).length;
+  assert(dupeCount === 1, "should deduplicate import names");
+}
+
+console.log("\n=== Pass 33b: fixDuplicateIdentifiers - removes duplicate declarations ===");
+{
+  const files = [
+    {
+      path: "server/src/types/api.ts",
+      content: `export const insertProductSchema = z.object({ name: z.string() });
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+export const insertProductSchema = z.object({ name: z.string(), price: z.number() });`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const api = result.files.find(f => f.path === "server/src/types/api.ts")!;
+  const matches = api.content.match(/export const insertProductSchema/g);
+  assert(matches!.length === 1, "should keep only first declaration");
+  assert(api.content.includes("InsertProduct"), "should preserve non-duplicate type");
+}
+
+console.log("\n=== Pass 33c: fixDuplicateIdentifiers - handles multi-line block removal ===");
+{
+  const files = [
+    {
+      path: "server/src/types/index.ts",
+      content: `export interface CreateEventInput {
+  name: string;
+  date: string;
+}
+export type EventResponse = { id: string };
+export interface CreateEventInput {
+  title: string;
+  startDate: string;
+  endDate: string;
+}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const idx = result.files.find(f => f.path === "server/src/types/index.ts")!;
+  const ifaceMatches = idx.content.match(/export interface CreateEventInput/g);
+  assert(ifaceMatches!.length === 1, "should keep only first interface");
+  assert(idx.content.includes("name: string"), "should keep first interface body");
+  assert(idx.content.includes("EventResponse"), "should preserve other types");
+}
+
+console.log("\n=== Pass 33d: fixDuplicateIdentifiers - no false positives ===");
+{
+  const files = [
+    {
+      path: "server/src/routes/users.ts",
+      content: `import { eq } from 'drizzle-orm';
+import { users } from '../schema';
+const getUser = async (id: string) => { return db.select().from(users).where(eq(users.id, id)); };
+const updateUser = async (id: string) => { return db.update(users).set({}).where(eq(users.id, id)); };`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/users.ts")!;
+  assert(!result.fixes.some(f => f.includes("duplicate") || f.includes("Duplicate")),
+    "should not flag non-duplicates");
 }
 
 console.log(`\n${"=".repeat(50)}`);
