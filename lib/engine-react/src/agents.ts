@@ -812,6 +812,32 @@ When dependency audit fails, update package.json versions:
 7. **catch blocks**: Always type as \`catch (error: unknown)\`.
 8. **Three.js / R3F fixes**: If fixing 3D code, \`import * as THREE from "three"\` (NOT \`import type * as THREE\`). useRef must be initialized: \`useRef<THREE.Mesh>(null!)\`. Do NOT add React import to .tsx files.
 
+### AI DOCTOR MEDICAL ENCYCLOPEDIA — Sovereign Tactical Ledger Edition
+You are now operating as the AI Doctor. The Vindicator (deterministic hardener) has completed its passes. Your job is surgical: fix only what remains.
+
+**Diagnosis: ESM/Module Mismatch (TS1208, TS1343)**
+- Symptom: "The current file is a CommonJS file and cannot use 'import.meta'."
+- Cure: 1. Ensure package.json has \`"type": "module"\` (client only — NEVER server). 2. Check tsconfig: \`module\` and \`moduleResolution\` must be \`ESNext\` or \`Bundler\`. 3. Ghost Export: If a .ts file is a script with no exports, add \`export {};\` at the bottom to force ESM mode.
+
+**Diagnosis: Three.js Property Ghost (TS2339 on Object3D)**
+- Symptom: Property 'position'/'rotation'/'scale' does not exist on type 'Object3D'.
+- Cure: 1. Locate the variable or useRef. 2. Apply a Sovereign Cast: \`(object as THREE.Mesh).position.set(...)\`. 3. Verify \`import * as THREE from "three"\` is a value import, not type-only.
+
+**Diagnosis: Drizzle-Zod Never-Type (TS2322: Type 'true' not assignable to 'never')**
+- Symptom: Type mismatch in createInsertSchema refinements.
+- Cure: 1. Cross-reference the refinement keys against the actual pgTable column names (camelCase JS names). 2. Remove any refinement keys that don't match real columns. 3. Wrap boolean values as callbacks: \`(s: any) => s\`.
+
+**Diagnosis: Stochastic Duplicate (TS2300, TS2395, TS2440)**
+- Symptom: Duplicate identifier or merged declaration conflict.
+- Cure: 1. If both an import and a local declaration exist, keep the import and remove the local stub. 2. Keep the version with the most detailed type definition.
+
+**Diagnosis: QueryResult Union (TS2339: Property 'length' on 'any[] | QueryResult<never>')**
+- Symptom: db.select() or db.execute() returns a union type that TS can't narrow.
+- Cure: Cast the result: \`const rows = await db.select()... as any[]\`. Or destructure as array: \`const rows: any[] = await db.select()...\`.
+
+### MINIMAL INCISION RULE
+You MUST only modify lines cited in the error log. Do NOT rewrite entire files. Do NOT add new features. Do NOT refactor working code. Count the number of changed lines — if you changed more than 3x the number of error lines, you are hallucinating extra surgery. Stop and reconsider.
+
 ### OUTPUT FORMAT
 Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes": "Brief explanation of each fix applied" }
 Do NOT include any text before or after the JSON. Only output the JSON object.

@@ -575,7 +575,53 @@ async function runFixerAgent(
 
   console.log(`[fixer:${projectId.slice(0, 8)}] Fixer proposed ${sanitizedFiles.length} file changes: ${parsed.notes || "no notes"}`);
 
+  const auditResult = auditMinimalIncision(currentFiles, sanitizedFiles, verdict);
+  console.log(`[fixer:${projectId.slice(0, 8)}] Minimal Incision Audit: ${auditResult.changedLines} lines changed across ${auditResult.filesChanged} files for ${auditResult.errorCount} errors (ratio: ${auditResult.ratio.toFixed(1)}x)${auditResult.passed ? " — PASSED" : " — WARNING: excessive surgery"}`);
+
   return sanitizedFiles;
+}
+
+function auditMinimalIncision(
+  originalFiles: Array<{ path: string; content: string }>,
+  fixedFiles: Array<{ path: string; content: string }>,
+  verdict: VerificationVerdict,
+): { changedLines: number; filesChanged: number; errorCount: number; ratio: number; passed: boolean } {
+  let changedLines = 0;
+  let filesChanged = 0;
+
+  for (const fixed of fixedFiles) {
+    const original = originalFiles.find(f => f.path === fixed.path);
+    if (!original) {
+      changedLines += fixed.content.split("\n").length;
+      filesChanged++;
+      continue;
+    }
+    const origLines = original.content.split("\n");
+    const fixedLines = fixed.content.split("\n");
+    let diff = 0;
+    const maxLen = Math.max(origLines.length, fixedLines.length);
+    for (let i = 0; i < maxLen; i++) {
+      if ((origLines[i] || "") !== (fixedLines[i] || "")) diff++;
+    }
+    if (diff > 0) {
+      changedLines += diff;
+      filesChanged++;
+    }
+  }
+
+  const buildErrorLines = verdict.buildStderr
+    ? verdict.buildStderr.split("\n").filter(l => /error TS\d+/.test(l)).length
+    : 0;
+  const errorCount = Math.max(1,
+    buildErrorLines +
+    (verdict.dependencyErrors?.length || 0) +
+    verdict.checks.filter(c => !c.passed).length
+  );
+
+  const ratio = changedLines / errorCount;
+  const passed = ratio <= 10;
+
+  return { changedLines, filesChanged, errorCount, ratio, passed };
 }
 
 function applyDelta(
