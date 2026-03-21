@@ -223,4 +223,11 @@ Test suite at `lib/engine-react/src/type-hardener.test.ts` — 659 tests coverin
 - **WebSocket Handshake**: `/ws/presence/{user_id}?token=JWT` — token required. Verified against `user_id` in URL path. On failure: immediate 403 / 1008 Policy Violation. No fallback, no degraded mode.
 - **Forgery Detection**: 4 attack vectors blocked — no token (403), forged token (403), expired token (403), user ID mismatch / identity spoof (403). All logged with `IDENTITY FORGERY BLOCKED` prefix.
 - **Frontend** (`artifacts/showroom-web/src/lib/use-presence-socket.ts`): Fetches session token via HTTP POST before WebSocket connect. Appends token as query parameter. Tracks `authStatus: pending | authenticated | rejected`.
+
+## Tier 5 — Sub-Agent Structural Blindness Cure (Runtime Feedback Loop)
+- **Runtime Error Classifier** (`classifyRuntimeErrors`): Parses 10 error patterns into 9 categories — `MISSING_MODULE`, `UNDEFINED_REFERENCE`, `TYPE_ERROR`, `MISSING_EXPORT`, `RENDER_CRASH`, `SYNTAX_ERROR`, `RUNTIME_EXCEPTION`, `MISSING_IMPORT`, `UNKNOWN`. Each classified with severity (critical/high/medium/low).
+- **Targeted Repair Engine** (`applyRuntimeRepairs`): Maps classified errors to corrective code transforms — auto-adds missing deps to package.json, injects missing imports by scanning for export declarations, adds `export` to unexported symbols, injects optional chaining for null access crashes, wraps object renders with `String()`.
+- **Iterative Feedback Loop** (`diagnoseAndRepair`): Wraps the hardener pipeline with up to N iterations (default 3). Each iteration: classify errors → apply repairs → re-run hardener passes → filter resolved errors → repeat if new errors remain.
+- **Exported API**: `diagnoseAndRepair(files, runtimeErrors, options?)` returns `RepairResult` with `{files, repairs, diagnostics, unresolvedErrors, iterationsUsed}`.
+- **Zero false positives**: Unknown/unresolvable errors are preserved in `unresolvedErrors` array without corrupting the file set.
 - Stub collision guard: prevents duplicate declarations when imported symbols match stub candidates.

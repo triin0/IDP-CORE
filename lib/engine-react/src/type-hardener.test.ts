@@ -1,4 +1,4 @@
-import { hardenGeneratedTypes } from "./type-hardener";
+import { hardenGeneratedTypes, diagnoseAndRepair } from "./type-hardener";
 import { hardenFastAPITypes } from "../../engine-fastapi/src/type-hardener";
 import { hardenMobileTypes } from "../../engine-mobile/src/type-hardener";
 
@@ -5356,6 +5356,172 @@ export default function Layout() { return <Stack />; }`,
 
   const pkg2 = JSON.parse(mobileResult.files.find(f => f.path === "package.json")!.content);
   assert(!!pkg2.dependencies["@react-native-community/netinfo"], "Pass 49: should add netinfo for Chronos mobile sync");
+}
+
+// === Sub-Agent Structural Blindness Cure Tests ===
+console.log("\n=== Sub-Agent Structural Blindness Cure ===");
+{
+  console.log("  -- Error Classification Engine --");
+
+  const missingModuleResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: {} }) },
+      { path: "client/src/App.tsx", content: "import React from 'react';\nexport default function App() { return <div/>; }" },
+    ],
+    [{ message: "Cannot find module 'zustand'" }],
+  );
+  assert(missingModuleResult.diagnostics.length > 0, "Blindness Cure: classifies missing module error");
+  assert(missingModuleResult.diagnostics[0].category === "MISSING_MODULE", "Blindness Cure: category is MISSING_MODULE");
+  assert(missingModuleResult.diagnostics[0].severity === "critical", "Blindness Cure: missing module is critical severity");
+  assert(missingModuleResult.diagnostics[0].symbol === "zustand", "Blindness Cure: extracts module name 'zustand'");
+  const repairedPkg = missingModuleResult.files.find(f => f.path === "package.json");
+  assert(!!repairedPkg && repairedPkg.content.includes("zustand"), "Blindness Cure: auto-adds zustand to package.json");
+  assert(missingModuleResult.repairs.some(r => r.includes("zustand")), "Blindness Cure: reports zustand repair");
+
+  const undefinedRefResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: {} }) },
+      { path: "client/src/utils.ts", content: "export function formatPrice(n: number) { return `$${n}`; }" },
+      { path: "client/src/App.tsx", content: "const x = 1;" },
+    ],
+    [{ message: "formatPrice is not defined", file: "client/src/App.tsx" }],
+  );
+  assert(undefinedRefResult.diagnostics[0].category === "UNDEFINED_REFERENCE", "Blindness Cure: classifies undefined reference");
+  assert(undefinedRefResult.diagnostics[0].symbol === "formatPrice", "Blindness Cure: extracts symbol 'formatPrice'");
+
+  const nullAccessResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: {} }) },
+      { path: "client/src/App.tsx", content: "const user = getUser();\nconst name = user.name;\nexport default function App() { return <div>{name}</div>; }" },
+    ],
+    [{ message: "Cannot read properties of undefined (reading 'name')", file: "client/src/App.tsx" }],
+  );
+  assert(nullAccessResult.diagnostics[0].category === "RUNTIME_EXCEPTION", "Blindness Cure: classifies null access");
+  assert(nullAccessResult.diagnostics[0].symbol === "name", "Blindness Cure: extracts property 'name'");
+  const fixedApp = nullAccessResult.files.find(f => f.path === "client/src/App.tsx");
+  assert(!!fixedApp && fixedApp.content.includes("?.name"), "Blindness Cure: injects optional chaining for null access");
+
+  const missingExportResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: {} }) },
+      { path: "client/src/utils.ts", content: "function helperFn() { return 42; }" },
+    ],
+    [{ message: "export 'helperFn' was not found in './utils'", file: "client/src/utils.ts" }],
+  );
+  assert(missingExportResult.diagnostics[0].category === "MISSING_EXPORT", "Blindness Cure: classifies missing export");
+
+  const typeErrorResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: {} }) },
+    ],
+    [{ message: "TypeError: response.json is not a function" }],
+  );
+  assert(typeErrorResult.diagnostics[0].category === "TYPE_ERROR", "Blindness Cure: classifies TypeError");
+  assert(typeErrorResult.diagnostics[0].severity === "high", "Blindness Cure: TypeError is high severity");
+
+  const syntaxResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: {} }) },
+    ],
+    [{ message: "SyntaxError: Unexpected end of input" }],
+  );
+  assert(syntaxResult.diagnostics[0].category === "SYNTAX_ERROR", "Blindness Cure: classifies SyntaxError");
+  assert(syntaxResult.diagnostics[0].severity === "critical", "Blindness Cure: SyntaxError is critical");
+
+  const renderCrashResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: {} }) },
+    ],
+    [{ message: "Objects are not valid as a React child" }],
+  );
+  assert(renderCrashResult.diagnostics[0].category === "RENDER_CRASH", "Blindness Cure: classifies React render crash");
+
+  const unknownResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: {} }) },
+    ],
+    [{ message: "Something completely unexpected happened in production" }],
+  );
+  assert(unknownResult.diagnostics[0].category === "UNKNOWN", "Blindness Cure: unknown errors classified as UNKNOWN");
+  assert(unknownResult.diagnostics[0].severity === "medium", "Blindness Cure: unknown errors are medium severity");
+
+  console.log("  -- Iterative Repair Loop --");
+
+  const multiErrorResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: { react: "18.2.0" } }) },
+      { path: "client/src/App.tsx", content: "import React from 'react';\nexport default function App() { return <div/>; }" },
+    ],
+    [
+      { message: "Cannot find module 'immer'" },
+      { message: "Cannot find module '@tanstack/react-query'" },
+    ],
+    { maxIterations: 3 },
+  );
+  const multiPkg = JSON.parse(multiErrorResult.files.find(f => f.path === "package.json")!.content);
+  assert(!!multiPkg.dependencies["immer"], "Blindness Cure: multi-error repair adds 'immer'");
+  assert(!!multiPkg.dependencies["@tanstack/react-query"], "Blindness Cure: multi-error repair adds '@tanstack/react-query'");
+  assert(multiErrorResult.iterationsUsed >= 1, "Blindness Cure: uses at least 1 iteration");
+  assert(multiErrorResult.repairs.length >= 2, "Blindness Cure: produces at least 2 repairs for 2 errors");
+
+  console.log("  -- Feedback Loop Integration --");
+
+  const noErrorResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: {} }) },
+      { path: "client/src/App.tsx", content: "export default function App() { return <div>Clean</div>; }" },
+    ],
+    [],
+  );
+  assert(noErrorResult.diagnostics.length === 0, "Blindness Cure: no errors = no diagnostics");
+  assert(noErrorResult.repairs.length === 0, "Blindness Cure: no errors = no repairs");
+  assert(noErrorResult.unresolvedErrors.length === 0, "Blindness Cure: no errors = no unresolved");
+  assert(noErrorResult.iterationsUsed === 0, "Blindness Cure: no errors = 0 iterations");
+
+  const unresolvedResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: {} }) },
+    ],
+    [{ message: "Cosmic ray flipped a bit in RAM" }],
+    { maxIterations: 2 },
+  );
+  assert(unresolvedResult.unresolvedErrors.length === 1, "Blindness Cure: truly unresolvable errors remain in unresolvedErrors");
+  assert(unresolvedResult.unresolvedErrors[0].message.includes("Cosmic ray"), "Blindness Cure: unresolved error preserves original message");
+
+  const repairResult = diagnoseAndRepair(
+    [
+      { path: "package.json", content: JSON.stringify({ dependencies: {} }) },
+      { path: "client/src/store.ts", content: "export const useStore = () => ({});" },
+    ],
+    [{ message: "Cannot find module 'zustand'" }, { message: "useStore is not defined", file: "client/src/App.tsx" }],
+    { maxIterations: 3 },
+  );
+  assert(repairResult.diagnostics.length >= 2, "Blindness Cure: processes multiple error types in single pass");
+  assert(repairResult.repairs.length > 0, "Blindness Cure: produces repairs for mixed error types");
+
+  console.log("  -- Classification Coverage --");
+
+  const allCategories = [
+    { msg: "Cannot find module 'express'", expected: "MISSING_MODULE" },
+    { msg: "useState is not defined", expected: "UNDEFINED_REFERENCE" },
+    { msg: "Cannot read properties of null (reading 'map')", expected: "RUNTIME_EXCEPTION" },
+    { msg: "export 'UserType' was not found in './types'", expected: "MISSING_EXPORT" },
+    { msg: "TypeError: db.select is not a function", expected: "TYPE_ERROR" },
+    { msg: "SyntaxError: Missing semicolon", expected: "SYNTAX_ERROR" },
+    { msg: "Unexpected token '<'", expected: "SYNTAX_ERROR" },
+    { msg: "Element type is invalid", expected: "RENDER_CRASH" },
+    { msg: "Nothing was returned from render", expected: "RENDER_CRASH" },
+    { msg: "Module has no exported member 'Config'", expected: "MISSING_EXPORT" },
+    { msg: "Cannot find name 'Request'", expected: "MISSING_IMPORT" },
+  ];
+
+  for (const tc of allCategories) {
+    const r = diagnoseAndRepair(
+      [{ path: "package.json", content: "{}" }],
+      [{ message: tc.msg }],
+    );
+    assert(r.diagnostics[0]?.category === tc.expected, `Blindness Cure Classification: "${tc.msg.slice(0, 40)}..." → ${tc.expected}`);
+  }
 }
 
 // === Vindicator Rule: Identity Forgery Elimination Test ===

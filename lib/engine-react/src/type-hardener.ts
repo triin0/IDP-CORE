@@ -2847,6 +2847,331 @@ export function hardenGeneratedTypes(
   return { files: currentFiles, fixes: allFixes };
 }
 
+interface RuntimeError {
+  message: string;
+  file?: string;
+  line?: number;
+  stack?: string;
+}
+
+interface DiagnosticClassification {
+  category: "MISSING_IMPORT" | "UNDEFINED_REFERENCE" | "TYPE_ERROR" | "MISSING_MODULE" | "RENDER_CRASH" | "MISSING_EXPORT" | "SYNTAX_ERROR" | "RUNTIME_EXCEPTION" | "UNKNOWN";
+  severity: "critical" | "high" | "medium" | "low";
+  targetFile?: string;
+  symbol?: string;
+  detail: string;
+}
+
+interface RepairResult {
+  files: Array<{ path: string; content: string }>;
+  repairs: string[];
+  diagnostics: DiagnosticClassification[];
+  unresolvedErrors: RuntimeError[];
+  iterationsUsed: number;
+}
+
+const ERROR_PATTERNS: Array<{
+  pattern: RegExp;
+  category: DiagnosticClassification["category"];
+  severity: DiagnosticClassification["severity"];
+  extract: (match: RegExpMatchArray) => { symbol?: string; targetFile?: string; detail: string };
+}> = [
+  {
+    pattern: /Cannot find module ['"]([^'"]+)['"]/,
+    category: "MISSING_MODULE",
+    severity: "critical",
+    extract: (m) => ({ symbol: m[1], detail: `Module '${m[1]}' not found` }),
+  },
+  {
+    pattern: /(\w+) is not defined/,
+    category: "UNDEFINED_REFERENCE",
+    severity: "critical",
+    extract: (m) => ({ symbol: m[1], detail: `Reference '${m[1]}' is not defined at runtime` }),
+  },
+  {
+    pattern: /Cannot read propert(?:y|ies) of (undefined|null)(?: \(reading '(\w+)'\))?/,
+    category: "RUNTIME_EXCEPTION",
+    severity: "critical",
+    extract: (m) => ({ symbol: m[2], detail: `Null/undefined access${m[2] ? ` on '${m[2]}'` : ""}` }),
+  },
+  {
+    pattern: /(?:export|imported) '(\w+)' (?:was not found in|is not exported from) ['"]([^'"]+)['"]/i,
+    category: "MISSING_EXPORT",
+    severity: "critical",
+    extract: (m) => ({ symbol: m[1], targetFile: m[2], detail: `'${m[1]}' not exported from '${m[2]}'` }),
+  },
+  {
+    pattern: /TypeError: (\w+(?:\.\w+)*) is not a function/,
+    category: "TYPE_ERROR",
+    severity: "high",
+    extract: (m) => ({ symbol: m[1], detail: `'${m[1]}' called as function but is not callable` }),
+  },
+  {
+    pattern: /SyntaxError: (.+?)(?:\n|$)/,
+    category: "SYNTAX_ERROR",
+    severity: "critical",
+    extract: (m) => ({ detail: `Syntax error: ${m[1]}` }),
+  },
+  {
+    pattern: /Unexpected token (.+?)(?:\n|$)/,
+    category: "SYNTAX_ERROR",
+    severity: "critical",
+    extract: (m) => ({ detail: `Unexpected token: ${m[1]}` }),
+  },
+  {
+    pattern: /(?:Element type is invalid|Nothing was returned from render|Objects are not valid as a React child)/,
+    category: "RENDER_CRASH",
+    severity: "critical",
+    extract: (m) => ({ detail: `React render failure: ${m[0].slice(0, 80)}` }),
+  },
+  {
+    pattern: /(?:has no exported member|Module has no exported member) '(\w+)'/,
+    category: "MISSING_EXPORT",
+    severity: "high",
+    extract: (m) => ({ symbol: m[1], detail: `Missing exported member '${m[1]}'` }),
+  },
+  {
+    pattern: /Cannot find name '(\w+)'/,
+    category: "MISSING_IMPORT",
+    severity: "high",
+    extract: (m) => ({ symbol: m[1], detail: `TypeScript cannot find name '${m[1]}'` }),
+  },
+];
+
+function classifyRuntimeErrors(errors: RuntimeError[]): DiagnosticClassification[] {
+  const classifications: DiagnosticClassification[] = [];
+
+  for (const err of errors) {
+    let matched = false;
+    for (const rule of ERROR_PATTERNS) {
+      const match = err.message.match(rule.pattern);
+      if (match) {
+        const extracted = rule.extract(match);
+        classifications.push({
+          category: rule.category,
+          severity: rule.severity,
+          targetFile: extracted.targetFile || err.file,
+          symbol: extracted.symbol,
+          detail: extracted.detail,
+        });
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      classifications.push({
+        category: "UNKNOWN",
+        severity: "medium",
+        targetFile: err.file,
+        detail: err.message.slice(0, 200),
+      });
+    }
+  }
+
+  return classifications;
+}
+
+function applyRuntimeRepairs(
+  files: Array<{ path: string; content: string }>,
+  diagnostics: DiagnosticClassification[],
+): HardenerResult {
+  const repairs: string[] = [];
+  let currentFiles = [...files];
+
+  const missingModules = diagnostics.filter(d => d.category === "MISSING_MODULE");
+  for (const diag of missingModules) {
+    if (!diag.symbol) continue;
+    const moduleName = diag.symbol;
+
+    const pkgFile = currentFiles.find(f => f.path === "package.json" || f.path.endsWith("/package.json"));
+    if (pkgFile) {
+      try {
+        const pkg = JSON.parse(pkgFile.content);
+        if (!pkg.dependencies?.[moduleName] && !pkg.devDependencies?.[moduleName]) {
+          pkg.dependencies = pkg.dependencies || {};
+          pkg.dependencies[moduleName] = "latest";
+          currentFiles = currentFiles.map(f =>
+            f.path === pkgFile.path ? { ...f, content: JSON.stringify(pkg, null, 2) } : f,
+          );
+          repairs.push(`[RUNTIME REPAIR] Added missing dependency '${moduleName}' to package.json`);
+        }
+      } catch {}
+    }
+  }
+
+  const undefinedRefs = diagnostics.filter(d => d.category === "UNDEFINED_REFERENCE" || d.category === "MISSING_IMPORT");
+  for (const diag of undefinedRefs) {
+    if (!diag.symbol) continue;
+    const symbol = diag.symbol;
+
+    const sourceFile = currentFiles.find(f => {
+      const exportPattern = new RegExp(`export\\s+(?:const|function|class|interface|type|enum)\\s+${symbol}\\b`);
+      return exportPattern.test(f.content);
+    });
+
+    if (sourceFile && diag.targetFile) {
+      const targetFile = currentFiles.find(f => f.path === diag.targetFile || f.path.endsWith(diag.targetFile || ""));
+      if (targetFile) {
+        let relativePath = sourceFile.path;
+        if (relativePath.startsWith("client/src/") || relativePath.startsWith("src/")) {
+          const fromDir = targetFile.path.substring(0, targetFile.path.lastIndexOf("/"));
+          const toFile = sourceFile.path.replace(/\.tsx?$/, "");
+          if (fromDir === sourceFile.path.substring(0, sourceFile.path.lastIndexOf("/"))) {
+            relativePath = "./" + toFile.split("/").pop()!;
+          } else {
+            relativePath = "./" + toFile;
+          }
+        }
+
+        const importLine = `import { ${symbol} } from "${relativePath}";\n`;
+        if (!targetFile.content.includes(symbol)) {
+          currentFiles = currentFiles.map(f =>
+            f.path === targetFile.path ? { ...f, content: importLine + f.content } : f,
+          );
+          repairs.push(`[RUNTIME REPAIR] Injected missing import for '${symbol}' into ${targetFile.path}`);
+        }
+      }
+    }
+  }
+
+  const missingExports = diagnostics.filter(d => d.category === "MISSING_EXPORT");
+  for (const diag of missingExports) {
+    if (!diag.symbol || !diag.targetFile) continue;
+
+    const sourceFile = currentFiles.find(f =>
+      f.path === diag.targetFile || f.path.endsWith(diag.targetFile || ""),
+    );
+
+    if (sourceFile) {
+      const hasDecl = new RegExp(`(?:const|let|var|function|class|interface|type|enum)\\s+${diag.symbol}\\b`).test(sourceFile.content);
+      const hasExport = new RegExp(`export\\s+.*${diag.symbol}\\b`).test(sourceFile.content);
+
+      if (hasDecl && !hasExport) {
+        const declPattern = new RegExp(`((?:const|let|var|function|class|interface|type|enum)\\s+${diag.symbol}\\b)`);
+        currentFiles = currentFiles.map(f =>
+          f.path === sourceFile.path
+            ? { ...f, content: f.content.replace(declPattern, `export $1`) }
+            : f,
+        );
+        repairs.push(`[RUNTIME REPAIR] Exported '${diag.symbol}' from ${sourceFile.path}`);
+      }
+    }
+  }
+
+  const nullAccess = diagnostics.filter(d => d.category === "RUNTIME_EXCEPTION" && d.symbol);
+  for (const diag of nullAccess) {
+    if (!diag.symbol) continue;
+    const prop = diag.symbol;
+
+    for (const file of currentFiles) {
+      const unsafePattern = new RegExp(`(\\w+)\\.${prop}(?!\\?)`, "g");
+      if (unsafePattern.test(file.content) && (file.path.endsWith(".ts") || file.path.endsWith(".tsx"))) {
+        const safePattern = new RegExp(`(\\w+)\\.${prop}(?!\\?)`, "g");
+        const newContent = file.content.replace(safePattern, `$1?.${prop}`);
+        if (newContent !== file.content) {
+          currentFiles = currentFiles.map(f =>
+            f.path === file.path ? { ...f, content: newContent } : f,
+          );
+          repairs.push(`[RUNTIME REPAIR] Added optional chaining for '${prop}' access in ${file.path}`);
+          break;
+        }
+      }
+    }
+  }
+
+  const renderCrashes = diagnostics.filter(d => d.category === "RENDER_CRASH");
+  for (const diag of renderCrashes) {
+    for (const file of currentFiles) {
+      if (!file.path.endsWith(".tsx")) continue;
+
+      if (diag.detail.includes("Nothing was returned from render")) {
+        if (!file.content.includes("return") && file.content.includes("=>")) {
+          const newContent = file.content.replace(
+            /=>\s*\{([^}]*)\}/,
+            "=> { return (<>$1</>); }",
+          );
+          if (newContent !== file.content) {
+            currentFiles = currentFiles.map(f =>
+              f.path === file.path ? { ...f, content: newContent } : f,
+            );
+            repairs.push(`[RUNTIME REPAIR] Fixed missing return statement in ${file.path}`);
+          }
+        }
+      }
+
+      if (diag.detail.includes("Objects are not valid as a React child")) {
+        const objectRenderPattern = /\{(\w+)\}/g;
+        let hasObjectRender = false;
+        const newContent = file.content.replace(/return\s*\(([\s\S]*?)\);/g, (match, jsx) => {
+          const fixed = jsx.replace(/\{(\w+)\}/g, (_: string, varName: string) => {
+            if (["children", "className", "style", "key", "ref", "id"].includes(varName)) return `{${varName}}`;
+            hasObjectRender = true;
+            return `{String(${varName})}`;
+          });
+          return `return (${fixed});`;
+        });
+        if (hasObjectRender && newContent !== file.content) {
+          currentFiles = currentFiles.map(f =>
+            f.path === file.path ? { ...f, content: newContent } : f,
+          );
+          repairs.push(`[RUNTIME REPAIR] Wrapped object renders with String() in ${file.path}`);
+        }
+      }
+    }
+  }
+
+  return { files: currentFiles, fixes: repairs };
+}
+
+export function diagnoseAndRepair(
+  files: Array<{ path: string; content: string }>,
+  runtimeErrors: RuntimeError[],
+  options?: { maxIterations?: number; engine?: "react" | "fastapi" | "mobile" },
+): RepairResult {
+  const maxIterations = options?.maxIterations ?? 3;
+  const engine = options?.engine ?? "react";
+  let currentFiles = files;
+  const allRepairs: string[] = [];
+  const allDiagnostics: DiagnosticClassification[] = [];
+  let remainingErrors = [...runtimeErrors];
+  let iteration = 0;
+
+  for (iteration = 0; iteration < maxIterations && remainingErrors.length > 0; iteration++) {
+    const diagnostics = classifyRuntimeErrors(remainingErrors);
+    allDiagnostics.push(...diagnostics);
+
+    const repairResult = applyRuntimeRepairs(currentFiles, diagnostics);
+    currentFiles = repairResult.files;
+    allRepairs.push(...repairResult.fixes);
+
+    if (engine === "react") {
+      const hardened = hardenGeneratedTypes(currentFiles);
+      currentFiles = hardened.files;
+      allRepairs.push(...hardened.fixes.filter(f => !allRepairs.includes(f)));
+    }
+
+    const repairedSymbols = new Set(
+      diagnostics.filter(d => d.symbol).map(d => d.symbol),
+    );
+    remainingErrors = remainingErrors.filter(err => {
+      for (const sym of repairedSymbols) {
+        if (sym && err.message.includes(sym)) return false;
+      }
+      return true;
+    });
+
+    if (repairResult.fixes.length === 0) break;
+  }
+
+  return {
+    files: currentFiles,
+    repairs: allRepairs,
+    diagnostics: allDiagnostics,
+    unresolvedErrors: remainingErrors,
+    iterationsUsed: iteration,
+  };
+}
+
 function fixSchemaValueImport(
   files: Array<{ path: string; content: string }>,
 ): HardenerResult {
