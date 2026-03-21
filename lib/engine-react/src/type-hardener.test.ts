@@ -1,4 +1,6 @@
 import { hardenGeneratedTypes } from "./type-hardener";
+import { hardenFastAPITypes } from "../../engine-fastapi/src/type-hardener";
+import { hardenMobileTypes } from "../../engine-mobile/src/type-hardener";
 
 let passed = 0;
 let failed = 0;
@@ -4282,6 +4284,342 @@ export function Scene() { return <Canvas><mesh /></Canvas>; }`,
   assert(!!presenceSystem, "presence-system should exist");
   assert(presenceSystem!.content.includes('displayName: "You"'), "setLocalUser should set displayName to You");
   assert(presenceSystem!.content.includes("return { localUserId: userId, peers }"), "setLocalUser should set both userId and peers");
+}
+
+console.log("\n=== Pass 49a: fixChronosPersistence - injects chronos.ts when R3F + CommandBus detected ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express();
+app.get("/api/health", (req, res) => { res.json({ ok: true }); });
+app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const chronos = result.files.find(f => f.path === "client/src/lib/chronos.ts");
+  assert(!!chronos, "should create chronos.ts");
+  assert(chronos!.content.includes("useChronosStore"), "should include useChronosStore");
+  assert(chronos!.content.includes("WorldSnapshot"), "should include WorldSnapshot interface");
+  assert(chronos!.content.includes("SceneNode"), "should include SceneNode interface");
+  assert(chronos!.content.includes("AUTO_SAVE_INTERVAL_MS"), "should include auto-save interval constant");
+  assert(chronos!.content.includes("MAX_SNAPSHOTS"), "should include max snapshots constant");
+  assert(chronos!.content.includes("createSnapshot"), "should include createSnapshot factory");
+  assert(chronos!.content.includes("diffSnapshots"), "should include diffSnapshots utility");
+  assert(chronos!.content.includes("worldLocked"), "should include worldLocked state");
+  assert(chronos!.content.includes("node.locked"), "should respect per-node locking");
+}
+
+console.log("\n=== Pass 49b: fixChronosPersistence - injects auto-save hook and world-lock utilities ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express(); app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const autoSave = result.files.find(f => f.path === "client/src/lib/chronos-auto-save.ts");
+  assert(!!autoSave, "should create chronos-auto-save.ts");
+  assert(autoSave!.content.includes("useAutoSave"), "should include useAutoSave hook");
+  assert(autoSave!.content.includes("loadSnapshot"), "should include loadSnapshot function");
+  assert(autoSave!.content.includes("listSnapshots"), "should include listSnapshots function");
+  assert(autoSave!.content.includes("/api/snapshots"), "should call /api/snapshots endpoint");
+
+  const worldLock = result.files.find(f => f.path === "client/src/lib/chronos-world-lock.ts");
+  assert(!!worldLock, "should create chronos-world-lock.ts");
+  assert(worldLock!.content.includes("lockWorld"), "should include lockWorld function");
+  assert(worldLock!.content.includes("unlockWorld"), "should include unlockWorld function");
+  assert(worldLock!.content.includes("lockNode"), "should include lockNode function");
+  assert(worldLock!.content.includes("unlockNode"), "should include unlockNode function");
+  assert(worldLock!.content.includes("isWorldLocked"), "should include isWorldLocked check");
+  assert(worldLock!.content.includes("getWorldVersion"), "should include getWorldVersion accessor");
+}
+
+console.log("\n=== Pass 49c: fixChronosPersistence - injects /api/snapshots CRUD server routes ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express();
+app.get("/api/health", (req, res) => { res.json({ ok: true }); });
+app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const serverFile = result.files.find(f => f.path === "server/src/index.ts");
+  assert(!!serverFile, "should modify server/src/index.ts");
+  assert(serverFile!.content.includes("app.post(\"/api/snapshots\""), "should inject POST /api/snapshots");
+  assert(serverFile!.content.includes("app.get(\"/api/snapshots\""), "should inject GET /api/snapshots");
+  assert(serverFile!.content.includes("app.get(\"/api/snapshots/:id\""), "should inject GET /api/snapshots/:id");
+  assert(serverFile!.content.includes("app.delete(\"/api/snapshots/:id\""), "should inject DELETE /api/snapshots/:id");
+  assert(serverFile!.content.includes("snapshotStore"), "should use in-memory snapshot store");
+}
+
+console.log("\n=== Pass 49d: fixChronosPersistence - skips when no R3F detected ===");
+{
+  const files = [
+    {
+      path: "client/src/App.tsx",
+      content: `export default function App() { return <div>Hello</div>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const chronos = result.files.find(f => f.path === "client/src/lib/chronos.ts");
+  assert(!chronos, "should NOT create chronos.ts without R3F");
+}
+
+console.log("\n=== Pass 49e: fixChronosPersistence - does not duplicate chronos.ts ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+    {
+      path: "client/src/lib/chronos.ts",
+      content: `import { create } from "zustand";
+interface ChronosStore { version: number; }
+export const useChronosStore = create<ChronosStore>(() => ({ version: 1 }));`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const chronosFiles = result.files.filter(f => f.path === "client/src/lib/chronos.ts");
+  assert(chronosFiles.length === 1, "should not duplicate chronos.ts");
+}
+
+console.log("\n=== Pass 49f: fixChronosPersistence - updateNode respects world lock and node lock ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express(); app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const chronos = result.files.find(f => f.path === "client/src/lib/chronos.ts");
+  assert(!!chronos, "chronos should exist for lock test");
+  assert(chronos!.content.includes("if (state.worldLocked) return state"), "updateNode should check worldLocked");
+  assert(chronos!.content.includes("if (node.locked) return state"), "updateNode should check node.locked");
+  assert(chronos!.content.includes("version: state.currentSnapshot.metadata.version + 1"), "updateNode should increment version");
+}
+
+console.log("\n=== Pass 49g: fixChronosPersistence - removeNode respects world lock ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express(); app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const chronos = result.files.find(f => f.path === "client/src/lib/chronos.ts");
+  assert(!!chronos, "chronos should exist for removeNode test");
+  const removeNodeBlock = chronos!.content.slice(chronos!.content.indexOf("removeNode"));
+  assert(removeNodeBlock.includes("if (state.worldLocked) return state"), "removeNode should check worldLocked");
+  assert(chronos!.content.includes("isDirty: true"), "removeNode should mark dirty");
+}
+
+console.log("\n=== Pass 49h: fixChronosBackend (FastAPI) - injects snapshot_store.py with Pydantic V2 ===");
+{
+  const fastResult = hardenFastAPITypes([
+    {
+      path: "app/main.py",
+      content: `from fastapi import FastAPI\napp = FastAPI()\n\n@app.get("/health")\ndef health():\n    return {"ok": True}\n\nif __name__ == "__main__":\n    import uvicorn\n    uvicorn.run(app)`,
+    },
+    { path: "requirements.txt", content: "fastapi>=0.100.0\nuvicorn>=0.23.0" },
+  ]);
+
+  const snapshotStore = fastResult.files.find(f => f.path === "snapshot_store.py");
+  assert(!!snapshotStore, "should create snapshot_store.py");
+  assert(snapshotStore!.content.includes("class SnapshotStore"), "should define SnapshotStore class");
+  assert(snapshotStore!.content.includes("ConfigDict"), "should use Pydantic V2 ConfigDict");
+  assert(snapshotStore!.content.includes("model_dump"), "should use Pydantic V2 model_dump");
+  assert(snapshotStore!.content.includes("max_snapshots"), "should enforce max snapshot limit");
+  assert(snapshotStore!.content.includes("lock_world"), "should include world lock");
+  assert(snapshotStore!.content.includes("unlock_world"), "should include world unlock");
+  assert(snapshotStore!.content.includes("def diff"), "should include snapshot diff");
+  assert(snapshotStore!.content.includes("SceneNodeSchema"), "should define SceneNodeSchema");
+  assert(snapshotStore!.content.includes("WorldSnapshotSchema"), "should define WorldSnapshotSchema");
+
+  const mainFile = fastResult.files.find(f => f.path === "app/main.py");
+  assert(!!mainFile, "should modify main.py");
+  assert(mainFile!.content.includes("/api/snapshots"), "should inject snapshot CRUD routes");
+  assert(mainFile!.content.includes("/api/world/lock"), "should inject world lock endpoint");
+  assert(mainFile!.content.includes("/api/world/unlock"), "should inject world unlock endpoint");
+  assert(mainFile!.content.includes("/api/world/status"), "should inject world status endpoint");
+  assert(mainFile!.content.includes("/api/snapshots/diff"), "should inject diff endpoint");
+}
+
+console.log("\n=== Pass 49i: fixChronosBackend (FastAPI) - skips when snapshot_store.py already exists ===");
+{
+  const fastResult = hardenFastAPITypes([
+    {
+      path: "app/main.py",
+      content: `from fastapi import FastAPI\napp = FastAPI()\n`,
+    },
+    {
+      path: "snapshot_store.py",
+      content: `class SnapshotStore:\n    pass\n`,
+    },
+  ]);
+
+  const stores = fastResult.files.filter(f => f.path === "snapshot_store.py");
+  assert(stores.length === 1, "should not duplicate snapshot_store.py");
+}
+
+console.log("\n=== Pass 49i2: fixChronosBackend (FastAPI) - reconciles routes when snapshot_store.py exists but routes missing ===");
+{
+  const fastResult = hardenFastAPITypes([
+    {
+      path: "app/main.py",
+      content: `from fastapi import FastAPI\napp = FastAPI()\n\n@app.get("/health")\ndef health():\n    return {"ok": True}\n`,
+    },
+    {
+      path: "snapshot_store.py",
+      content: `class SnapshotStore:\n    pass\n`,
+    },
+  ]);
+
+  const stores = fastResult.files.filter(f => f.path === "snapshot_store.py");
+  assert(stores.length === 1, "should not duplicate snapshot_store.py when already exists");
+
+  const mainFile = fastResult.files.find(f => f.path === "app/main.py");
+  assert(!!mainFile, "should find main.py");
+  assert(mainFile!.content.includes("/api/snapshots"), "should inject routes even when snapshot_store.py pre-exists");
+  assert(mainFile!.content.includes("/api/world/lock"), "should inject lock route when store exists but routes missing");
+}
+
+console.log("\n=== Pass 49j: fixChronosMobileSync - injects chronos-mobile.ts with offline queue ===");
+{
+  const mobileResult = hardenMobileTypes([
+    {
+      path: "app/_layout.tsx",
+      content: `import { Stack } from "expo-router"; export default function Layout() { return <Stack />; }`,
+    },
+    {
+      path: "package.json",
+      content: JSON.stringify({ name: "test-app", dependencies: { "expo": "~51.0.0", "expo-haptics": "~13.0.0" } }),
+    },
+  ]);
+
+  const chronosMobile = mobileResult.files.find(f => f.path === "lib/chronos-mobile.ts");
+  assert(!!chronosMobile, "should create lib/chronos-mobile.ts");
+  assert(chronosMobile!.content.includes("useChronosMobileSync"), "should export useChronosMobileSync");
+  assert(chronosMobile!.content.includes("AsyncStorage"), "should use AsyncStorage for offline persistence");
+  assert(chronosMobile!.content.includes("NetInfo"), "should use NetInfo for connectivity detection");
+  assert(chronosMobile!.content.includes("Haptics"), "should integrate haptic feedback on save");
+  assert(chronosMobile!.content.includes("OfflineAction"), "should define OfflineAction interface");
+  assert(chronosMobile!.content.includes("MAX_OFFLINE_QUEUE"), "should cap offline queue at max");
+  assert(chronosMobile!.content.includes("flushQueue"), "should include flushQueue for reconnect sync");
+  assert(chronosMobile!.content.includes("saveSnapshotOffline"), "should include saveSnapshotOffline convenience");
+  assert(chronosMobile!.content.includes("loadLastSnapshot"), "should include loadLastSnapshot");
+
+  const pkg = JSON.parse(mobileResult.files.find(f => f.path === "package.json")!.content);
+  assert(!!pkg.dependencies["@react-native-community/netinfo"], "should add netinfo dependency");
+}
+
+console.log("\n=== Pass 49j2: fixChronosMobileSync - has flush guard and malformed action filter ===");
+{
+  const mobileResult = hardenMobileTypes([
+    {
+      path: "app/_layout.tsx",
+      content: `import { Stack } from "expo-router"; export default function Layout() { return <Stack />; }`,
+    },
+    {
+      path: "package.json",
+      content: JSON.stringify({ name: "test-app", dependencies: { "expo": "~51.0.0" } }),
+    },
+  ]);
+
+  const chronosMobile = mobileResult.files.find(f => f.path === "lib/chronos-mobile.ts");
+  assert(!!chronosMobile, "should create lib/chronos-mobile.ts for guard test");
+  assert(chronosMobile!.content.includes("flushingRef"), "should include flushingRef for single-flight guard");
+  assert(chronosMobile!.content.includes("if (flushingRef.current) return"), "should skip flush when already in flight");
+  assert(chronosMobile!.content.includes("flushingRef.current = false"), "should release flush lock in finally");
+  assert(chronosMobile!.content.includes("if (!action.type || !action.payload)"), "should filter malformed actions");
+}
+
+console.log("\n=== Pass 49k: fixChronosMobileSync - skips when chronos-mobile.ts already exists ===");
+{
+  const mobileResult = hardenMobileTypes([
+    {
+      path: "app/_layout.tsx",
+      content: `import { Stack } from "expo-router"; export default function Layout() { return <Stack />; }`,
+    },
+    {
+      path: "lib/chronos-mobile.ts",
+      content: `export function useChronosMobileSync() {}`,
+    },
+    {
+      path: "package.json",
+      content: JSON.stringify({ name: "test-app", dependencies: { "expo": "~51.0.0" } }),
+    },
+  ]);
+
+  const chronosFiles = mobileResult.files.filter(f => f.path === "lib/chronos-mobile.ts");
+  assert(chronosFiles.length === 1, "should not duplicate chronos-mobile.ts");
 }
 
 console.log(`\n${"=".repeat(50)}`);

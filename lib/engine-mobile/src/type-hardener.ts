@@ -62,6 +62,10 @@ export function hardenMobileTypes(
   currentFiles = hapticPresenceFix.files;
   allFixes.push(...hapticPresenceFix.fixes);
 
+  const chronosMobileFix = fixChronosMobileSync(currentFiles);
+  currentFiles = chronosMobileFix.files;
+  allFixes.push(...chronosMobileFix.fixes);
+
   return { files: currentFiles, fixes: allFixes };
 }
 
@@ -583,6 +587,188 @@ export function usePresenceHaptics(wsUrl: string) {
           f.path === "package.json" ? { path: f.path, content: JSON.stringify(pkg, null, 2) } : f,
         );
         fixes.push("[package.json] Added expo-haptics dependency for presence feedback");
+      }
+    } catch {}
+  }
+
+  return { files: result, fixes };
+}
+
+function fixChronosMobileSync(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasChronosMobile = files.some(
+    f => f.path === "lib/chronos-mobile.ts" && f.content.includes("useChronosMobileSync"),
+  );
+  if (hasChronosMobile) return { files, fixes };
+
+  const hasLayout = files.some(f => f.path.includes("app/") && f.path.endsWith("_layout.tsx"));
+  if (!hasLayout) return { files, fixes };
+
+  const CHRONOS_MOBILE = `import { useEffect, useRef, useState, useCallback } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics";
+import NetInfo from "@react-native-community/netinfo";
+
+const CHRONOS_STORAGE_KEY = "@chronos:offline_queue";
+const CHRONOS_LAST_SNAPSHOT_KEY = "@chronos:last_snapshot";
+const AUTO_SYNC_INTERVAL_MS = 10_000;
+const MAX_OFFLINE_QUEUE = 20;
+
+export interface OfflineAction {
+  id: string;
+  type: "save" | "lock" | "unlock";
+  payload: Record<string, unknown>;
+  timestamp: number;
+}
+
+export function useChronosMobileSync(apiUrl: string) {
+  const [isOnline, setIsOnline] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "error">("idle");
+  const [queueLength, setQueueLength] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const flushingRef = useRef(false);
+
+  const enqueueAction = useCallback(async (action: Omit<OfflineAction, "id" | "timestamp">) => {
+    try {
+      const raw = await AsyncStorage.getItem(CHRONOS_STORAGE_KEY);
+      let queue: OfflineAction[] = [];
+      try { queue = raw ? JSON.parse(raw) : []; } catch { queue = []; }
+      if (!action.type || !action.payload) return;
+      const entry: OfflineAction = {
+        ...action,
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+        timestamp: Date.now(),
+      };
+      queue.push(entry);
+      const trimmed = queue.slice(-MAX_OFFLINE_QUEUE);
+      await AsyncStorage.setItem(CHRONOS_STORAGE_KEY, JSON.stringify(trimmed));
+      setQueueLength(trimmed.length);
+    } catch {}
+  }, []);
+
+  const flushQueue = useCallback(async () => {
+    if (flushingRef.current) return;
+    flushingRef.current = true;
+    try {
+      const raw = await AsyncStorage.getItem(CHRONOS_STORAGE_KEY);
+      let queue: OfflineAction[] = [];
+      try { queue = raw ? JSON.parse(raw) : []; } catch { queue = []; }
+      if (queue.length === 0) { flushingRef.current = false; return; }
+
+      setSyncStatus("syncing");
+      const remaining: OfflineAction[] = [];
+
+      for (const action of queue) {
+        try {
+          if (!action.type || !action.payload) { remaining.push(action); continue; }
+
+          let endpoint = "";
+          let method = "POST";
+
+          if (action.type === "save") endpoint = "/api/snapshots";
+          else if (action.type === "lock") endpoint = "/api/world/lock";
+          else if (action.type === "unlock") endpoint = "/api/world/unlock";
+          else { remaining.push(action); continue; }
+
+          const response = await fetch(\`\${apiUrl}\${endpoint}\`, {
+            method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(action.payload),
+          });
+
+          if (!response.ok) {
+            remaining.push(action);
+          }
+        } catch {
+          remaining.push(action);
+        }
+      }
+
+      await AsyncStorage.setItem(CHRONOS_STORAGE_KEY, JSON.stringify(remaining));
+      setQueueLength(remaining.length);
+      setSyncStatus(remaining.length > 0 ? "error" : "idle");
+
+      if (remaining.length < queue.length) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch {
+      setSyncStatus("error");
+    } finally {
+      flushingRef.current = false;
+    }
+  }, [apiUrl]);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const online = !!(state.isConnected && state.isInternetReachable);
+      setIsOnline(online);
+      if (online) {
+        flushQueue();
+      }
+    });
+    return () => unsubscribe();
+  }, [flushQueue]);
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      if (isOnline) {
+        flushQueue();
+      }
+    }, AUTO_SYNC_INTERVAL_MS);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isOnline, flushQueue]);
+
+  const saveSnapshotOffline = useCallback(async (snapshot: Record<string, unknown>) => {
+    await AsyncStorage.setItem(CHRONOS_LAST_SNAPSHOT_KEY, JSON.stringify(snapshot));
+    await enqueueAction({ type: "save", payload: { snapshot, autoSave: true } });
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [enqueueAction]);
+
+  const loadLastSnapshot = useCallback(async (): Promise<Record<string, unknown> | null> => {
+    try {
+      const raw = await AsyncStorage.getItem(CHRONOS_LAST_SNAPSHOT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  return {
+    isOnline,
+    syncStatus,
+    queueLength,
+    enqueueAction,
+    flushQueue,
+    saveSnapshotOffline,
+    loadLastSnapshot,
+  };
+}
+
+export { CHRONOS_STORAGE_KEY, AUTO_SYNC_INTERVAL_MS, MAX_OFFLINE_QUEUE };
+`;
+
+  let result: PipelineFile[] = [...files, { path: "lib/chronos-mobile.ts", content: CHRONOS_MOBILE }];
+  fixes.push("[lib/chronos-mobile.ts] Injected useChronosMobileSync (offline queue, auto-reconnect, AsyncStorage persistence, haptic save feedback)");
+
+  const pkgFile = result.find(f => f.path === "package.json");
+  if (pkgFile) {
+    try {
+      const pkg = JSON.parse(pkgFile.content);
+      const deps = pkg.dependencies || {};
+      let depsModified = false;
+      if (!deps["@react-native-community/netinfo"]) {
+        deps["@react-native-community/netinfo"] = "~11.0.0";
+        depsModified = true;
+      }
+      if (depsModified) {
+        pkg.dependencies = deps;
+        result = result.map(f =>
+          f.path === "package.json" ? { path: f.path, content: JSON.stringify(pkg, null, 2) } : f,
+        );
+        fixes.push("[package.json] Added @react-native-community/netinfo for offline detection");
       }
     } catch {}
   }

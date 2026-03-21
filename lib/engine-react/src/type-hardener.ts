@@ -2840,6 +2840,10 @@ export function hardenGeneratedTypes(
   currentFiles = collaborativePresenceFix.files;
   allFixes.push(...collaborativePresenceFix.fixes);
 
+  const chronosFix = fixChronosPersistence(currentFiles);
+  currentFiles = chronosFix.files;
+  allFixes.push(...chronosFix.fixes);
+
   return { files: currentFiles, fixes: allFixes };
 }
 
@@ -4119,6 +4123,341 @@ app.get("/api/presence/active", async (_req, res) => {
         f.path === serverFile.path ? { path: f.path, content } : f,
       );
       fixes.push(`[${serverFile.path}] Injected /api/presence/active REST endpoint for presence state`);
+    }
+  }
+
+  return { files: result, fixes };
+}
+
+function fixChronosPersistence(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasR3F = files.some(
+    f => f.path.match(/\.[tj]sx?$/) && (f.content.includes("@react-three/fiber") || f.content.includes("<Canvas")),
+  );
+  const hasCommandBus = files.some(
+    f => f.path === "client/src/lib/command-bus.ts" && f.content.includes("commandBus"),
+  );
+  if (!hasR3F || !hasCommandBus) return { files, fixes };
+
+  const hasChronos = files.some(
+    f => f.path === "client/src/lib/chronos.ts" && f.content.includes("ChronosStore"),
+  );
+  if (hasChronos) return { files, fixes };
+
+  const CHRONOS_STORE = `import { create } from "zustand";
+
+export interface WorldSnapshot {
+  id: string;
+  name: string;
+  timestamp: number;
+  sceneGraph: Record<string, SceneNode>;
+  metadata: {
+    version: number;
+    author: string;
+    description: string;
+  };
+}
+
+export interface SceneNode {
+  id: string;
+  type: string;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: [number, number, number];
+  props: Record<string, unknown>;
+  parentId: string | null;
+  locked: boolean;
+}
+
+interface ChronosState {
+  currentSnapshot: WorldSnapshot | null;
+  snapshots: WorldSnapshot[];
+  isDirty: boolean;
+  autoSaveEnabled: boolean;
+  lastSavedAt: number;
+  worldLocked: boolean;
+  setSnapshot: (snapshot: WorldSnapshot) => void;
+  markDirty: () => void;
+  markClean: () => void;
+  addSnapshot: (snapshot: WorldSnapshot) => void;
+  toggleAutoSave: () => void;
+  setWorldLocked: (locked: boolean) => void;
+  getNode: (nodeId: string) => SceneNode | undefined;
+  updateNode: (nodeId: string, updates: Partial<SceneNode>) => void;
+  removeNode: (nodeId: string) => void;
+}
+
+const AUTO_SAVE_INTERVAL_MS = 5_000;
+const MAX_SNAPSHOTS = 50;
+
+export const useChronosStore = create<ChronosState>((set, get) => ({
+  currentSnapshot: null,
+  snapshots: [],
+  isDirty: false,
+  autoSaveEnabled: true,
+  lastSavedAt: 0,
+  worldLocked: false,
+  setSnapshot: (snapshot) => set({ currentSnapshot: snapshot, isDirty: false, lastSavedAt: Date.now() }),
+  markDirty: () => set({ isDirty: true }),
+  markClean: () => set({ isDirty: false, lastSavedAt: Date.now() }),
+  addSnapshot: (snapshot) =>
+    set((state) => ({
+      snapshots: [...state.snapshots, snapshot].slice(-MAX_SNAPSHOTS),
+    })),
+  toggleAutoSave: () => set((state) => ({ autoSaveEnabled: !state.autoSaveEnabled })),
+  setWorldLocked: (locked) => set({ worldLocked: locked }),
+  getNode: (nodeId) => get().currentSnapshot?.sceneGraph[nodeId],
+  updateNode: (nodeId, updates) =>
+    set((state) => {
+      if (state.worldLocked) return state;
+      if (!state.currentSnapshot) return state;
+      const node = state.currentSnapshot.sceneGraph[nodeId];
+      if (!node) return state;
+      if (node.locked) return state;
+      return {
+        currentSnapshot: {
+          ...state.currentSnapshot,
+          sceneGraph: {
+            ...state.currentSnapshot.sceneGraph,
+            [nodeId]: { ...node, ...updates },
+          },
+          metadata: {
+            ...state.currentSnapshot.metadata,
+            version: state.currentSnapshot.metadata.version + 1,
+          },
+        },
+        isDirty: true,
+      };
+    }),
+  removeNode: (nodeId) =>
+    set((state) => {
+      if (state.worldLocked) return state;
+      if (!state.currentSnapshot) return state;
+      const { [nodeId]: _, ...rest } = state.currentSnapshot.sceneGraph;
+      return {
+        currentSnapshot: {
+          ...state.currentSnapshot,
+          sceneGraph: rest,
+        },
+        isDirty: true,
+      };
+    }),
+}));
+
+export function createSnapshot(
+  name: string,
+  sceneGraph: Record<string, SceneNode>,
+  author: string = "system",
+  description: string = "",
+): WorldSnapshot {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    timestamp: Date.now(),
+    sceneGraph,
+    metadata: { version: 1, author, description },
+  };
+}
+
+export function diffSnapshots(
+  a: WorldSnapshot,
+  b: WorldSnapshot,
+): { added: string[]; removed: string[]; modified: string[] } {
+  const aKeys = new Set(Object.keys(a.sceneGraph));
+  const bKeys = new Set(Object.keys(b.sceneGraph));
+  const added = [...bKeys].filter((k) => !aKeys.has(k));
+  const removed = [...aKeys].filter((k) => !bKeys.has(k));
+  const modified = [...aKeys].filter(
+    (k) => bKeys.has(k) && JSON.stringify(a.sceneGraph[k]) !== JSON.stringify(b.sceneGraph[k]),
+  );
+  return { added, removed, modified };
+}
+
+export { AUTO_SAVE_INTERVAL_MS, MAX_SNAPSHOTS };
+`;
+
+  const CHRONOS_AUTO_SAVE = `import { useEffect, useRef } from "react";
+import { useChronosStore, AUTO_SAVE_INTERVAL_MS } from "./chronos";
+
+export function useAutoSave(apiUrl: string) {
+  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const { autoSaveEnabled, markClean, addSnapshot } = useChronosStore();
+
+  useEffect(() => {
+    if (!autoSaveEnabled) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
+    }
+
+    intervalRef.current = setInterval(async () => {
+      const state = useChronosStore.getState();
+      if (!state.isDirty || !state.currentSnapshot || state.worldLocked) return;
+
+      try {
+        const response = await fetch(\`\${apiUrl}/api/snapshots\`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            snapshot: state.currentSnapshot,
+            autoSave: true,
+          }),
+        });
+
+        if (response.ok) {
+          markClean();
+          addSnapshot(state.currentSnapshot);
+        }
+      } catch (err) {
+        console.warn("[Chronos] Auto-save failed, will retry:", err);
+      }
+    }, AUTO_SAVE_INTERVAL_MS);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [autoSaveEnabled, apiUrl, markClean, addSnapshot]);
+
+  return { autoSaveEnabled };
+}
+
+export async function loadSnapshot(
+  apiUrl: string,
+  snapshotId: string,
+): Promise<boolean> {
+  try {
+    const response = await fetch(\`\${apiUrl}/api/snapshots/\${snapshotId}\`);
+    if (!response.ok) return false;
+    const snapshot = await response.json();
+    useChronosStore.getState().setSnapshot(snapshot);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function listSnapshots(
+  apiUrl: string,
+): Promise<Array<{ id: string; name: string; timestamp: number }>> {
+  try {
+    const response = await fetch(\`\${apiUrl}/api/snapshots\`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch {
+    return [];
+  }
+}
+`;
+
+  const CHRONOS_WORLD_LOCK = `import { useChronosStore } from "./chronos";
+
+export function lockWorld(): void {
+  useChronosStore.getState().setWorldLocked(true);
+}
+
+export function unlockWorld(): void {
+  useChronosStore.getState().setWorldLocked(false);
+}
+
+export function lockNode(nodeId: string): void {
+  const state = useChronosStore.getState();
+  if (!state.currentSnapshot) return;
+  const node = state.currentSnapshot.sceneGraph[nodeId];
+  if (!node) return;
+  useChronosStore.setState({
+    currentSnapshot: {
+      ...state.currentSnapshot,
+      sceneGraph: {
+        ...state.currentSnapshot.sceneGraph,
+        [nodeId]: { ...node, locked: true },
+      },
+    },
+  });
+}
+
+export function unlockNode(nodeId: string): void {
+  const state = useChronosStore.getState();
+  if (!state.currentSnapshot) return;
+  const node = state.currentSnapshot.sceneGraph[nodeId];
+  if (!node) return;
+  useChronosStore.setState({
+    currentSnapshot: {
+      ...state.currentSnapshot,
+      sceneGraph: {
+        ...state.currentSnapshot.sceneGraph,
+        [nodeId]: { ...node, locked: false },
+      },
+    },
+  });
+}
+
+export function isWorldLocked(): boolean {
+  return useChronosStore.getState().worldLocked;
+}
+
+export function isNodeLocked(nodeId: string): boolean {
+  return useChronosStore.getState().getNode(nodeId)?.locked ?? false;
+}
+
+export function getWorldVersion(): number {
+  return useChronosStore.getState().currentSnapshot?.metadata.version ?? 0;
+}
+`;
+
+  let result = [...files,
+    { path: "client/src/lib/chronos.ts", content: CHRONOS_STORE },
+    { path: "client/src/lib/chronos-auto-save.ts", content: CHRONOS_AUTO_SAVE },
+    { path: "client/src/lib/chronos-world-lock.ts", content: CHRONOS_WORLD_LOCK },
+  ];
+
+  fixes.push("[client/src/lib/chronos.ts] Injected ChronosStore (scene graph, snapshot management, world/node locking, auto-save interval, snapshot diffing)");
+  fixes.push("[client/src/lib/chronos-auto-save.ts] Injected useAutoSave hook (5s interval, API persistence, loadSnapshot, listSnapshots)");
+  fixes.push("[client/src/lib/chronos-world-lock.ts] Injected world/node locking utilities (lockWorld, unlockWorld, lockNode, unlockNode, version tracking)");
+
+  const serverFile = result.find(
+    f => f.path.startsWith("server/") && f.path.endsWith("index.ts") && f.content.includes("app"),
+  );
+  if (serverFile && !serverFile.content.includes("/api/snapshots")) {
+    let content = serverFile.content;
+
+    const snapshotRoutes = `
+const snapshotStore: Map<string, any> = new Map();
+
+app.post("/api/snapshots", async (req, res) => {
+  const { snapshot, autoSave } = req.body;
+  if (!snapshot?.id) return res.status(400).json({ error: "Missing snapshot" });
+  snapshotStore.set(snapshot.id, { ...snapshot, savedAt: Date.now(), autoSave: !!autoSave });
+  res.json({ id: snapshot.id, savedAt: Date.now() });
+});
+
+app.get("/api/snapshots", async (_req, res) => {
+  const list = [...snapshotStore.values()].map(s => ({
+    id: s.id, name: s.name, timestamp: s.timestamp, version: s.metadata?.version,
+  }));
+  res.json(list);
+});
+
+app.get("/api/snapshots/:id", async (req, res) => {
+  const snapshot = snapshotStore.get(req.params.id as string);
+  if (!snapshot) return res.status(404).json({ error: "Snapshot not found" });
+  res.json(snapshot);
+});
+
+app.delete("/api/snapshots/:id", async (req, res) => {
+  const deleted = snapshotStore.delete(req.params.id as string);
+  res.json({ deleted });
+});
+`;
+
+    const listenIdx = content.indexOf("app.listen");
+    if (listenIdx !== -1) {
+      content = content.slice(0, listenIdx) + snapshotRoutes + "\n" + content.slice(listenIdx);
+      result = result.map(f =>
+        f.path === serverFile.path ? { path: f.path, content } : f,
+      );
+      fixes.push(`[${serverFile.path}] Injected /api/snapshots CRUD endpoints (create, list, get, delete)`);
     }
   }
 

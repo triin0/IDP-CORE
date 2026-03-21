@@ -148,7 +148,7 @@ Run 35 Results (Project ID `ab7587c0`):
 Analysis: The Prompt Hardening successfully prevented the classic "Listener Leak" and "Shared Type Phantom" hallucinations. Minor residual TypeScript strictness errors (TS2693 schema-as-type, TS2322 tuple length) bypassed the build breaker due to passing hash integrity, mapping the next targets for static Vindicator passes (37 and 38). The system is officially capable of deterministic, real-time 3D generation.
 
 **FastAPI Type Hardener (Python Vindicator):**
-Located at `lib/engine-fastapi/src/type-hardener.ts`, runs 11 deterministic rewrite passes on generated Python files:
+Located at `lib/engine-fastapi/src/type-hardener.ts`, runs 12 deterministic rewrite passes on generated Python files:
 1. **fixLegacySQLAlchemy** — Replaces `declarative_base()` with `DeclarativeBase`, `Column()` with `mapped_column()` (SQLAlchemy 2.0 mandatory).
 2. **fixPydanticV1Patterns** — Replaces `Optional[X]` with `X | None` (PEP 604), `List[X]` with `list[X]` (PEP 585), `class Config:` with `model_config = ConfigDict()` (Pydantic V2).
 3. **fixSyncRouteHandlers** — Converts sync `def` route handlers to `async def` when preceded by FastAPI decorators.
@@ -161,10 +161,12 @@ Located at `lib/engine-fastapi/src/type-hardener.ts`, runs 11 deterministic rewr
 10. **fixResponseCompression** — Injects `GZipMiddleware(minimum_size=500)` from Starlette for automatic response compression on large payloads (3D scene state, bulk data).
 11. **fixFastAPIPerformanceConstants** — Injects `perf_config.py` with `PERF_LIMITS` (pagination defaults, compression thresholds, connection pool sizing, query timeout) and `PERF_HINTS` documentation.
 
+12. **fixChronosBackend** — When `main.py` with FastAPI detected: injects `snapshot_store.py` with Pydantic V2 `SnapshotStore` class (SceneNodeSchema, WorldSnapshotSchema, SnapshotCreate models with `ConfigDict(extra="forbid")`), world locking (lock_world/unlock_world with owner tracking), snapshot diffing (added/removed/modified nodes), auto-eviction at MAX_SNAPSHOTS=50; injects /api/snapshots CRUD, /api/world/lock|unlock|status, /api/snapshots/diff/{id_a}/{id_b} endpoints into main.py.
+
 Wired into `pipeline.ts` and `refine.ts` — runs after code generation, before Golden Path checks. Emits `"type-hardening"` pipeline events via "FastAPI Vindicator" agent.
 
 **Mobile Type Hardener (Mobile Vindicator):**
-Located at `lib/engine-mobile/src/type-hardener.ts`, runs 11 deterministic rewrite passes on generated Expo/React Native files:
+Located at `lib/engine-mobile/src/type-hardener.ts`, runs 12 deterministic rewrite passes on generated Expo/React Native files:
 1. **fixStyleSheetCreate** — Removes `StyleSheet.create()` blocks and converts `style={styles.x}` to `className="x"` (NativeWind mandatory).
 2. **fixLocalStorageUsage** — Replaces `localStorage.getItem/setItem/removeItem` with `AsyncStorage` equivalents (React Native has no localStorage).
 3. **fixSafeAreaProvider** — Injects `SafeAreaProvider` wrapper in `app/_layout.tsx` if missing.
@@ -176,6 +178,8 @@ Located at `lib/engine-mobile/src/type-hardener.ts`, runs 11 deterministic rewri
 9. **fixHeavyReRenders** — Wraps components with expensive operations (useEffect, .map, .filter, fetch) in `React.memo()` to prevent unnecessary re-renders; handles default and named exports.
 10. **fixAnimationPerformance** — Replaces core `react-native` `Animated` import with `react-native-reanimated` for native-thread 60fps animations; auto-adds `FadeIn`, `FadeOut`, `SlideInRight` entering animations.
 11. **fixMobilePerformanceConstants** — Injects `lib/performance-wall.ts` with `MOBILE_PERF_LIMITS` (FlatList window size, max simultaneous animations, image cache limits, bundle size caps, target FPS) and `PERF_HINTS` documentation.
+
+12. **fixChronosMobileSync** — When `app/_layout.tsx` detected (Expo project): injects `lib/chronos-mobile.ts` with `useChronosMobileSync()` hook providing offline-first snapshot persistence via AsyncStorage queue (MAX_OFFLINE_QUEUE=20), automatic NetInfo-based reconnection sync (AUTO_SYNC_INTERVAL_MS=10000), `flushQueue()` for batch server sync, `saveSnapshotOffline()` with haptic feedback, `loadLastSnapshot()` for cache recovery; adds `@react-native-community/netinfo` dependency.
 
 Wired into `pipeline.ts` and `refine.ts` — runs after code generation, before Golden Path checks. Emits `"type-hardening"` pipeline events via "Mobile Vindicator" agent.
 
@@ -191,5 +195,5 @@ Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardenin
   - **FastAPI**: `presence_relay.py` (PresenceManager class with asyncio-safe WebSocket relay, automatic dead connection cleanup, `resolve_conflict()` for deterministic last-write-wins, `get_active_peers()` with timeout filtering); `/ws/presence/{user_id}` WebSocket endpoint and `/api/presence/active` REST endpoint injected into main.py.
   - **Mobile**: `lib/haptic-presence.ts` (6 event types: peer:joined, peer:left, object:moved, object:created, object:deleted, conflict:resolved; mapped to expo-haptics ImpactFeedbackStyle/NotificationFeedbackType; 100ms throttle; `usePresenceHaptics()` WebSocket listener hook); adds expo-haptics dependency.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 480 tests covering all 46 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 552 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes).
 - Stub collision guard: prevents duplicate declarations when imported symbols match stub candidates.

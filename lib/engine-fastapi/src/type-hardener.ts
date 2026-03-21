@@ -62,6 +62,10 @@ export function hardenFastAPITypes(
   currentFiles = presenceRelay.files;
   allFixes.push(...presenceRelay.fixes);
 
+  const chronosBackend = fixChronosBackend(currentFiles);
+  currentFiles = chronosBackend.files;
+  allFixes.push(...chronosBackend.fixes);
+
   return { files: currentFiles, fixes: allFixes };
 }
 
@@ -807,6 +811,215 @@ async def get_active_presence():
   }
 
   fixes.push("[presence_relay.py] Injected PresenceManager with WebSocket relay, conflict resolution, heartbeat cleanup");
+
+  return { files: result, fixes };
+}
+
+function fixChronosBackend(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasMainPy = files.some(f => f.path.endsWith("main.py") && f.content.includes("FastAPI"));
+  if (!hasMainPy) return { files, fixes };
+
+  const hasChronos = files.some(
+    f => f.path === "snapshot_store.py" && f.content.includes("SnapshotStore"),
+  );
+
+  const SNAPSHOT_STORE = `"""Chronos snapshot persistence for world state management."""
+import json
+import time
+import uuid
+from typing import Dict, List, Optional
+from pydantic import BaseModel, ConfigDict
+
+
+class SceneNodeSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    type: str
+    position: list[float]
+    rotation: list[float]
+    scale: list[float]
+    props: dict
+    parentId: str | None = None
+    locked: bool = False
+
+
+class SnapshotMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    version: int = 1
+    author: str = "system"
+    description: str = ""
+
+
+class WorldSnapshotSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    name: str
+    timestamp: float
+    sceneGraph: dict[str, SceneNodeSchema]
+    metadata: SnapshotMetadata
+
+
+class SnapshotCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    snapshot: WorldSnapshotSchema
+    autoSave: bool = False
+
+
+class SnapshotStore:
+    def __init__(self, max_snapshots: int = 50) -> None:
+        self._store: Dict[str, dict] = {}
+        self._max_snapshots = max_snapshots
+        self._lock_owner: Optional[str] = None
+
+    def save(self, snapshot: WorldSnapshotSchema, auto_save: bool = False) -> dict:
+        data = snapshot.model_dump()
+        data["savedAt"] = time.time()
+        data["autoSave"] = auto_save
+        self._store[snapshot.id] = data
+
+        if len(self._store) > self._max_snapshots:
+            oldest_key = min(self._store, key=lambda k: self._store[k]["savedAt"])
+            del self._store[oldest_key]
+
+        return {"id": snapshot.id, "savedAt": data["savedAt"]}
+
+    def get(self, snapshot_id: str) -> dict | None:
+        return self._store.get(snapshot_id)
+
+    def list_all(self, limit: int = 100, offset: int = 0) -> list[dict]:
+        snapshots = sorted(
+            self._store.values(),
+            key=lambda s: s["timestamp"],
+            reverse=True,
+        )
+        return [
+            {"id": s["id"], "name": s["name"], "timestamp": s["timestamp"],
+             "version": s.get("metadata", {}).get("version", 1)}
+            for s in snapshots[offset:offset + limit]
+        ]
+
+    def delete(self, snapshot_id: str) -> bool:
+        return self._store.pop(snapshot_id, None) is not None
+
+    def lock_world(self, owner: str) -> bool:
+        if self._lock_owner is not None:
+            return False
+        self._lock_owner = owner
+        return True
+
+    def unlock_world(self, owner: str) -> bool:
+        if self._lock_owner != owner:
+            return False
+        self._lock_owner = None
+        return True
+
+    def is_locked(self) -> bool:
+        return self._lock_owner is not None
+
+    def get_lock_owner(self) -> str | None:
+        return self._lock_owner
+
+    def diff(self, id_a: str, id_b: str) -> dict | None:
+        a = self.get(id_a)
+        b = self.get(id_b)
+        if not a or not b:
+            return None
+        a_keys = set(a.get("sceneGraph", {}).keys())
+        b_keys = set(b.get("sceneGraph", {}).keys())
+        added = list(b_keys - a_keys)
+        removed = list(a_keys - b_keys)
+        modified = [
+            k for k in a_keys & b_keys
+            if json.dumps(a["sceneGraph"][k], sort_keys=True)
+            != json.dumps(b["sceneGraph"][k], sort_keys=True)
+        ]
+        return {"added": added, "removed": removed, "modified": modified}
+
+
+snapshot_store = SnapshotStore()
+`;
+
+  let result = [...files];
+
+  if (!hasChronos) {
+    result.push({ path: "snapshot_store.py", content: SNAPSHOT_STORE });
+    fixes.push("[snapshot_store.py] Injected SnapshotStore with Pydantic V2 schemas, world locking, snapshot diffing, auto-eviction (max 50)");
+  }
+
+  const mainFile = result.find(f => f.path.endsWith("main.py") && f.content.includes("FastAPI"));
+  if (mainFile && !mainFile.content.includes("/api/snapshots")) {
+    let content = mainFile.content;
+
+    const appVarMatch = content.match(/(\w+)\s*=\s*FastAPI\s*\(/);
+    const appVar = appVarMatch ? appVarMatch[1] : "app";
+
+    const snapshotRoutes = `
+from snapshot_store import snapshot_store, SnapshotCreate
+
+@${appVar}.post("/api/snapshots")
+async def create_snapshot(body: SnapshotCreate):
+    result = snapshot_store.save(body.snapshot, body.autoSave)
+    return result
+
+@${appVar}.get("/api/snapshots")
+async def list_snapshots(limit: int = 100, offset: int = 0):
+    return snapshot_store.list_all(limit=limit, offset=offset)
+
+@${appVar}.get("/api/snapshots/{snapshot_id}")
+async def get_snapshot(snapshot_id: str):
+    snapshot = snapshot_store.get(snapshot_id)
+    if not snapshot:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+    return snapshot
+
+@${appVar}.delete("/api/snapshots/{snapshot_id}")
+async def delete_snapshot(snapshot_id: str):
+    deleted = snapshot_store.delete(snapshot_id)
+    return {"deleted": deleted}
+
+@${appVar}.post("/api/world/lock")
+async def lock_world(owner: str = "system"):
+    success = snapshot_store.lock_world(owner)
+    return {"locked": success, "owner": snapshot_store.get_lock_owner()}
+
+@${appVar}.post("/api/world/unlock")
+async def unlock_world(owner: str = "system"):
+    success = snapshot_store.unlock_world(owner)
+    return {"unlocked": success}
+
+@${appVar}.get("/api/world/status")
+async def world_status():
+    return {
+        "locked": snapshot_store.is_locked(),
+        "lockOwner": snapshot_store.get_lock_owner(),
+        "snapshotCount": len(snapshot_store._store),
+    }
+
+@${appVar}.get("/api/snapshots/diff/{id_a}/{id_b}")
+async def diff_snapshots(id_a: str, id_b: str):
+    result = snapshot_store.diff(id_a, id_b)
+    if result is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="One or both snapshots not found")
+    return result
+`;
+
+    const ifNameIdx = content.indexOf("if __name__");
+    if (ifNameIdx !== -1) {
+      content = content.slice(0, ifNameIdx) + snapshotRoutes + "\n" + content.slice(ifNameIdx);
+    } else {
+      content += snapshotRoutes;
+    }
+
+    result = result.map(f =>
+      f.path === mainFile.path ? { path: f.path, content } : f,
+    );
+
+    fixes.push(`[${mainFile.path}] Injected /api/snapshots CRUD, /api/world/lock|unlock|status, /api/snapshots/diff endpoints`);
+  }
 
   return { files: result, fixes };
 }
