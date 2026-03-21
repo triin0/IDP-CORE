@@ -2732,6 +2732,10 @@ export function hardenGeneratedTypes(
   currentFiles = stubsFix.files;
   allFixes.push(...stubsFix.fixes);
 
+  const schemaValFix = fixSchemaValueImport(currentFiles);
+  currentFiles = schemaValFix.files;
+  allFixes.push(...schemaValFix.fixes);
+
   const sigMapFix = fixSignatureMap(currentFiles);
   currentFiles = sigMapFix.files;
   allFixes.push(...sigMapFix.fixes);
@@ -2800,11 +2804,90 @@ export function hardenGeneratedTypes(
   currentFiles = useRefFix.files;
   allFixes.push(...useRefFix.fixes);
 
+  const r3fTupleFix = fixR3FTupleCasts(currentFiles);
+  currentFiles = r3fTupleFix.files;
+  allFixes.push(...r3fTupleFix.fixes);
+
   const viteEnvFix = fixViteEnvTypes(currentFiles);
   currentFiles = viteEnvFix.files;
   allFixes.push(...viteEnvFix.fixes);
 
   return { files: currentFiles, fixes: allFixes };
+}
+
+function fixSchemaValueImport(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const updatedFiles = files.map(file => {
+    if (!file.path.match(/\.[tj]sx?$/) || file.path.endsWith(".d.ts")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    if (content.includes("drizzle(")) {
+      const before = content;
+      content = content.replace(
+        /import\s+type\s+\*\s+as\s+schema\s+from\s+/g,
+        "import * as schema from "
+      );
+      if (content !== before) {
+        modified = true;
+        fixes.push(`[${file.path}] Converted 'import type * as schema' to value import for drizzle()`);
+      }
+    }
+
+    if (file.path.includes("schema") && (file.path.endsWith("index.ts") || file.path.endsWith("index.tsx"))) {
+      const before = content;
+      content = content.replace(
+        /\n*export\s+interface\s+schema\s*\{[^}]*\}\s*\n*/g,
+        "\n"
+      );
+      content = content.replace(
+        /\n*export\s+type\s+schema\s*=\s*[^;\n]+;\s*\n*/g,
+        "\n"
+      );
+      if (content !== before) {
+        modified = true;
+        fixes.push(`[${file.path}] Removed type-only 'schema' stub that shadows namespace import (TS2693)`);
+      }
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: updatedFiles, fixes };
+}
+
+function fixR3FTupleCasts(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const updatedFiles = files.map(file => {
+    if (!file.path.includes("client/") || !file.path.endsWith(".tsx")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    content = content.replace(
+      /(position|rotation|scale)=\{\s*(\[[^\]]+\])\s*\}/g,
+      (match, prop, arr) => {
+        if (match.includes("as [number, number, number]")) return match;
+        modified = true;
+        return `${prop}={${arr} as [number, number, number]}`;
+      }
+    );
+
+    if (modified) {
+      fixes.push(`[${file.path}] Cast R3F position/rotation/scale arrays to [number, number, number] tuple`);
+      return { path: file.path, content };
+    }
+    return file;
+  });
+
+  return { files: updatedFiles, fixes };
 }
 
 function fixUninitializedUseRefs(

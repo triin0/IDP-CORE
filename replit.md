@@ -68,7 +68,7 @@ Generated apps now use a "commercial-grade" visual design by default:
 *   **Vulnerability Database:** OSV
 
 ## Type Hardener (Deterministic AST Post-Processing)
-Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~35 deterministic rewrite passes on generated files after version enforcement in the pipeline:
+Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~39 deterministic rewrite passes on generated files after version enforcement in the pipeline:
 
 1. **fixServerTsconfig** — Rewrites `moduleResolution: "NodeNext"` → `"bundler"` and `module: "NodeNext"` → `"ES2022"`.
 2. **fixBcryptImports** — Swaps `bcrypt` → `bcryptjs` in imports and package.json.
@@ -106,7 +106,9 @@ Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~35 d
 34. **fixMissingPackageDeps** — Strips banned packages (dompurify), adds missing deps.
 35. **fixHardcodedSecrets** — Replaces literal secrets with `process.env.*`.
 36. **fixUninitializedUseRefs** — Converts `useRef<T>()` → `useRef<T>(null!)` for React 19 compatibility.
-37. **fixViteEnvTypes** — Injects `vite/client` into client `tsconfig.json` types (or creates `vite-env.d.ts`) when `import.meta.env` is detected, preventing TS2339 on `ImportMeta`.
+37. **fixSchemaValueImport** — Converts `import type * as schema` to value import in files containing `drizzle()`, and removes type-only `schema` stubs (`export interface schema` / `export type schema`) from schema barrel files that shadow namespace imports (kills TS2693).
+38. **fixR3FTupleCasts** — Casts `position`, `rotation`, `scale` array literals in client `.tsx` files to `[number, number, number]` tuple type (kills TS2322 in React Three Fiber projects).
+39. **fixViteEnvTypes** — Injects `vite/client` into client `tsconfig.json` types (or creates `vite-env.d.ts`) when `import.meta.env` is detected, preventing TS2339 on `ImportMeta`.
 
 **Key hardener details:**
 - `req.user` typed as `user?: any` to prevent TS2739 with custom TokenPayload types.
@@ -145,5 +147,5 @@ Analysis: The Prompt Hardening successfully prevented the classic "Listener Leak
 
 Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 286 tests covering all 37 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 306 tests covering all 39 passes.
 - Stub collision guard: prevents duplicate declarations when imported symbols match stub candidates.

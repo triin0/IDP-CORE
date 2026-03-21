@@ -3074,6 +3074,134 @@ console.log("\n=== Pass 36e: fixViteEnvTypes - skips when no import.meta.env usa
   passed++;
 }
 
+console.log("\n=== Pass 37: fixSchemaValueImport - converts type-only schema import to value import ===");
+{
+  const files = [
+    {
+      path: "server/src/db/index.ts",
+      content: `import type * as schema from "../schema";\nimport { Pool } from "pg";\nimport { drizzle } from "drizzle-orm/node-postgres";\nconst pool = new Pool({ connectionString: process.env.DATABASE_URL });\nexport const db = drizzle(pool, { schema });`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const dbFile = result.files.find(f => f.path === "server/src/db/index.ts")!;
+  assert(dbFile.content.includes("import * as schema from"), "should convert to value import");
+  assert(!dbFile.content.includes("import type * as schema"), "should not have type-only import");
+  passed++;
+}
+
+console.log("\n=== Pass 37b: fixSchemaValueImport - removes type-only schema stub from barrel ===");
+{
+  const files = [
+    {
+      path: "server/src/schema/index.ts",
+      content: `export * from './users';\nexport * from './sessions';\n\nexport interface schema { [key: string]: unknown; }\n`,
+    },
+    {
+      path: "server/src/db/index.ts",
+      content: `import * as schema from "../schema";\nimport { drizzle } from "drizzle-orm/node-postgres";\nexport const db = drizzle(pool, { schema });`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const barrel = result.files.find(f => f.path === "server/src/schema/index.ts")!;
+  assert(!barrel.content.includes("export interface schema"), "should remove schema interface stub");
+  assert(barrel.content.includes("export * from './users'"), "should preserve re-exports");
+  passed++;
+}
+
+console.log("\n=== Pass 37c: fixSchemaValueImport - does not report fix when no drizzle() call ===");
+{
+  const files = [
+    {
+      path: "server/src/routes/users.ts",
+      content: `import * as schema from "../schema";\nconst x = schema.users;`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("value import for drizzle()")), "should not report schema value fix when no drizzle()");
+  passed++;
+}
+
+console.log("\n=== Pass 37d: fixSchemaValueImport - removes type alias stub from barrel ===");
+{
+  const files = [
+    {
+      path: "server/src/schema/index.ts",
+      content: `export * from './users';\n\nexport type schema = any;\n`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const barrel = result.files.find(f => f.path === "server/src/schema/index.ts")!;
+  assert(!barrel.content.includes("export type schema"), "should remove type alias stub");
+  passed++;
+}
+
+console.log("\n=== Pass 38: fixR3FTupleCasts - casts position/rotation/scale arrays ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `<mesh position={[0, 1, 2]} rotation={[0, Math.PI, 0]} scale={[1, 1, 1]}>\n  <boxGeometry />\n</mesh>`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const scene = result.files.find(f => f.path === "client/src/components/Scene.tsx")!;
+  assert(scene.content.includes("position={[0, 1, 2] as [number, number, number]}"), "should cast position");
+  assert(scene.content.includes("rotation={[0, Math.PI, 0] as [number, number, number]}"), "should cast rotation");
+  assert(scene.content.includes("scale={[1, 1, 1] as [number, number, number]}"), "should cast scale");
+  passed++;
+}
+
+console.log("\n=== Pass 38b: fixR3FTupleCasts - skips already-cast arrays ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `<mesh position={[0, 1, 2] as [number, number, number]}>\n  <boxGeometry />\n</mesh>`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const scene = result.files.find(f => f.path === "client/src/components/Scene.tsx")!;
+  const castCount = (scene.content.match(/as \[number, number, number\]/g) || []).length;
+  assert(castCount === 1, "should not double-cast");
+  passed++;
+}
+
+console.log("\n=== Pass 38c: fixR3FTupleCasts - skips non-client files ===");
+{
+  const files = [
+    {
+      path: "server/src/utils/math.tsx",
+      content: `const pos = position={[0, 1, 2]};`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const serverFile = result.files.find(f => f.path === "server/src/utils/math.tsx")!;
+  assert(!serverFile.content.includes("as [number, number, number]"), "should not touch server files");
+  passed++;
+}
+
+console.log("\n=== Pass 38d: fixR3FTupleCasts - handles expressions in arrays ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Avatar.tsx",
+      content: `<group position={[userData.x, userData.y, userData.z]}>\n  <sphere />\n</group>`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const avatar = result.files.find(f => f.path === "client/src/components/Avatar.tsx")!;
+  assert(avatar.content.includes("as [number, number, number]"), "should cast expression arrays");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
