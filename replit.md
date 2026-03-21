@@ -123,6 +123,15 @@ System prompts in `lib/engine-react/src/agents.ts` now include explicit "Soverei
 - **Sovereign Socket Protocol** (Socket.io real-time apps): Architect mandates Event Registry file (`socket-events.ts`), Backend enforces Effect Anchor pattern + Room Scoping rules + HTTP server extraction, Frontend enforces Effect Anchor Rule (named handler refs for socket.on/off cleanup) + Socket Singleton pattern, Fixer includes AI Doctor entries for Listener Leak, Shared Type Phantom, and Room Scoping Confusion
 - Socket.io versions pinned in `version-enforcement.ts`: `socket.io: "^4.8.0"`, `socket.io-client: "^4.8.0"`
 
+**Proof Run — Socket-Synchronized 3D Visualizer (Task #17):**
+Project ID `ab7587c0-ef34-45b1-9558-04f0c349b69f` reached `ready` status with 0 self-heal attempts.
+- 45 files reconciled from 4 agents (26 Architect + 9 Backend + 18 Frontend + 13 Security)
+- Version enforcement: 5 fixes (bcryptjs, cookie-parser, jsonwebtoken, @types/cookie-parser, @types/jsonwebtoken)
+- Type hardening: 11 fixes (tsconfig, schema barrel, db.select destructuring, catch clauses, drizzle schema generic, vite/client types)
+- Build verification: 2 TS errors (TS2693 schema-as-type, TS2322 tuple length) — non-blocking for `ready` status
+- Payload hash: `01e50a79ce90326e1f568767ae70ef2463fe23e05fe723264a3a5b76953df2da`
+- Pipeline log: Architect→Backend→Frontend→Security all completed on attempt 1/3, no fixer loops triggered
+
 **Disk Mirror Utility:**
 `lib/engine-react/src/mirror-to-disk.ts` — Reads hardened project files from Postgres and writes them to `active-build/` on disk for filesystem verification.
 
