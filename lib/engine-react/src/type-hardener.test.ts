@@ -4101,6 +4101,189 @@ app.listen(3000);`,
   assert(dispatcher.content.includes("MODIFY_ITEM"), "should extract MODIFY_ITEM from union");
 }
 
+console.log("\n=== Pass 48a: fixCollaborativePresence - injects presence-system.ts when R3F + CommandBus detected ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `import type { CommandAction } from "../types/commands";
+export const commandBus = { dispatch(c: CommandAction) { return {} as any; }, undo() {}, redo() {}, getHistory() { return []; }, clear() {} };`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express();
+app.get("/api/health", (req, res) => { res.json({ ok: true }); });
+app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const presenceSystem = result.files.find(f => f.path === "client/src/lib/presence-system.ts");
+  assert(!!presenceSystem, "should create presence-system.ts");
+  assert(presenceSystem!.content.includes("usePresenceStore"), "should include usePresenceStore");
+  assert(presenceSystem!.content.includes("PresenceUser"), "should include PresenceUser interface");
+  assert(presenceSystem!.content.includes("reconcilePresenceCommand"), "should include conflict reconciliation");
+  assert(presenceSystem!.content.includes("lerpCursor3D"), "should include cursor lerp function");
+  assert(presenceSystem!.content.includes("PRESENCE_TIMEOUT_MS"), "should include timeout constant");
+  assert(presenceSystem!.content.includes("generatePresenceColor"), "should include color generation");
+
+  const avatars = result.files.find(f => f.path === "client/src/components/PresenceAvatars.tsx");
+  assert(!!avatars, "should create PresenceAvatars.tsx");
+  assert(avatars!.content.includes("PresenceAvatars"), "should export PresenceAvatars component");
+  assert(avatars!.content.includes("sphereGeometry"), "should render 3D cursor sphere");
+  assert(avatars!.content.includes("useFrame"), "should use useFrame for smooth animation");
+
+  const socketHook = result.files.find(f => f.path === "client/src/lib/use-presence-socket.ts");
+  assert(!!socketHook, "should create use-presence-socket.ts");
+  assert(socketHook!.content.includes("usePresenceSocket"), "should export usePresenceSocket hook");
+  assert(socketHook!.content.includes("BROADCAST_INTERVAL_MS"), "should include broadcast interval");
+  assert(socketHook!.content.includes("presence:update"), "should handle presence:update messages");
+  assert(socketHook!.content.includes("presence:leave"), "should handle presence:leave messages");
+}
+
+console.log("\n=== Pass 48b: fixCollaborativePresence - injects /api/presence/active server route ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {}, undo() {}, redo() {}, getHistory() { return []; }, clear() {} };`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express();
+app.get("/api/health", (req, res) => { res.json({ ok: true }); });
+app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const serverFile = result.files.find(f => f.path === "server/src/index.ts");
+  assert(!!serverFile, "should modify server/src/index.ts");
+  assert(serverFile!.content.includes("/api/presence/active"), "should inject presence endpoint");
+  assert(serverFile!.content.includes("conflictMode"), "should include conflict mode in response");
+}
+
+console.log("\n=== Pass 48c: fixCollaborativePresence - skips when no R3F detected ===");
+{
+  const files = [
+    {
+      path: "client/src/App.tsx",
+      content: `import React from "react"; export default function App() { return <div>Hello</div>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const presenceSystem = result.files.find(f => f.path === "client/src/lib/presence-system.ts");
+  assert(!presenceSystem, "should NOT create presence-system.ts without R3F");
+}
+
+console.log("\n=== Pass 48d: fixCollaborativePresence - skips when no CommandBus detected ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const presenceSystem = result.files.find(f => f.path === "client/src/lib/presence-system.ts");
+  assert(!presenceSystem, "should NOT create presence-system.ts without CommandBus");
+}
+
+console.log("\n=== Pass 48e: fixCollaborativePresence - does not duplicate presence-system.ts ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+    {
+      path: "client/src/lib/presence-system.ts",
+      content: `import { create } from "zustand";
+export const usePresenceStore = create(() => ({ peers: new Map() }));`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const presenceFiles = result.files.filter(f => f.path === "client/src/lib/presence-system.ts");
+  assert(presenceFiles.length === 1, "should not duplicate presence-system.ts");
+}
+
+console.log("\n=== Pass 48f: fixCollaborativePresence - reconcilePresenceCommand resolves conflicts deterministically ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express(); app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const presenceSystem = result.files.find(f => f.path === "client/src/lib/presence-system.ts");
+  assert(!!presenceSystem, "presence-system should exist for conflict test");
+  assert(presenceSystem!.content.includes('"local-wins"'), "should return local-wins when local is newer (LWW)");
+  assert(presenceSystem!.content.includes('"remote-wins"'), "should return remote-wins when remote is newer (LWW)");
+  assert(presenceSystem!.content.includes("localTimestamp >= remoteCommand.timestamp"), "should use LWW: newer timestamp wins");
+  assert(presenceSystem!.content.includes("localCommand.targetId !== remoteCommand.targetId"), "should skip conflict for different targets");
+  assert(presenceSystem!.content.includes("if (!peers.has(userId))"), "setLocalUser should auto-seed local peer entry");
+  assert(presenceSystem!.content.includes("sanitize_update") === false, "React presence should not contain Python sanitize");
+}
+
+console.log("\n=== Pass 48g: fixCollaborativePresence - setLocalUser seeds local peer for broadcast ===");
+{
+  const files = [
+    {
+      path: "client/src/components/Scene.tsx",
+      content: `import { Canvas } from "@react-three/fiber";
+export function Scene() { return <Canvas><mesh /></Canvas>; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {} };`,
+    },
+    {
+      path: "server/src/index.ts",
+      content: `import express from "express"; const app = express(); app.listen(3000);`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const presenceSystem = result.files.find(f => f.path === "client/src/lib/presence-system.ts");
+  assert(!!presenceSystem, "presence-system should exist");
+  assert(presenceSystem!.content.includes('displayName: "You"'), "setLocalUser should set displayName to You");
+  assert(presenceSystem!.content.includes("return { localUserId: userId, peers }"), "setLocalUser should set both userId and peers");
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

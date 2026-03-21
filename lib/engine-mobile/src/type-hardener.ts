@@ -58,6 +58,10 @@ export function hardenMobileTypes(
   currentFiles = perfConstFix.files;
   allFixes.push(...perfConstFix.fixes);
 
+  const hapticPresenceFix = fixHapticPresence(currentFiles);
+  currentFiles = hapticPresenceFix.files;
+  allFixes.push(...hapticPresenceFix.fixes);
+
   return { files: currentFiles, fixes: allFixes };
 }
 
@@ -480,6 +484,108 @@ export const PERF_HINTS = {
 
   const result = [...files, { path: "lib/performance-wall.ts", content: MOBILE_PERF_MODULE }];
   fixes.push("[lib/performance-wall.ts] Injected MOBILE_PERF_LIMITS constants (FlatList window, animation caps, image cache, bundle limits)");
+
+  return { files: result, fixes };
+}
+
+function fixHapticPresence(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasHapticPresence = files.some(
+    f => f.path === "lib/haptic-presence.ts" && f.content.includes("triggerPresenceHaptic"),
+  );
+  if (hasHapticPresence) return { files, fixes };
+
+  const hasLayout = files.some(f => f.path.includes("app/") && f.path.endsWith("_layout.tsx"));
+  if (!hasLayout) return { files, fixes };
+
+  const HAPTIC_PRESENCE_MODULE = `import { useEffect, useRef, useCallback } from "react";
+import * as Haptics from "expo-haptics";
+
+export type PresenceEventType =
+  | "peer:joined"
+  | "peer:left"
+  | "object:moved"
+  | "object:created"
+  | "object:deleted"
+  | "conflict:resolved";
+
+const HAPTIC_MAP: Record<PresenceEventType, () => Promise<void>> = {
+  "peer:joined": () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
+  "peer:left": () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
+  "object:moved": () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+  "object:created": () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
+  "object:deleted": () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
+  "conflict:resolved": () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
+};
+
+const THROTTLE_MS = 100;
+
+export function triggerPresenceHaptic(event: PresenceEventType): void {
+  const handler = HAPTIC_MAP[event];
+  if (handler) {
+    handler().catch(() => {});
+  }
+}
+
+export function usePresenceHaptics(wsUrl: string) {
+  const wsRef = useRef<WebSocket | null>(null);
+  const lastHapticRef = useRef<number>(0);
+
+  const throttledHaptic = useCallback((event: PresenceEventType) => {
+    const now = Date.now();
+    if (now - lastHapticRef.current < THROTTLE_MS) return;
+    lastHapticRef.current = now;
+    triggerPresenceHaptic(event);
+  }, []);
+
+  useEffect(() => {
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "presence:update") {
+          if (msg.selectedNodeId) {
+            throttledHaptic("object:moved");
+          }
+        } else if (msg.type === "presence:leave") {
+          throttledHaptic("peer:left");
+        } else if (msg.type === "command:conflict") {
+          throttledHaptic("conflict:resolved");
+        }
+      } catch {}
+    };
+
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  }, [wsUrl, throttledHaptic]);
+
+  return { triggerPresenceHaptic: throttledHaptic };
+}
+`;
+
+  let result: PipelineFile[] = [...files, { path: "lib/haptic-presence.ts", content: HAPTIC_PRESENCE_MODULE }];
+  fixes.push("[lib/haptic-presence.ts] Injected haptic presence system (6 event types, throttled haptic feedback, WebSocket listener)");
+
+  const pkgFile = result.find(f => f.path === "package.json");
+  if (pkgFile) {
+    try {
+      const pkg = JSON.parse(pkgFile.content);
+      const deps = pkg.dependencies || {};
+      if (!deps["expo-haptics"]) {
+        deps["expo-haptics"] = "~13.0.0";
+        pkg.dependencies = deps;
+        result = result.map(f =>
+          f.path === "package.json" ? { path: f.path, content: JSON.stringify(pkg, null, 2) } : f,
+        );
+        fixes.push("[package.json] Added expo-haptics dependency for presence feedback");
+      }
+    } catch {}
+  }
 
   return { files: result, fixes };
 }

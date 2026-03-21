@@ -58,6 +58,10 @@ export function hardenFastAPITypes(
   currentFiles = perfConst.files;
   allFixes.push(...perfConst.fixes);
 
+  const presenceRelay = fixPresenceRelay(currentFiles);
+  currentFiles = presenceRelay.files;
+  allFixes.push(...presenceRelay.fixes);
+
   return { files: currentFiles, fixes: allFixes };
 }
 
@@ -635,6 +639,174 @@ PERF_HINTS = {
 
   const result = [...files, { path: "perf_config.py", content: PERF_MODULE }];
   fixes.push("[perf_config.py] Injected PERF_LIMITS constants (pagination defaults, compression thresholds, connection pool, query timeout)");
+
+  return { files: result, fixes };
+}
+
+function fixPresenceRelay(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasPresenceRelay = files.some(
+    f => f.path === "presence_relay.py" && f.content.includes("websocket"),
+  );
+  if (hasPresenceRelay) return { files, fixes };
+
+  const hasMainPy = files.some(f => f.path.endsWith("main.py") && f.content.includes("FastAPI"));
+  if (!hasMainPy) return { files, fixes };
+
+  const PRESENCE_RELAY = `"""WebSocket presence relay for collaborative 3D workspace."""
+import asyncio
+import json
+import time
+from typing import Dict, Set
+from fastapi import WebSocket, WebSocketDisconnect
+
+PRESENCE_TIMEOUT_S = 10
+HEARTBEAT_INTERVAL_S = 5
+
+class PresenceManager:
+    def __init__(self) -> None:
+        self.connections: Dict[str, WebSocket] = {}
+        self.state: Dict[str, dict] = {}
+        self._lock = asyncio.Lock()
+
+    async def connect(self, user_id: str, ws: WebSocket) -> None:
+        await ws.accept()
+        async with self._lock:
+            if user_id in self.connections:
+                try:
+                    await self.connections[user_id].close()
+                except Exception:
+                    pass
+            self.connections[user_id] = ws
+            self.state[user_id] = {
+                "userId": user_id,
+                "cursor3D": [0, 0, 0],
+                "selectedNodeId": None,
+                "lastSeen": time.time(),
+            }
+        await self.broadcast({
+            "type": "presence:update",
+            **self.state[user_id],
+        }, exclude={user_id})
+
+    async def disconnect(self, user_id: str) -> None:
+        async with self._lock:
+            self.connections.pop(user_id, None)
+            self.state.pop(user_id, None)
+        await self.broadcast({
+            "type": "presence:leave",
+            "userId": user_id,
+        })
+
+    async def update(self, user_id: str, data: dict) -> None:
+        async with self._lock:
+            if user_id in self.state:
+                self.state[user_id].update(data)
+                self.state[user_id]["lastSeen"] = time.time()
+        await self.broadcast({
+            "type": "presence:update",
+            "userId": user_id,
+            **data,
+        }, exclude={user_id})
+
+    async def broadcast(self, message: dict, exclude: Set[str] | None = None) -> None:
+        exclude = exclude or set()
+        payload = json.dumps(message)
+        async with self._lock:
+            dead: list[str] = []
+            for uid, ws in self.connections.items():
+                if uid in exclude:
+                    continue
+                try:
+                    await ws.send_text(payload)
+                except Exception:
+                    dead.append(uid)
+            for uid in dead:
+                self.connections.pop(uid, None)
+                self.state.pop(uid, None)
+
+    async def resolve_conflict(
+        self, local_ts: float, remote_ts: float, target_id: str,
+    ) -> str:
+        return "local-wins" if local_ts >= remote_ts else "remote-wins"
+
+    def sanitize_update(self, data: dict) -> dict:
+        ALLOWED_FIELDS = {"cursor3D", "selectedNodeId", "displayName"}
+        return {k: v for k, v in data.items() if k in ALLOWED_FIELDS}
+
+    def get_active_peers(self) -> list[dict]:
+        now = time.time()
+        return [
+            s for s in self.state.values()
+            if now - s.get("lastSeen", 0) < PRESENCE_TIMEOUT_S
+        ]
+
+presence_manager = PresenceManager()
+`;
+
+  const result = [...files, { path: "presence_relay.py", content: PRESENCE_RELAY }];
+
+  const mainFile = result.find(f => f.path.endsWith("main.py") && f.content.includes("FastAPI"));
+  if (mainFile && !mainFile.content.includes("presence_relay")) {
+    let content = mainFile.content;
+
+    const wsRoute = `
+from presence_relay import presence_manager
+from fastapi import WebSocket, WebSocketDisconnect
+
+@app.websocket("/ws/presence/{user_id}")
+async def presence_ws(websocket: WebSocket, user_id: str):
+    await presence_manager.connect(user_id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            if data.get("type") == "presence:update":
+                sanitized = presence_manager.sanitize_update(data)
+                await presence_manager.update(user_id, sanitized)
+            elif data.get("type") == "command:conflict":
+                resolution = await presence_manager.resolve_conflict(
+                    data.get("localTs", 0),
+                    data.get("remoteTs", 0),
+                    data.get("targetId", ""),
+                )
+                await websocket.send_json({
+                    "type": "command:conflict",
+                    "resolution": resolution,
+                })
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        await presence_manager.disconnect(user_id)
+
+@app.get("/api/presence/active")
+async def get_active_presence():
+    return {"peers": presence_manager.get_active_peers(), "conflictMode": "last-write-wins"}
+`;
+
+    const appVarMatch = content.match(/(\w+)\s*=\s*FastAPI\s*\(/);
+    if (appVarMatch) {
+      const patchedWsRoute = wsRoute.replace(/@app\./g, `@${appVarMatch[1]}.`);
+
+      const listenIdx = content.indexOf("if __name__");
+      if (listenIdx !== -1) {
+        content = content.slice(0, listenIdx) + patchedWsRoute + "\n" + content.slice(listenIdx);
+      } else {
+        content += patchedWsRoute;
+      }
+
+      const updatedResult = result.map(f =>
+        f.path === mainFile.path ? { path: f.path, content } : f,
+      );
+
+      fixes.push("[presence_relay.py] Injected PresenceManager with WebSocket relay, conflict resolution, heartbeat cleanup");
+      fixes.push(`[${mainFile.path}] Injected /ws/presence/{user_id} WebSocket endpoint and /api/presence/active REST endpoint`);
+
+      return { files: updatedResult, fixes };
+    }
+  }
+
+  fixes.push("[presence_relay.py] Injected PresenceManager with WebSocket relay, conflict resolution, heartbeat cleanup");
 
   return { files: result, fixes };
 }

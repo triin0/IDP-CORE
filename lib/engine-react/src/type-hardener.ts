@@ -2836,6 +2836,10 @@ export function hardenGeneratedTypes(
   currentFiles = unifiedDispatcherFix.files;
   allFixes.push(...unifiedDispatcherFix.fixes);
 
+  const collaborativePresenceFix = fixCollaborativePresence(currentFiles);
+  currentFiles = collaborativePresenceFix.files;
+  allFixes.push(...collaborativePresenceFix.fixes);
+
   return { files: currentFiles, fixes: allFixes };
 }
 
@@ -3847,4 +3851,276 @@ app.post("/api/engine-hook", async (req, res) => {
   });
 
   return { files: serverResult, fixes };
+}
+
+function fixCollaborativePresence(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasR3F = files.some(
+    f => f.path.match(/\.[tj]sx?$/) && (f.content.includes("@react-three/fiber") || f.content.includes("<Canvas")),
+  );
+  const hasCommandBus = files.some(
+    f => f.path === "client/src/lib/command-bus.ts" && f.content.includes("commandBus"),
+  );
+  if (!hasR3F || !hasCommandBus) return { files, fixes };
+
+  const hasPresence = files.some(
+    f => f.path === "client/src/lib/presence-system.ts" && f.content.includes("usePresenceStore"),
+  );
+  if (hasPresence) return { files, fixes };
+
+  const PRESENCE_SYSTEM = `import { create } from "zustand";
+
+export interface PresenceUser {
+  userId: string;
+  displayName: string;
+  color: string;
+  cursor3D: [number, number, number];
+  selectedNodeId: string | null;
+  lastSeen: number;
+}
+
+interface PresenceState {
+  peers: Map<string, PresenceUser>;
+  localUserId: string;
+  setPeer: (userId: string, data: Partial<PresenceUser>) => void;
+  removePeer: (userId: string) => void;
+  setLocalUser: (userId: string) => void;
+  getActivePeers: () => PresenceUser[];
+}
+
+const PRESENCE_TIMEOUT_MS = 10_000;
+const CURSOR_LERP_FACTOR = 0.15;
+
+export const usePresenceStore = create<PresenceState>((set, get) => ({
+  peers: new Map(),
+  localUserId: "",
+  setPeer: (userId, data) =>
+    set((state) => {
+      const peers = new Map(state.peers);
+      const existing = peers.get(userId) ?? {
+        userId,
+        displayName: "User",
+        color: generatePresenceColor(userId),
+        cursor3D: [0, 0, 0] as [number, number, number],
+        selectedNodeId: null,
+        lastSeen: Date.now(),
+      };
+      peers.set(userId, { ...existing, ...data, lastSeen: Date.now() });
+      return { peers };
+    }),
+  removePeer: (userId) =>
+    set((state) => {
+      const peers = new Map(state.peers);
+      peers.delete(userId);
+      return { peers };
+    }),
+  setLocalUser: (userId) =>
+    set((state) => {
+      const peers = new Map(state.peers);
+      if (!peers.has(userId)) {
+        peers.set(userId, {
+          userId,
+          displayName: "You",
+          color: generatePresenceColor(userId),
+          cursor3D: [0, 0, 0] as [number, number, number],
+          selectedNodeId: null,
+          lastSeen: Date.now(),
+        });
+      }
+      return { localUserId: userId, peers };
+    }),
+  getActivePeers: () => {
+    const now = Date.now();
+    return [...get().peers.values()].filter(
+      (p) => now - p.lastSeen < PRESENCE_TIMEOUT_MS && p.userId !== get().localUserId,
+    );
+  },
+}));
+
+function generatePresenceColor(userId: string): string {
+  const PALETTE = [
+    "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4",
+    "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7DC6F",
+    "#BB8FCE", "#85C1E9", "#F8C471", "#82E0AA",
+  ];
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = ((hash << 5) - hash + userId.charCodeAt(i)) | 0;
+  }
+  return PALETTE[Math.abs(hash) % PALETTE.length];
+}
+
+export function reconcilePresenceCommand(
+  localCommand: { action: string; targetId?: string },
+  remoteCommand: { action: string; targetId?: string; timestamp: number },
+  localTimestamp: number,
+): "local-wins" | "remote-wins" {
+  if (localCommand.targetId !== remoteCommand.targetId) return "local-wins";
+  return localTimestamp >= remoteCommand.timestamp ? "local-wins" : "remote-wins";
+}
+
+export function lerpCursor3D(
+  current: [number, number, number],
+  target: [number, number, number],
+  factor: number = CURSOR_LERP_FACTOR,
+): [number, number, number] {
+  return [
+    current[0] + (target[0] - current[0]) * factor,
+    current[1] + (target[1] - current[1]) * factor,
+    current[2] + (target[2] - current[2]) * factor,
+  ];
+}
+`;
+
+  const PRESENCE_AVATAR = `import { useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
+import type { Mesh } from "three";
+import { usePresenceStore, lerpCursor3D } from "./presence-system";
+import type { PresenceUser } from "./presence-system";
+
+function PresenceCursor({ peer }: { peer: PresenceUser }) {
+  const meshRef = useRef<Mesh>(null);
+  const currentPos = useRef<[number, number, number]>([...peer.cursor3D]);
+
+  useFrame(() => {
+    if (!meshRef.current) return;
+    currentPos.current = lerpCursor3D(currentPos.current, peer.cursor3D);
+    meshRef.current.position.set(...currentPos.current);
+  });
+
+  return (
+    <group>
+      <mesh ref={meshRef}>
+        <sphereGeometry args={[0.08, 16, 16]} />
+        <meshStandardMaterial color={peer.color} transparent opacity={0.7} />
+      </mesh>
+      <Html position={peer.cursor3D} center distanceFactor={10}>
+        <div style={{
+          background: peer.color,
+          color: "white",
+          padding: "2px 8px",
+          borderRadius: "4px",
+          fontSize: "11px",
+          whiteSpace: "nowrap",
+          pointerEvents: "none",
+        }}>
+          {peer.displayName}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+export function PresenceAvatars() {
+  const activePeers = usePresenceStore((s) => s.getActivePeers());
+  return (
+    <>
+      {activePeers.map((peer) => (
+        <PresenceCursor key={peer.userId} peer={peer} />
+      ))}
+    </>
+  );
+}
+`;
+
+  const PRESENCE_SOCKET_HOOK = `import { useEffect, useRef } from "react";
+import { usePresenceStore } from "./presence-system";
+
+const BROADCAST_INTERVAL_MS = 50;
+
+export function usePresenceSocket(wsUrl: string) {
+  const wsRef = useRef<WebSocket | null>(null);
+  const { setPeer, removePeer, localUserId } = usePresenceStore();
+
+  useEffect(() => {
+    if (!localUserId) return;
+
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "presence:update" && msg.userId !== localUserId) {
+          setPeer(msg.userId, {
+            displayName: msg.displayName,
+            cursor3D: msg.cursor3D,
+            selectedNodeId: msg.selectedNodeId,
+          });
+        } else if (msg.type === "presence:leave") {
+          removePeer(msg.userId);
+        } else if (msg.type === "command:conflict") {
+          console.warn("[Presence] Conflict resolved:", msg.resolution);
+        }
+      } catch {}
+    };
+
+    ws.onclose = () => { wsRef.current = null; };
+
+    return () => { ws.close(); wsRef.current = null; };
+  }, [wsUrl, localUserId, setPeer, removePeer]);
+
+  const broadcastCursor = useRef<ReturnType<typeof setInterval>>();
+
+  useEffect(() => {
+    broadcastCursor.current = setInterval(() => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const state = usePresenceStore.getState();
+      const local = state.peers.get(state.localUserId);
+      if (!local) return;
+
+      ws.send(JSON.stringify({
+        type: "presence:update",
+        userId: state.localUserId,
+        displayName: local.displayName,
+        cursor3D: local.cursor3D,
+        selectedNodeId: local.selectedNodeId,
+      }));
+    }, BROADCAST_INTERVAL_MS);
+
+    return () => clearInterval(broadcastCursor.current);
+  }, []);
+
+  return wsRef;
+}
+`;
+
+  let result = [...files,
+    { path: "client/src/lib/presence-system.ts", content: PRESENCE_SYSTEM },
+    { path: "client/src/components/PresenceAvatars.tsx", content: PRESENCE_AVATAR },
+    { path: "client/src/lib/use-presence-socket.ts", content: PRESENCE_SOCKET_HOOK },
+  ];
+
+  fixes.push("[client/src/lib/presence-system.ts] Injected PresenceSystem Zustand store (peer tracking, conflict reconciliation, cursor lerp)");
+  fixes.push("[client/src/components/PresenceAvatars.tsx] Injected 3D presence avatars with smoothed cursor rendering");
+  fixes.push("[client/src/lib/use-presence-socket.ts] Injected WebSocket presence hook with 50ms broadcast interval");
+
+  const serverFile = result.find(
+    f => f.path.startsWith("server/") && f.path.endsWith("index.ts") && f.content.includes("app"),
+  );
+  if (serverFile && !serverFile.content.includes("/api/presence")) {
+    let content = serverFile.content;
+
+    const presenceRoute = `
+app.get("/api/presence/active", async (_req, res) => {
+  res.json({ peers: [], conflictMode: "last-write-wins" });
+});
+`;
+
+    const listenIdx = content.indexOf("app.listen");
+    if (listenIdx !== -1) {
+      content = content.slice(0, listenIdx) + presenceRoute + "\n" + content.slice(listenIdx);
+      result = result.map(f =>
+        f.path === serverFile.path ? { path: f.path, content } : f,
+      );
+      fixes.push(`[${serverFile.path}] Injected /api/presence/active REST endpoint for presence state`);
+    }
+  }
+
+  return { files: result, fixes };
 }
