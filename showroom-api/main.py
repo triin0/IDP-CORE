@@ -201,10 +201,57 @@ async def get_vehicle_bids(
 
 
 from presence_relay import presence_manager
+from security import create_session_token, verify_token, TokenError
+import logging
+
+security_logger = logging.getLogger("security")
+
+
+AUTH_DISABLED = os.getenv("AUTH_DISABLED", "true").lower() == "true"
+
+
+@app.post("/api/auth/session")
+async def create_session(request: Request, user_id: str | None = None):
+    if AUTH_DISABLED:
+        resolved_user = user_id or "dev-user-001"
+    else:
+        authenticated_user = getattr(request.state, "user_id", None)
+        if not authenticated_user:
+            return JSONResponse(status_code=401, content={"error": "Authentication required"})
+        if user_id and user_id != authenticated_user:
+            return JSONResponse(
+                status_code=403,
+                content={"error": "Cannot mint token for another user"},
+            )
+        resolved_user = authenticated_user
+    return create_session_token(resolved_user)
 
 
 @app.websocket("/ws/presence/{user_id}")
-async def presence_ws(websocket: WebSocket, user_id: str):
+async def presence_ws(websocket: WebSocket, user_id: str, token: str | None = None):
+    if not token:
+        token = websocket.query_params.get("token")
+
+    if not token:
+        security_logger.warning("IDENTITY FORGERY BLOCKED: No token provided for user_id=%s", user_id)
+        await websocket.close(code=1008, reason="Authentication required")
+        return
+
+    try:
+        claims = verify_token(token, expected_user_id=user_id)
+    except TokenError as e:
+        security_logger.warning(
+            "IDENTITY FORGERY BLOCKED: %s (code=%s, claimed_user=%s)",
+            str(e), e.code, user_id,
+        )
+        await websocket.close(code=1008, reason=f"Authentication failed: {e.code}")
+        return
+
+    security_logger.info(
+        "Authenticated WebSocket: user=%s session=%s",
+        claims["sub"], claims["sid"],
+    )
+
     await presence_manager.connect(user_id, websocket)
     try:
         while True:

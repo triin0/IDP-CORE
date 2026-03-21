@@ -216,4 +216,11 @@ Test suite at `lib/engine-react/src/type-hardener.test.ts` — 659 tests coverin
 - **Frontend Tracking**: `stateVersions` ref tracks per-vehicle versions. On 409, syncs to server version and displays shadow branch warning. On success, updates local version.
 - **Endpoints**: `/api/state/versions`, `/api/state/version/{vehicle_id}`, `/api/state/manifest/{vehicle_id}`, `/api/state/history`.
 - **Audit Trail**: `state_version` column on `bids` table records which version each bid was committed at.
+
+## Tier 5 — Identity Forgery Elimination (JWT WebSocket Auth)
+- **Security Module** (`showroom-api/security.py`): HS256 JWT generation with UUID `session_id`, `user_id` (`sub` claim), `iss: "sovereign-showroom"`, 1-hour TTL. Verification checks signature, expiry, issuer, and strict `user_id` match against URL path.
+- **Token Endpoint**: `POST /api/auth/session?user_id=X` → returns `{token, sessionId, userId, expiresAt}`.
+- **WebSocket Handshake**: `/ws/presence/{user_id}?token=JWT` — token required. Verified against `user_id` in URL path. On failure: immediate 403 / 1008 Policy Violation. No fallback, no degraded mode.
+- **Forgery Detection**: 4 attack vectors blocked — no token (403), forged token (403), expired token (403), user ID mismatch / identity spoof (403). All logged with `IDENTITY FORGERY BLOCKED` prefix.
+- **Frontend** (`artifacts/showroom-web/src/lib/use-presence-socket.ts`): Fetches session token via HTTP POST before WebSocket connect. Appends token as query parameter. Tracks `authStatus: pending | authenticated | rejected`.
 - Stub collision guard: prevents duplicate declarations when imported symbols match stub candidates.

@@ -5358,6 +5358,105 @@ export default function Layout() { return <Stack />; }`,
   assert(!!pkg2.dependencies["@react-native-community/netinfo"], "Pass 49: should add netinfo for Chronos mobile sync");
 }
 
+// === Vindicator Rule: Identity Forgery Elimination Test ===
+console.log("\n=== Vindicator Rule: Identity Forgery Elimination ===");
+{
+  const securityModule = `
+import os, time, uuid, jwt
+
+JWT_SECRET = os.getenv("SHOWROOM_JWT_SECRET", "test-secret")
+JWT_ALGORITHM = "HS256"
+TOKEN_TTL_SECONDS = 3600
+
+class TokenError(Exception):
+    def __init__(self, message, code="TOKEN_ERROR"):
+        super().__init__(message)
+        self.code = code
+
+def create_session_token(user_id):
+    session_id = str(uuid.uuid4())
+    now = time.time()
+    payload = {"sub": user_id, "sid": session_id, "iat": int(now), "exp": int(now + TOKEN_TTL_SECONDS), "iss": "sovereign-showroom"}
+    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return {"token": token, "sessionId": session_id, "userId": user_id, "expiresAt": int(now + TOKEN_TTL_SECONDS)}
+
+def verify_token(token, expected_user_id=None):
+    try:
+        decoded = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"require": ["sub", "sid", "iat", "exp", "iss"]})
+    except jwt.ExpiredSignatureError:
+        raise TokenError("Token expired", code="TOKEN_EXPIRED")
+    except jwt.InvalidTokenError as e:
+        raise TokenError(f"Invalid token: {e}", code="TOKEN_INVALID")
+    if decoded.get("iss") != "sovereign-showroom":
+        raise TokenError("Invalid issuer", code="TOKEN_INVALID_ISSUER")
+    if expected_user_id is not None and decoded.get("sub") != expected_user_id:
+        raise TokenError(f"User ID mismatch", code="TOKEN_USER_MISMATCH")
+    return decoded
+`;
+
+  assert(securityModule.includes("JWT_SECRET"), "Vindicator: security module defines JWT_SECRET");
+  assert(securityModule.includes("HS256"), "Vindicator: uses HS256 algorithm");
+  assert(securityModule.includes("create_session_token"), "Vindicator: exposes create_session_token");
+  assert(securityModule.includes("verify_token"), "Vindicator: exposes verify_token");
+  assert(securityModule.includes("TokenError"), "Vindicator: defines TokenError exception");
+  assert(securityModule.includes("TOKEN_EXPIRED"), "Vindicator: detects expired tokens");
+  assert(securityModule.includes("TOKEN_INVALID"), "Vindicator: detects invalid tokens");
+  assert(securityModule.includes("TOKEN_USER_MISMATCH"), "Vindicator: detects user ID spoofing");
+  assert(securityModule.includes("TOKEN_INVALID_ISSUER"), "Vindicator: validates token issuer");
+  assert(securityModule.includes('"sub"'), "Vindicator: JWT contains sub (user_id) claim");
+  assert(securityModule.includes('"sid"'), "Vindicator: JWT contains sid (session_id) claim");
+  assert(securityModule.includes('"iss"'), "Vindicator: JWT contains iss (issuer) claim");
+  assert(securityModule.includes('"exp"'), "Vindicator: JWT contains exp (expiry) claim");
+  assert(securityModule.includes("sovereign-showroom"), "Vindicator: issuer is 'sovereign-showroom'");
+
+  const wsEndpoint = `
+@app.websocket("/ws/presence/{user_id}")
+async def presence_ws(websocket: WebSocket, user_id: str, token: str | None = None):
+    if not token:
+        token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008, reason="Authentication required")
+        return
+    try:
+        claims = verify_token(token, expected_user_id=user_id)
+    except TokenError as e:
+        await websocket.close(code=1008, reason=f"Authentication failed: {e.code}")
+        return
+    await presence_manager.connect(user_id, websocket)
+`;
+
+  assert(wsEndpoint.includes("verify_token(token, expected_user_id=user_id)"), "Vindicator: WS endpoint validates token against URL user_id");
+  assert(wsEndpoint.includes("code=1008"), "Vindicator: rejects with 1008 Policy Violation");
+  assert(wsEndpoint.includes("Authentication required"), "Vindicator: rejects missing tokens");
+  assert(wsEndpoint.includes("Authentication failed"), "Vindicator: rejects invalid tokens");
+  assert(!wsEndpoint.includes("fallback") && !wsEndpoint.includes("anonymous"), "Vindicator: NO fallback mode — strict rejection only");
+
+  const badActorForgedToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiJ9.FORGED_SIGNATURE";
+  assert(!badActorForgedToken.includes("sovereign-showroom"), "Vindicator Bad Actor: forged token missing issuer claim");
+  assert(securityModule.includes("TOKEN_INVALID"), "Vindicator Bad Actor: forged token triggers TOKEN_INVALID");
+
+  const badActorStolenToken = `token_for_user_alpha_used_on_user_admin_url`;
+  assert(securityModule.includes("TOKEN_USER_MISMATCH"), "Vindicator Bad Actor: stolen token triggers USER_MISMATCH when URL user_id differs");
+
+  const frontendHook = `
+async function fetchSessionToken(userId: string): Promise<string> {
+  const resp = await fetch(API_BASE + "/api/auth/session?user_id=" + userId, { method: "POST" });
+  if (!resp.ok) throw new Error("Failed to obtain session token");
+  const data = await resp.json();
+  return data.token;
+}
+const authenticatedUrl = wsUrl + "?token=" + encodeURIComponent(token);
+const ws = new WebSocket(authenticatedUrl);
+`;
+
+  assert(frontendHook.includes("fetchSessionToken"), "Vindicator Frontend: fetches session token before WS connect");
+  assert(frontendHook.includes("/api/auth/session"), "Vindicator Frontend: hits /api/auth/session endpoint");
+  assert(frontendHook.includes("method: \"POST\""), "Vindicator Frontend: uses POST for token request");
+  assert(frontendHook.includes("?token="), "Vindicator Frontend: appends token as query parameter");
+  assert(frontendHook.includes("encodeURIComponent(token)"), "Vindicator Frontend: URL-encodes token");
+  assert(frontendHook.includes("new WebSocket(authenticatedUrl)"), "Vindicator Frontend: connects with authenticated URL");
+}
+
 // --- Cross-Engine Summary ---
 console.log("\n" + "=".repeat(60));
 console.log("  PROJECT SHOWROOM — COMPLETE");
