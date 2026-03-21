@@ -222,6 +222,15 @@ Every generated app MUST include these files in the architecture:
 - \`client/src/pages/AdminDashboard.tsx\` — Admin dashboard page
 The Backend and Frontend agents will generate these files. Your job is to ensure the fileStructure includes them and the package.json / routing config supports them.
 
+### SOVEREIGN CODING PROTOCOL — BUILD-CRITICAL RULES
+1. **NEVER declare the same identifier twice** in a single file.
+2. **Drizzle \`relations\`**: Import from \`"drizzle-orm"\`, NOT from \`"drizzle-orm/pg-core"\`. Column types (pgTable, varchar, integer, etc.) come from pg-core. \`relations\` comes from \`drizzle-orm\`.
+3. **drizzle(pool) requires schema**: In db/index.ts, always \`import * as schema from "../schema"\` and call \`drizzle(pool, { schema })\`.
+4. **Barrel exports must be complete**: If \`schema/index.ts\` uses \`export * from './users'\`, ensure every referenced file exists and exports all needed symbols.
+5. **Do NOT use dompurify or isomorphic-dompurify** — these packages are BANNED (CVEs).
+6. **server/tsconfig.json**: Use \`"module": "CommonJS"\`, \`"moduleResolution": "Node"\`. Do NOT use \`"NodeNext"\` — it causes resolution failures.
+7. **createInsertSchema / drizzle-zod**: Add \`drizzle-zod: "^0.7.0"\` to server dependencies if any schema file will use \`createInsertSchema\`.
+
 ### OUTPUT FORMAT
 Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes": "Brief summary of architectural decisions" }
 Do NOT include any text before or after the JSON.
@@ -353,6 +362,24 @@ The Architect generates schema files in \`server/src/schema/\`. You MUST follow 
 - ${errorHandling.structuredResponses ? "Structured JSON error responses: { error: string }" : ""}
 - ${errorHandling.noStackTraceLeaks ? "Never leak stack traces to client" : ""}
 - Complete, functional code — no stubs or TODOs
+
+### SOVEREIGN CODING PROTOCOL — BUILD-CRITICAL RULES (violating ANY of these WILL cause build failure)
+1. **NEVER declare the same identifier twice** in a single file. Do NOT write \`export const insertUserSchema\` twice, or have both an import and a local declaration of the same name.
+2. **Every import must resolve**. If you write \`import { LoginSchema } from "../types"\`, the file at \`../types/index.ts\` MUST export \`LoginSchema\`. If the types barrel uses \`export * from './validators'\`, the validators file MUST contain and export the symbol.
+3. **db.select() returns an array**. ALWAYS use \`const rows = await db.select()...\` then \`rows[0]\` for a single row. NEVER destructure: \`const { id } = await db.select()...\` — this causes TS2488.
+4. **Drizzle \`relations\` import**: Import \`relations\` from \`"drizzle-orm"\`, NOT from \`"drizzle-orm/pg-core"\`. Column types (pgTable, varchar, integer, etc.) come from pg-core, but \`relations\` does NOT.
+5. **createInsertSchema refinement keys must match table columns EXACTLY**. If the table has \`prepTime: integer('prep_time')\`, the refinement key is \`prepTime\` (the JS property name, not the SQL column name \`prep_time\`). Only include keys that exist in the pgTable definition.
+6. **req.user and req.userId**: If you access \`req.user\` or \`req.userId\`, you MUST create \`server/src/types/express.d.ts\`:
+   \`\`\`typescript
+   import "express";
+   declare module "express-serve-static-core" {
+     interface Request { user?: any; userId?: string; }
+   }
+   \`\`\`
+7. **drizzle(pool) requires schema**: Always pass \`drizzle(pool, { schema })\` with all schema tables imported. Never call \`drizzle(pool)\` without the schema argument.
+8. **Barrel exports must be complete**: If \`types/index.ts\` re-exports via \`export * from './validators'\`, ensure \`validators.ts\` exists and exports everything that routes import. Never reference a symbol that no file exports.
+9. **Do NOT use dompurify or isomorphic-dompurify** — these packages have CVEs and are BANNED. Use native encoding or framework escaping instead.
+10. **catch(error)**: Always type catch variables: \`catch (error: unknown)\`, never \`catch (error)\` without a type annotation.
 
 ### ARCHITECT'S DECISIONS
 ${architectNotes}
@@ -506,6 +533,16 @@ The app MUST work without a backend by providing realistic seed data:
   - Supports full CRUD: list, create, update, delete all work in-memory
   - This means the preview ALWAYS shows a working, interactive app — never an error screen
 - The preview should feel alive: pre-populated with data, fully interactive even without a server
+
+### SOVEREIGN CODING PROTOCOL — BUILD-CRITICAL RULES (violating ANY causes build failure)
+1. **NEVER declare the same identifier twice** in a single file. If you import a type AND want to re-export it, do NOT create a new declaration with the same name.
+2. **Every import must resolve**. If you import \`{ User } from "../types"\`, that file must actually export \`User\`. Do not invent imports.
+3. **All .tsx files**: Do NOT \`import React from "react"\` — with \`"jsx": "react-jsx"\` in tsconfig, React is auto-injected. Only import hooks: \`import { useState, useEffect } from "react"\`.
+4. **Do NOT use dompurify or isomorphic-dompurify** — BANNED (CVEs).
+5. **API fetch returns arrays**. When fetching a list endpoint, type it as an array: \`const data: Item[] = await res.json()\`. Do NOT destructure the response as a single object.
+6. **Type event handlers correctly**: \`onChange={(e: React.ChangeEvent<HTMLInputElement>) => ...}\`, not \`(e: any)\`.
+7. **framer-motion imports**: Use \`import { motion, AnimatePresence } from "framer-motion"\` — these are named exports, NOT default exports.
+8. **react-router-dom v7**: Use \`<Routes><Route path="/" element={<Page />} /></Routes>\`. Do NOT use \`<Switch>\` (that's v5).
 
 ### CONTEXT FROM PRIOR AGENTS
 Architect notes: ${architectNotes}
@@ -745,6 +782,15 @@ When dependency audit fails, update package.json versions:
 - vite: use \`"^6.3.0"\` (not v5)
 - axios: use \`"^1.9.0"\`
 - Do NOT downgrade — always use the latest major version.
+
+### SOVEREIGN CODING PROTOCOL — FIXER-SPECIFIC RULES (violating ANY creates new build failures)
+1. **NEVER introduce duplicate identifiers**. Before adding a const, check if it's already declared or imported in the file. If you add \`const insertUserSchema = createInsertSchema(users)\`, ensure there is no import or prior declaration of \`insertUserSchema\` in the same file.
+2. **db.select() returns an array**. Use \`const rows = await db.select()...\` then \`rows[0]\`. NEVER \`const { id } = await db.select()...\`.
+3. **Drizzle \`relations\`**: Import from \`"drizzle-orm"\`, NOT from \`"drizzle-orm/pg-core"\`.
+4. **createInsertSchema refinement keys**: Must match the pgTable JS property names exactly (camelCase), not the SQL column names (snake_case). Only include keys that exist in the table definition.
+5. **Do NOT use dompurify or isomorphic-dompurify** — BANNED.
+6. **Do NOT add \`"type": "module"\`** to server/package.json — the backend uses CommonJS (\`"module": "CommonJS"\` in tsconfig).
+7. **catch blocks**: Always type as \`catch (error: unknown)\`.
 
 ### OUTPUT FORMAT
 Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes": "Brief explanation of each fix applied" }

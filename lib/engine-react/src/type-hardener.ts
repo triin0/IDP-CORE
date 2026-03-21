@@ -2501,6 +2501,91 @@ function resolveEnvName(varName: string): string {
   return snakeCase;
 }
 
+function fixDrizzleZodBooleanRefinements(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const updatedFiles = files.map(file => {
+    if (!file.path.includes("server/") || !file.path.match(/\.[tj]sx?$/)) return file;
+    if (!file.content.includes("createInsertSchema") && !file.content.includes("createSelectSchema")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    const pattern = /(create(?:Insert|Select)Schema)\s*\(\s*(\w+)\s*,\s*\{/g;
+    let schemaMatch;
+    const replacements: Array<{ start: number; end: number; replacement: string }> = [];
+
+    while ((schemaMatch = pattern.exec(content)) !== null) {
+      const braceStart = schemaMatch.index + schemaMatch[0].length - 1;
+      let depth = 1;
+      let pos = braceStart + 1;
+      while (pos < content.length && depth > 0) {
+        if (content[pos] === '{') depth++;
+        if (content[pos] === '}') depth--;
+        pos++;
+      }
+      const objectBody = content.substring(braceStart + 1, pos - 1);
+
+      if (/\b(\w+)\s*:\s*true\b/.test(objectBody)) {
+        const newBody = objectBody.replace(
+          /(\w+)\s*:\s*true\b/g,
+          (_m, key) => `${key}: (s: any) => s`
+        );
+        replacements.push({
+          start: braceStart + 1,
+          end: pos - 1,
+          replacement: newBody,
+        });
+        modified = true;
+      }
+    }
+
+    for (let i = replacements.length - 1; i >= 0; i--) {
+      const { start, end, replacement } = replacements[i];
+      content = content.substring(0, start) + replacement + content.substring(end);
+    }
+
+    if (modified) {
+      fixes.push(`[${file.path}] Replaced boolean \`true\` refinement values with (s: any) => s`);
+      return { path: file.path, content };
+    }
+    return file;
+  });
+
+  return { files: updatedFiles, fixes };
+}
+
+function fixTypeOnlyNamespaceImports(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const updatedFiles = files.map(file => {
+    if (!file.path.match(/\.[tj]sx?$/) || file.path.endsWith(".d.ts")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    content = content.replace(
+      /import\s+type\s+\*\s+as\s+(\w+)\s+from\s+/g,
+      (_match, name) => {
+        modified = true;
+        return `import * as ${name} from `;
+      }
+    );
+
+    if (modified) {
+      fixes.push(`[${file.path}] Converted type-only namespace import to value import`);
+      return { path: file.path, content };
+    }
+    return file;
+  });
+
+  return { files: updatedFiles, fixes };
+}
+
 function fixHardcodedSecrets(
   files: Array<{ path: string; content: string }>,
 ): HardenerResult {
@@ -2651,6 +2736,10 @@ export function hardenGeneratedTypes(
   currentFiles = zodKeysFix.files;
   allFixes.push(...zodKeysFix.fixes);
 
+  const booleanRefinementFix = fixDrizzleZodBooleanRefinements(currentFiles);
+  currentFiles = booleanRefinementFix.files;
+  allFixes.push(...booleanRefinementFix.fixes);
+
   const valReqFix = fixValidateRequestSchema(currentFiles);
   currentFiles = valReqFix.files;
   allFixes.push(...valReqFix.fixes);
@@ -2686,6 +2775,10 @@ export function hardenGeneratedTypes(
   const missingTypeExportsFix = fixMissingTypeExports(currentFiles);
   currentFiles = missingTypeExportsFix.files;
   allFixes.push(...missingTypeExportsFix.fixes);
+
+  const typeOnlyNsFix = fixTypeOnlyNamespaceImports(currentFiles);
+  currentFiles = typeOnlyNsFix.files;
+  allFixes.push(...typeOnlyNsFix.fixes);
 
   const dedupeFix = fixDuplicateIdentifiers(currentFiles);
   currentFiles = dedupeFix.files;

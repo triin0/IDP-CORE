@@ -68,7 +68,7 @@ Generated apps now use a "commercial-grade" visual design by default:
 *   **Vulnerability Database:** OSV
 
 ## Type Hardener (Deterministic AST Post-Processing)
-Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~32 deterministic rewrite passes on generated files after version enforcement in the pipeline:
+Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~35 deterministic rewrite passes on generated files after version enforcement in the pipeline:
 
 1. **fixServerTsconfig** — Rewrites `moduleResolution: "NodeNext"` → `"bundler"` and `module: "NodeNext"` → `"ES2022"`.
 2. **fixBcryptImports** — Swaps `bcrypt` → `bcryptjs` in imports and package.json.
@@ -91,17 +91,20 @@ Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~32 d
 19. **fixMissingTypeStubs** — Generates stub type interfaces for imported PascalCase types.
 20. **fixSignatureMap** — Fuzzy-matches misnamed imports via Levenshtein distance + synonyms.
 21. **fixDrizzleZodRefinementKeys** — Cross-references refinement keys against real pgTable columns.
-22. **fixValidateRequestSchema** — Fixes `validateRequest(schema)` patterns for Zod compliance.
-23. **fixCatchErrorUnknown** — Adds explicit `unknown` type to catch clause variables.
-24. **fixDrizzleZodRefinementCallbacks** — Wraps non-callback refinements in `(schema) => schema` format.
-25. **fixMissingDrizzleOrmImports** — Adds missing operators (eq, and, or, lt, gte, etc.) to `drizzle-orm` imports.
-26. **fixDrizzleRelationsImport** — Moves `relations` from `drizzle-orm/pg-core` to `drizzle-orm`.
-27. **fixMissingModuleFiles** — Creates stub `.ts` files for missing local module imports.
-28. **fixDrizzleDbSchemaGeneric** — Adds `{ schema }` to `drizzle(pool)` calls missing the schema generic.
-29. **fixMissingTypeExports** — Adds `export` to locally-declared types; respects star re-exports.
-30. **fixJwtTypeIssues** — Fixes JWT-related type casting issues.
-31. **fixMissingPackageDeps** — Strips banned packages (dompurify), adds missing deps.
-32. **fixHardcodedSecrets** — Replaces literal secrets with `process.env.*`.
+22. **fixDrizzleZodBooleanRefinements** — Converts `true` values in createInsertSchema refinements to `(s: any) => s` callbacks (drizzle-zod v0.7 compatibility).
+23. **fixValidateRequestSchema** — Fixes `validateRequest(schema)` patterns for Zod compliance.
+24. **fixCatchErrorUnknown** — Adds explicit `unknown` type to catch clause variables.
+25. **fixDrizzleZodRefinementCallbacks** — Wraps non-callback refinements in `(schema) => schema` format + adds `as any` cast.
+26. **fixJwtTypeIssues** — Fixes JWT-related type casting issues.
+27. **fixMissingDrizzleOrmImports** — Adds missing operators (eq, and, or, lt, gte, etc.) to `drizzle-orm` imports.
+28. **fixDrizzleRelationsImport** — Moves `relations` from `drizzle-orm/pg-core` to `drizzle-orm`.
+29. **fixMissingModuleFiles** — Creates stub `.ts` files for missing local module imports.
+30. **fixDrizzleDbSchemaGeneric** — Adds `{ schema }` to `drizzle(pool)` calls missing the schema generic.
+31. **fixMissingTypeExports** — Adds `export` to locally-declared types; respects star re-exports.
+32. **fixTypeOnlyNamespaceImports** — Converts `import type * as X` to `import * as X` when used as a value.
+33. **fixDuplicateIdentifiers** — Removes duplicate import names and cross-line declarations.
+34. **fixMissingPackageDeps** — Strips banned packages (dompurify), adds missing deps.
+35. **fixHardcodedSecrets** — Replaces literal secrets with `process.env.*`.
 
 **Key hardener details:**
 - `req.user` typed as `user?: any` to prevent TS2739 with custom TokenPayload types.
@@ -109,9 +112,16 @@ Located at `lib/engine-react/src/type-hardener.ts`, the Type Hardener runs ~32 d
 - Star re-export awareness prevents TS2395/2440 duplicate export conflicts.
 - `fixMissingModuleFiles` creates stub files for non-existent local imports with proper type/value exports.
 
+**Prompt Hardening ("Sovereign Coding Protocol"):**
+System prompts in `lib/engine-react/src/agents.ts` now include explicit "Sovereign Coding Protocol" sections for all agents (Architect, Backend, Frontend, Fixer) with build-critical rules that reduce stochastic LLM errors at the source:
+- No duplicate identifiers, complete barrel exports, db.select() always returns arrays
+- Drizzle `relations` from `drizzle-orm` not `pg-core`, createInsertSchema refinement key matching
+- Express Request augmentation requirements, dompurify ban, typed catch clauses
+- Frontend-specific: no React import with react-jsx, typed event handlers, react-router-dom v7
+
 **Disk Mirror Utility:**
 `lib/engine-react/src/mirror-to-disk.ts` — Reads hardened project files from Postgres and writes them to `active-build/` on disk for filesystem verification.
 
 Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardening"` pipeline events.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 235 tests covering all ~32 passes.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 256 tests covering all ~35 passes.

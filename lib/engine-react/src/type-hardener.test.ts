@@ -2749,6 +2749,111 @@ const updateUser = async (id: string) => { return db.update(users).set({}).where
     "should not flag non-duplicates");
 }
 
+console.log("\n=== Pass 34a: fixDrizzleZodBooleanRefinements - converts true to callbacks ===");
+{
+  const files = [
+    {
+      path: "server/src/schema/recipes.ts",
+      content: `import { pgTable, varchar, text, integer, timestamp } from "drizzle-orm/pg-core";
+export const recipes = pgTable("recipes", {
+  id: integer("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  prepTime: integer("prep_time"),
+});`,
+    },
+    {
+      path: "server/src/routes/recipes.ts",
+      content: `import { createInsertSchema } from "drizzle-zod";
+import { recipes } from "../schema/recipes";
+const insertRecipeSchema = createInsertSchema(recipes, {
+  title: true,
+  description: true,
+  prepTime: true,
+});`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/recipes.ts")!;
+  assert(!route.content.includes("title: true"), "should replace title: true");
+  assert(route.content.includes("title: (s: any) => s"), "should have callback for title");
+  assert(route.content.includes("prepTime: (s: any) => s"), "should have callback for prepTime");
+}
+
+console.log("\n=== Pass 34a2: fixDrizzleZodBooleanRefinements - handles types/index.ts path ===");
+{
+  const files = [
+    {
+      path: "server/src/types/index.ts",
+      content: `import { createInsertSchema } from "drizzle-zod";
+import { recipes } from "../schema/recipes";
+export const insertRecipeSchema = createInsertSchema(recipes, { title: true, description: true, prepTime: true });`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const types = result.files.find(f => f.path === "server/src/types/index.ts")!;
+  assert(!types.content.includes(": true"), "should replace all true values in types/index.ts");
+  assert(types.content.includes("(s: any) => s"), "should have callbacks in types/index.ts");
+}
+
+console.log("\n=== Pass 34b: fixDrizzleZodBooleanRefinements - keeps non-boolean refinements ===");
+{
+  const files = [
+    {
+      path: "server/src/routes/recipes.ts",
+      content: `import { createInsertSchema } from "drizzle-zod";
+import { recipes } from "../schema/recipes";
+const insertRecipeSchema = createInsertSchema(recipes, {
+  title: (s) => s.min(1).max(255),
+  description: (s) => s.optional(),
+});`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const route = result.files.find(f => f.path === "server/src/routes/recipes.ts")!;
+  assert(route.content.includes("=> s.min(1).max(255)"), "should preserve callback refinements");
+  assert(!result.fixes.some(f => f.includes("boolean")), "should not flag non-boolean refinements");
+}
+
+console.log("\n=== Pass 34c: fixTypeOnlyNamespaceImports - converts type-only namespace to value ===");
+{
+  const files = [
+    {
+      path: "server/src/db/index.ts",
+      content: `import type * as schema from "../schema";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const db = drizzle(pool, { schema });`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const dbFile = result.files.find(f => f.path === "server/src/db/index.ts")!;
+  assert(dbFile.content.includes('import * as schema from "../schema"'), "should convert to value import");
+  assert(!dbFile.content.includes('import type * as schema'), "should remove type keyword");
+}
+
+console.log("\n=== Pass 34b: fixTypeOnlyNamespaceImports - no false positive on regular imports ===");
+{
+  const files = [
+    {
+      path: "server/src/db/index.ts",
+      content: `import * as schema from "../schema";
+import { Pool } from "pg";
+export const db = drizzle(pool, { schema });`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.fixes.some(f => f.includes("type-only") || f.includes("namespace")),
+    "should not touch regular namespace imports");
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
