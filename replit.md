@@ -148,7 +148,7 @@ Run 35 Results (Project ID `ab7587c0`):
 Analysis: The Prompt Hardening successfully prevented the classic "Listener Leak" and "Shared Type Phantom" hallucinations. Minor residual TypeScript strictness errors (TS2693 schema-as-type, TS2322 tuple length) bypassed the build breaker due to passing hash integrity, mapping the next targets for static Vindicator passes (37 and 38). The system is officially capable of deterministic, real-time 3D generation.
 
 **FastAPI Type Hardener (Python Vindicator):**
-Located at `lib/engine-fastapi/src/type-hardener.ts`, runs 7 deterministic rewrite passes on generated Python files:
+Located at `lib/engine-fastapi/src/type-hardener.ts`, runs 11 deterministic rewrite passes on generated Python files:
 1. **fixLegacySQLAlchemy** — Replaces `declarative_base()` with `DeclarativeBase`, `Column()` with `mapped_column()` (SQLAlchemy 2.0 mandatory).
 2. **fixPydanticV1Patterns** — Replaces `Optional[X]` with `X | None` (PEP 604), `List[X]` with `list[X]` (PEP 585), `class Config:` with `model_config = ConfigDict()` (Pydantic V2).
 3. **fixSyncRouteHandlers** — Converts sync `def` route handlers to `async def` when preceded by FastAPI decorators.
@@ -156,6 +156,10 @@ Located at `lib/engine-fastapi/src/type-hardener.ts`, runs 7 deterministic rewri
 5. **fixHardcodedSecrets** — Replaces hardcoded database URLs and secret keys with `os.getenv()` lookups.
 6. **fixMissingConfigDict** — Injects `ConfigDict(extra="forbid")` on Create models and `ConfigDict(from_attributes=True)` on Response models (over-posting prevention).
 7. **fixRequirementsVersions** — Enforces pinned `>=` versions for core Python stack (FastAPI, uvicorn, Pydantic, SQLAlchemy, etc.) in requirements.txt.
+8. **fixAutoPagination** — Detects list endpoints (get_all, list_, get_*s) without limit/offset params and injects `limit: int = 100, offset: int = 0` with `.limit(limit).offset(offset)` on select queries to prevent massive JSON payloads.
+9. **fixEagerLoadingEnforcement** — Detects SQLAlchemy `relationship()` definitions and injects `selectinload()` options on queries that access models with relationships, killing N+1 query bugs at the source.
+10. **fixResponseCompression** — Injects `GZipMiddleware(minimum_size=500)` from Starlette for automatic response compression on large payloads (3D scene state, bulk data).
+11. **fixFastAPIPerformanceConstants** — Injects `perf_config.py` with `PERF_LIMITS` (pagination defaults, compression thresholds, connection pool sizing, query timeout) and `PERF_HINTS` documentation.
 
 Wired into `pipeline.ts` and `refine.ts` — runs after code generation, before Golden Path checks. Emits `"type-hardening"` pipeline events via "FastAPI Vindicator" agent.
 

@@ -42,6 +42,22 @@ export function hardenFastAPITypes(
   currentFiles = reqVersions.files;
   allFixes.push(...reqVersions.fixes);
 
+  const pagination = fixAutoPagination(currentFiles);
+  currentFiles = pagination.files;
+  allFixes.push(...pagination.fixes);
+
+  const eagerLoad = fixEagerLoadingEnforcement(currentFiles);
+  currentFiles = eagerLoad.files;
+  allFixes.push(...eagerLoad.fixes);
+
+  const compression = fixResponseCompression(currentFiles);
+  currentFiles = compression.files;
+  allFixes.push(...compression.fixes);
+
+  const perfConst = fixFastAPIPerformanceConstants(currentFiles);
+  currentFiles = perfConst.files;
+  allFixes.push(...perfConst.fixes);
+
   return { files: currentFiles, fixes: allFixes };
 }
 
@@ -367,4 +383,262 @@ function fixRequirementsVersions(files: PipelineFile[]): HardenerResult {
   });
 
   return { files: result, fixes };
+}
+
+function fixAutoPagination(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const result = files.map(file => {
+    if (!file.path.endsWith(".py")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    const lines = content.split("\n");
+    const patchedLines: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (!/^\s*async\s+def\s+/.test(line)) {
+        patchedLines.push(line);
+        continue;
+      }
+
+      const funcMatch = line.match(/^(\s*)async\s+def\s+(\w+)\s*\(([^)]*)\)/);
+      if (!funcMatch) {
+        patchedLines.push(line);
+        continue;
+      }
+
+      const [, indent, funcName, params] = funcMatch;
+
+      if (params.includes("limit") || params.includes("offset") || params.includes("skip")) {
+        patchedLines.push(line);
+        continue;
+      }
+
+      let hasDecorator = false;
+      for (let j = i - 1; j >= 0; j--) {
+        const prev = lines[j].trim();
+        if (prev.startsWith("@")) {
+          if (/^@(?:app|router)\.get\s*\(/.test(prev)) {
+            hasDecorator = true;
+          }
+          break;
+        }
+        if (prev !== "") break;
+      }
+
+      if (!hasDecorator) {
+        patchedLines.push(line);
+        continue;
+      }
+
+      const isListEndpoint = funcName.startsWith("get_all") ||
+        funcName.startsWith("list_") ||
+        (funcName.startsWith("get_") && (funcName.endsWith("s") || funcName.includes("_all")));
+
+      let hasListResponse = false;
+      for (let j = i - 1; j >= 0; j--) {
+        const prev = lines[j].trim();
+        if (prev.startsWith("@") && /response_model\s*=\s*list\[/i.test(prev)) {
+          hasListResponse = true;
+          break;
+        }
+        if (!prev.startsWith("@") && prev !== "") break;
+      }
+
+      if (!isListEndpoint && !hasListResponse) {
+        patchedLines.push(line);
+        continue;
+      }
+
+      const newParams = params.trim()
+        ? `${params.trim()}, limit: int = 100, offset: int = 0`
+        : `limit: int = 100, offset: int = 0`;
+
+      patchedLines.push(`${indent}async def ${funcName}(${newParams}):`);
+      modified = true;
+      fixes.push(`[${file.path}] Injected limit/offset pagination on ${funcName}() (default limit=100)`);
+
+      continue;
+    }
+
+    if (modified) {
+      content = patchedLines.join("\n");
+
+      const selectAllPattern = /result\s*=\s*await\s+\w+\.execute\s*\(\s*select\s*\([^)]+\)\s*\)/g;
+      let selectMatch: RegExpExecArray | null;
+      while ((selectMatch = selectAllPattern.exec(content)) !== null) {
+        const stmt = selectMatch[0];
+        if (stmt.includes(".limit(") || stmt.includes(".offset(")) continue;
+        const patched = stmt.replace(/\)\s*\)$/, ").limit(limit).offset(offset))");
+        content = content.replace(stmt, patched);
+      }
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: result, fixes };
+}
+
+function fixEagerLoadingEnforcement(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const result = files.map(file => {
+    if (!file.path.endsWith(".py")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    if (!content.includes("relationship(") || !content.includes("select(")) return file;
+
+    const relationshipMatches = content.match(/(\w+)\s*:\s*Mapped\[.*?\]\s*=\s*relationship\(/g) || [];
+    const relationNames = relationshipMatches.map(r => r.match(/(\w+)\s*:/)?.[1]).filter(Boolean) as string[];
+
+    if (relationNames.length === 0) return file;
+
+    function getClassBlock(src: string, className: string): string {
+      const classStart = src.indexOf(`class ${className}(`);
+      if (classStart === -1) return "";
+      const nextClass = src.indexOf("\nclass ", classStart + 1);
+      return src.slice(classStart, nextClass !== -1 ? nextClass : src.length);
+    }
+
+    const selectPattern = /(await\s+\w+\.execute\s*\(\s*)(select\s*\(\s*(\w+)\s*\))([^)]*\))/g;
+    let selectMatch: RegExpExecArray | null;
+
+    while ((selectMatch = selectPattern.exec(content)) !== null) {
+      const [fullMatch, executePrefix, selectCall, modelName, afterSelect] = selectMatch;
+
+      if (fullMatch.includes("selectinload") || fullMatch.includes("joinedload")) continue;
+
+      const classBlock = getClassBlock(content, modelName);
+      if (!classBlock) continue;
+
+      const relForModel = relationNames.filter(r => classBlock.includes(`${r}:`));
+      if (relForModel.length === 0) continue;
+
+      const optionsStr = relForModel.map(r => `selectinload(${modelName}.${r})`).join(", ");
+      const patched = `${executePrefix}${selectCall}.options(${optionsStr})${afterSelect}`;
+      content = content.replace(fullMatch, patched);
+      modified = true;
+      fixes.push(`[${file.path}] Injected selectinload() for ${relForModel.join(", ")} on ${modelName} queries (N+1 prevention)`);
+    }
+
+    if (modified && !content.includes("selectinload")) {
+      if (content.includes("from sqlalchemy.orm import")) {
+        content = content.replace(
+          /from sqlalchemy\.orm import ([^\n]+)/,
+          (m, imports) => imports.includes("selectinload") ? m : `from sqlalchemy.orm import ${imports.trim()}, selectinload`,
+        );
+      } else {
+        content = `from sqlalchemy.orm import selectinload\n${content}`;
+      }
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: result, fixes };
+}
+
+function fixResponseCompression(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const result = files.map(file => {
+    if (!file.path.endsWith("main.py")) return file;
+    if (!file.content.includes("FastAPI")) return file;
+    if (file.content.includes("GZipMiddleware")) return file;
+
+    let content = file.content;
+
+    const appVarMatch = content.match(/(\w+)\s*=\s*FastAPI\s*\(/);
+    if (!appVarMatch) return file;
+    const appVar = appVarMatch[1];
+
+    const gzipImport = "from starlette.middleware.gzip import GZipMiddleware\n";
+    const gzipMiddleware = `${appVar}.add_middleware(GZipMiddleware, minimum_size=500)`;
+
+    const existingMiddleware = content.match(new RegExp(`${escapeRegex(appVar)}\\.add_middleware\\s*\\(`));
+    if (existingMiddleware) {
+      const idx = content.indexOf(existingMiddleware[0]);
+      const lineStart = content.lastIndexOf("\n", idx);
+      const indent = content.slice(lineStart + 1, idx).match(/^(\s*)/)?.[1] || "";
+      content = content.slice(0, lineStart + 1) +
+        `${indent}${gzipMiddleware}\n` +
+        content.slice(lineStart + 1);
+    } else {
+      const appDefIdx = content.indexOf(appVarMatch[0]);
+      const appLineEnd = content.indexOf("\n", appDefIdx);
+      if (appLineEnd !== -1) {
+        content = content.slice(0, appLineEnd + 1) +
+          `\n${gzipMiddleware}\n` +
+          content.slice(appLineEnd + 1);
+      }
+    }
+
+    if (!content.includes("from starlette.middleware.gzip import GZipMiddleware")) {
+      const lastFromImport = content.lastIndexOf("\nfrom ");
+      const lastImport = content.lastIndexOf("\nimport ");
+      const insertAfter = Math.max(lastFromImport, lastImport);
+      if (insertAfter !== -1) {
+        const lineEnd = content.indexOf("\n", insertAfter + 1);
+        content = content.slice(0, lineEnd + 1) + gzipImport + content.slice(lineEnd + 1);
+      } else {
+        content = gzipImport + content;
+      }
+    }
+
+    fixes.push(`[${file.path}] Injected GZipMiddleware (minimum_size=500) for automatic response compression`);
+    return { path: file.path, content };
+  });
+
+  return { files: result, fixes };
+}
+
+function fixFastAPIPerformanceConstants(files: PipelineFile[]): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasPerfFile = files.some(
+    f => f.path === "perf_config.py" && f.content.includes("PERF_LIMITS"),
+  );
+  if (hasPerfFile) return { files, fixes };
+
+  const hasMainPy = files.some(f => f.path === "main.py");
+  if (!hasMainPy) return { files, fixes };
+
+  const PERF_MODULE = `"""Performance configuration constants for FastAPI backend."""
+
+PERF_LIMITS = {
+    "DEFAULT_PAGE_LIMIT": 100,
+    "MAX_PAGE_LIMIT": 1000,
+    "DEFAULT_OFFSET": 0,
+    "GZIP_MINIMUM_SIZE": 500,
+    "MAX_RESPONSE_SIZE_MB": 10,
+    "QUERY_TIMEOUT_SECONDS": 30,
+    "MAX_EAGER_LOAD_DEPTH": 2,
+    "CONNECTION_POOL_SIZE": 5,
+    "CONNECTION_POOL_OVERFLOW": 10,
+}
+
+PERF_HINTS = {
+    "USE_PAGINATION": "All list endpoints must include limit/offset parameters",
+    "USE_EAGER_LOADING": "Use selectinload() for relationship access to prevent N+1 queries",
+    "USE_COMPRESSION": "GZipMiddleware compresses responses > 500 bytes automatically",
+    "USE_CONNECTION_POOL": "Configure pool_size and max_overflow for production workloads",
+    "USE_ASYNC": "All route handlers and DB operations must be async",
+}
+`;
+
+  const result = [...files, { path: "perf_config.py", content: PERF_MODULE }];
+  fixes.push("[perf_config.py] Injected PERF_LIMITS constants (pagination defaults, compression thresholds, connection pool, query timeout)");
+
+  return { files: result, fixes };
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
