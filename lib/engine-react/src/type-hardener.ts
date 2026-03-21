@@ -2816,6 +2816,10 @@ export function hardenGeneratedTypes(
   currentFiles = assetConduitFix.files;
   allFixes.push(...assetConduitFix.fixes);
 
+  const commandSchemaFix = fixCommandSchemaExhaustive(currentFiles);
+  currentFiles = commandSchemaFix.files;
+  allFixes.push(...commandSchemaFix.fixes);
+
   const viteEnvFix = fixViteEnvTypes(currentFiles);
   currentFiles = viteEnvFix.files;
   allFixes.push(...viteEnvFix.fixes);
@@ -3203,6 +3207,99 @@ export function validateAssetUrl(url: string): boolean {
         content = content.replace(/meshBasicMaterial/g, "meshStandardMaterial");
         fixes.push(`[${file.path}] Replaced meshBasicMaterial with meshStandardMaterial in lit scene (prevents invisible mesh hallucination)`);
         modified = true;
+      }
+    }
+
+    return modified ? { path: file.path, content } : file;
+  });
+
+  return { files: result, fixes };
+}
+
+function fixCommandSchemaExhaustive(
+  files: Array<{ path: string; content: string }>,
+): HardenerResult {
+  const fixes: string[] = [];
+
+  const hasCommandTypes = files.some(
+    f => (f.path.includes("types/commands") || f.path.includes("commands.ts")) &&
+      f.content.includes("CommandAction"),
+  );
+  if (!hasCommandTypes) return { files, fixes };
+
+  const COMMAND_BUS_MODULE = `import type { CommandAction, CommandEnvelope } from "../types/commands";
+
+let history: CommandEnvelope[] = [];
+let future: CommandEnvelope[] = [];
+
+export const commandBus = {
+  dispatch(command: CommandAction, source: "editor" | "ai" = "editor"): CommandEnvelope {
+    const envelope: CommandEnvelope = {
+      id: crypto.randomUUID(),
+      timestamp: Date.now(),
+      source,
+      command,
+    };
+    history.push(envelope);
+    future = [];
+    return envelope;
+  },
+  undo(): CommandEnvelope | undefined {
+    const last = history.pop();
+    if (last) { future.push(last); }
+    return last;
+  },
+  redo(): CommandEnvelope | undefined {
+    const next = future.pop();
+    if (next) { history.push(next); }
+    return next;
+  },
+  getHistory(): CommandEnvelope[] { return [...history]; },
+  clear() { history = []; future = []; },
+};
+`;
+
+  const updatedFiles = [...files];
+
+  const hasCommandBus = files.some(
+    f => f.path === "client/src/lib/command-bus.ts" && f.content.includes("commandBus"),
+  );
+  if (!hasCommandBus && files.some(f => f.path.startsWith("client/"))) {
+    updatedFiles.push({
+      path: "client/src/lib/command-bus.ts",
+      content: COMMAND_BUS_MODULE,
+    });
+    fixes.push("[client/src/lib/command-bus.ts] Injected command bus with undo/redo history stack");
+  }
+
+  const result = updatedFiles.map(file => {
+    if (!file.path.match(/\.[tj]sx?$/) || file.path.endsWith(".d.ts")) return file;
+    if (!file.content.includes("switch") || !file.content.includes(".action")) return file;
+
+    let content = file.content;
+    let modified = false;
+
+    const switchRegex = /switch\s*\(\s*\w+\.action\s*\)\s*\{/g;
+    let switchMatch: RegExpExecArray | null;
+
+    while ((switchMatch = switchRegex.exec(content)) !== null) {
+      const switchStart = switchMatch.index + switchMatch[0].length;
+      let braceDepth = 1;
+      let pos = switchStart;
+      while (pos < content.length && braceDepth > 0) {
+        if (content[pos] === "{") braceDepth++;
+        if (content[pos] === "}") braceDepth--;
+        pos++;
+      }
+      const switchBody = content.slice(switchStart, pos - 1);
+
+      if (!switchBody.includes("default:") && !switchBody.includes("default :")) {
+        const indent = (content.slice(0, switchMatch.index).match(/(?:^|\n)([ \t]*)$/)?.[1] || "") + "  ";
+        const defaultBranch = `\n${indent}default: { const _exhaustive: never = command; console.error("Unhandled command:", (_exhaustive as any).action); break; }`;
+        content = content.slice(0, pos - 1) + defaultBranch + "\n" + content.slice(pos - 1);
+        fixes.push(`[${file.path}] Injected exhaustive default:never guard in command action switch`);
+        modified = true;
+        break;
       }
     }
 

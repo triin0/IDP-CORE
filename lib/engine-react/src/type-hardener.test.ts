@@ -3424,6 +3424,107 @@ console.log("\n=== Pass 41h: fixAssetConduit - adds useEffect import when missin
   passed++;
 }
 
+console.log("\n=== Pass 42a: fixCommandSchemaExhaustive - injects command-bus.ts when CommandAction detected ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type Vec3 = [number, number, number];\nexport type CommandAction =\n  | { action: "SPAWN_ASSET"; payload: { type: "MODEL"; position: Vec3; } }\n  | { action: "DELETE_NODE"; payload: { id: string; } };\nexport interface CommandEnvelope {\n  id: string;\n  timestamp: number;\n  source: "editor" | "ai" | "socket";\n  command: CommandAction;\n}`,
+    },
+    {
+      path: "client/src/App.tsx",
+      content: `export function App() { return <div />; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const bus = result.files.find(f => f.path === "client/src/lib/command-bus.ts");
+  assert(bus, "should create command-bus.ts");
+  assert(bus!.content.includes("commandBus"), "should export commandBus");
+  assert(bus!.content.includes("dispatch"), "should have dispatch method");
+  assert(bus!.content.includes("undo"), "should have undo method");
+  assert(bus!.content.includes("redo"), "should have redo method");
+  assert(bus!.content.includes("getHistory"), "should have getHistory method");
+  assert(result.fixes.some(f => f.includes("command bus")), "should report bus injection");
+  passed++;
+}
+
+console.log("\n=== Pass 42b: fixCommandSchemaExhaustive - injects default:never guard in switch ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction = { action: "SPAWN_ASSET"; payload: {} } | { action: "DELETE_NODE"; payload: { id: string } };\nexport interface CommandEnvelope { id: string; timestamp: number; source: "editor"; command: CommandAction; }`,
+    },
+    {
+      path: "server/src/command-handler.ts",
+      content: `import type { CommandEnvelope } from "./types/commands";\nexport function handleCommand(envelope: CommandEnvelope) {\n  const { command } = envelope;\n  switch (command.action) {\n    case "SPAWN_ASSET": break;\n    case "DELETE_NODE": break;\n  }\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const handler = result.files.find(f => f.path === "server/src/command-handler.ts")!;
+  assert(handler.content.includes("_exhaustive: never"), "should inject never guard");
+  assert(handler.content.includes("default:"), "should add default case");
+  assert(result.fixes.some(f => f.includes("exhaustive default:never")), "should report guard injection");
+  passed++;
+}
+
+console.log("\n=== Pass 42c: fixCommandSchemaExhaustive - skips when no CommandAction types ===");
+{
+  const files = [
+    {
+      path: "client/src/App.tsx",
+      content: `export function App() { return <div />; }`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  assert(!result.files.some(f => f.path === "client/src/lib/command-bus.ts"), "should not create command-bus.ts");
+  assert(!result.fixes.some(f => f.includes("command")), "should not report command fix");
+  passed++;
+}
+
+console.log("\n=== Pass 42d: fixCommandSchemaExhaustive - does not double-inject default guard ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction = { action: "SPAWN_ASSET"; payload: {} };\nexport interface CommandEnvelope { id: string; timestamp: number; source: "editor"; command: CommandAction; }`,
+    },
+    {
+      path: "server/src/handler.ts",
+      content: `import type { CommandEnvelope } from "./types/commands";\nexport function handle(e: CommandEnvelope) {\n  switch (e.command.action) {\n    case "SPAWN_ASSET": break;\n    default: { const _exhaustive: never = e.command; break; }\n  }\n}`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const handler = result.files.find(f => f.path === "server/src/handler.ts")!;
+  const defaultCount = (handler.content.match(/default:/g) || []).length;
+  assert(defaultCount === 1, "should not duplicate default guard (found " + defaultCount + ")");
+  passed++;
+}
+
+console.log("\n=== Pass 42e: fixCommandSchemaExhaustive - does not duplicate command-bus.ts ===");
+{
+  const files = [
+    {
+      path: "client/src/types/commands.ts",
+      content: `export type CommandAction = { action: "SPAWN_ASSET"; payload: {} };\nexport interface CommandEnvelope { id: string; timestamp: number; source: "editor"; command: CommandAction; }`,
+    },
+    {
+      path: "client/src/lib/command-bus.ts",
+      content: `export const commandBus = { dispatch() {}, undo() {}, redo() {} };`,
+    },
+  ];
+
+  const result = hardenGeneratedTypes(files);
+  const busFiles = result.files.filter(f => f.path === "client/src/lib/command-bus.ts");
+  assert(busFiles.length === 1, "should not duplicate command-bus.ts");
+  assert(busFiles[0].content.includes("dispatch"), "should preserve original bus");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

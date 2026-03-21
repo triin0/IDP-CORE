@@ -278,6 +278,39 @@ If the user's prompt involves loading 3D models, textures, audio, or external as
    - Materials: meshStandardMaterial only (no custom shaders unless explicitly requested)
 4. **Disposal mandate**: Every model component MUST dispose geometry and materials on unmount via useEffect cleanup.
 
+### SOVEREIGN COMMAND SCHEMA — Reactive State Protocol (ONLY if spec involves 3D editor, visual manipulation, OR conversational AI scene control)
+If the app requires visual editing, AI-driven scene manipulation, or real-time collaboration on spatial state, you MUST:
+1. **Command Registry file**: Create \`shared/types/commands.ts\` that defines the exhaustive discriminated union of all engine commands:
+   \`\`\`typescript
+   export type Vec3 = [number, number, number];
+   export type CommandAction =
+     | { action: "SPAWN_ASSET"; payload: { type: "MODEL" | "LIGHT" | "PRIMITIVE"; src?: string; primitive?: "box" | "sphere" | "plane" | "cylinder"; position: Vec3; rotation?: Vec3; scale?: Vec3; } }
+     | { action: "DELETE_NODE"; payload: { id: string; } }
+     | { action: "TRANSFORM_NODE"; payload: { id: string; position?: Vec3; rotation?: Vec3; scale?: Vec3; } }
+     | { action: "UPDATE_MATERIAL"; payload: { id: string; color?: string; roughness?: number; metalness?: number; } }
+     | { action: "SET_ENVIRONMENT"; payload: { preset: "city" | "dawn" | "night" | "studio" | "warehouse"; } }
+     | { action: "SNAPSHOT_STATE"; payload: { label?: string; } }
+     | { action: "UNDO"; payload: Record<string, never>; }
+     | { action: "REDO"; payload: Record<string, never>; };
+   export interface CommandEnvelope {
+     id: string;
+     timestamp: number;
+     source: "editor" | "ai" | "socket";
+     command: CommandAction;
+   }
+   \`\`\`
+2. **File structure**: Include these files in the architecture:
+   - \`shared/types/commands.ts\` (Command Registry — single source of truth)
+   - \`server/src/types/commands.ts\` (copy of Command Registry for server)
+   - \`client/src/types/commands.ts\` (copy of Command Registry for client)
+   - \`client/src/lib/command-bus.ts\` (command dispatcher + history stack)
+   - \`server/src/command-handler.ts\` (server-side command executor + validation)
+3. **Command Bus**: The client-side dispatcher validates, logs, and routes commands:
+   - Editor gizmos emit commands via \`commandBus.dispatch({ action: "TRANSFORM_NODE", ... })\`
+   - AI chat emits commands via the same bus after parsing natural language to CommandAction
+   - Socket relay: commands are forwarded to the server via socket, server broadcasts to other clients
+4. **Exhaustive handling**: Every \`switch (command.action)\` MUST include a \`default: never\` guard to catch unhandled actions at compile time.
+
 ### OUTPUT FORMAT
 Return a JSON object: { "files": [{ "path": "...", "content": "..." }], "notes": "Brief summary of architectural decisions" }
 Do NOT include any text before or after the JSON.
@@ -446,6 +479,37 @@ If the Architect included \`socket.io\` in dependencies, you MUST implement \`se
    httpServer.listen(PORT); // NOT app.listen()
    \`\`\`
 5. **Disconnect cleanup**: Always handle \`socket.on("disconnect", () => { ... })\` to clean up user state, leave rooms, and broadcast departure.
+
+### SOVEREIGN COMMAND SCHEMA — Server Command Handler (ONLY if Architect specified commands.ts / command-handler.ts)
+If the Architect included a Command Registry (\`commands.ts\`) and command handler, you MUST:
+1. **Command Handler** (\`server/src/command-handler.ts\`): Process incoming commands with exhaustive switch:
+   \`\`\`typescript
+   import type { CommandEnvelope, CommandAction } from "./types/commands";
+   export function executeCommand(envelope: CommandEnvelope, context: { io: Server; socket: Socket }): { success: boolean; error?: string } {
+     const { command } = envelope;
+     switch (command.action) {
+       case "SPAWN_ASSET": /* validate + broadcast */ break;
+       case "DELETE_NODE": /* remove + broadcast */ break;
+       case "TRANSFORM_NODE": /* validate bounds + broadcast */ break;
+       case "UPDATE_MATERIAL": /* validate PBR ranges + broadcast */ break;
+       case "SET_ENVIRONMENT": /* broadcast preset */ break;
+       case "SNAPSHOT_STATE": /* serialize scene */ break;
+       case "UNDO": /* pop history */ break;
+       case "REDO": /* push history */ break;
+       default: { const _exhaustive: never = command; return { success: false, error: \`Unknown action: \${(_exhaustive as any).action}\` }; }
+     }
+     return { success: true };
+   }
+   \`\`\`
+2. **Socket Integration**: Wire the command handler into the socket connection:
+   \`\`\`typescript
+   socket.on("COMMAND", (envelope: CommandEnvelope) => {
+     const result = executeCommand(envelope, { io, socket });
+     if (result.success) { socket.to(room).emit("COMMAND_ACK", envelope); }
+     else { socket.emit("COMMAND_REJECT", { id: envelope.id, error: result.error }); }
+   });
+   \`\`\`
+3. **Validation**: ALWAYS validate \`TRANSFORM_NODE\` positions with bounds checking (y >= 0, radial dist <= 100) before broadcasting.
 
 ### ARCHITECT'S DECISIONS
 ${architectNotes}
@@ -709,6 +773,51 @@ If the Architect included \`useEditorStore.ts\`, \`Inspector.tsx\`, \`SovereignG
      if (dist > 100) return false;
      return true;
    }
+   \`\`\`
+
+### SOVEREIGN COMMAND SCHEMA — Client Command Bus (ONLY if Architect specified commands.ts / command-bus.ts)
+If the Architect included a Command Registry (\`commands.ts\`) and \`command-bus.ts\`, you MUST:
+1. **Command Bus** (\`client/src/lib/command-bus.ts\`): Central dispatcher with undo/redo history:
+   \`\`\`typescript
+   import type { CommandAction, CommandEnvelope } from "../types/commands";
+   import { socket } from "./socket";
+   let history: CommandEnvelope[] = [];
+   let future: CommandEnvelope[] = [];
+   export const commandBus = {
+     dispatch(command: CommandAction, source: "editor" | "ai" = "editor") {
+       const envelope: CommandEnvelope = {
+         id: crypto.randomUUID(),
+         timestamp: Date.now(),
+         source,
+         command,
+       };
+       history.push(envelope);
+       future = [];
+       socket.emit("COMMAND", envelope);
+       return envelope;
+     },
+     undo() { const last = history.pop(); if (last) { future.push(last); socket.emit("COMMAND", { id: crypto.randomUUID(), timestamp: Date.now(), source: "editor", command: { action: "UNDO", payload: {} } }); } },
+     redo() { const next = future.pop(); if (next) { history.push(next); socket.emit("COMMAND", { id: crypto.randomUUID(), timestamp: Date.now(), source: "editor", command: { action: "REDO", payload: {} } }); } },
+     getHistory() { return [...history]; },
+   };
+   \`\`\`
+2. **Gizmo Integration**: The SovereignGizmo MUST dispatch commands through the bus, NOT directly through socket:
+   \`\`\`typescript
+   onDragEnd={(m) => {
+     const pos: [number, number, number] = [m.elements[12], m.elements[13], m.elements[14]];
+     if (visualSanity(pos)) {
+       commandBus.dispatch({ action: "TRANSFORM_NODE", payload: { id, position: pos } });
+     }
+   }}
+   \`\`\`
+3. **AI Chat Integration**: When parsing natural language to commands, ALWAYS validate the parsed command matches the \`CommandAction\` union before dispatching:
+   \`\`\`typescript
+   const parsed = parseAIResponse(text);
+   if (isValidCommand(parsed)) { commandBus.dispatch(parsed, "ai"); }
+   \`\`\`
+4. **Exhaustive Switch Guard**: Every \`switch (command.action)\` in client code MUST include:
+   \`\`\`typescript
+   default: { const _exhaustive: never = command; console.error("Unhandled command:", (_exhaustive as any).action); }
    \`\`\`
 
 ### SOVEREIGN ASSET CONDUIT — 3D Asset Hardening (ONLY if Architect specified asset-conduit or model components)
@@ -1062,6 +1171,18 @@ You are now operating as the AI Doctor. The Vindicator (deterministic hardener) 
 **Diagnosis: Asset Format Rejection (file fails to load or renders corrupted)**
 - Symptom: useGLTF throws parsing error, texture shows magenta placeholder, or audio doesn't play.
 - Cure: 1. Validate file extension against allowed formats: \`.glb\`, \`.gltf\`, \`.webp\`, \`.png\`, \`.mp3\`, \`.ogg\`. 2. FBX/OBJ/DAE are NOT supported — convert to GLB before loading. 3. For textures, prefer WebP over PNG/JPEG for VRAM efficiency. 4. Verify the asset URL is accessible from the client (CORS headers).
+
+**Diagnosis: Non-Exhaustive Command Switch (TS2322 or unhandled command action)**
+- Symptom: TypeScript error on \`default: never\` branch, or a new command action silently falls through without handling.
+- Cure: 1. Every \`switch (command.action)\` MUST have a case for every variant in the \`CommandAction\` union. 2. The default branch MUST assign to \`const _exhaustive: never = command\` — this causes a compile error when a case is missing. 3. If adding a new action to the union, add corresponding cases in BOTH server \`command-handler.ts\` and all client switch statements.
+
+**Diagnosis: Command Envelope Missing Fields (runtime crash on dispatch)**
+- Symptom: \`Cannot read property 'action' of undefined\` or socket event rejected by server.
+- Cure: 1. Every command MUST be wrapped in a \`CommandEnvelope\` with \`id\` (UUID), \`timestamp\` (Date.now()), \`source\` ("editor" | "ai" | "socket"), and \`command\` (the action+payload). 2. Use \`commandBus.dispatch()\` — NEVER emit raw actions directly through socket. 3. Verify the \`CommandEnvelope\` interface is imported from \`types/commands.ts\`.
+
+**Diagnosis: Undo/Redo Desync (history stack diverges from scene state)**
+- Symptom: Undo reverts the wrong action, or redo replays an already-applied command.
+- Cure: 1. The command bus history is append-only — \`dispatch()\` clears the future stack. 2. \`undo()\` pops from history and pushes to future. \`redo()\` pops from future and pushes to history. 3. NEVER mutate the history array directly — use the bus API. 4. Socket-received commands (source: "socket") should NOT be added to the local undo stack — they represent other users' actions.
 
 ### MINIMAL INCISION RULE
 You MUST only modify lines cited in the error log. Do NOT rewrite entire files. Do NOT add new features. Do NOT refactor working code. Count the number of changed lines — if you changed more than 3x the number of error lines, you are hallucinating extra surgery. Stop and reconsider.
