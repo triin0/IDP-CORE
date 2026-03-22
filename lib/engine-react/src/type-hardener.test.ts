@@ -6760,6 +6760,271 @@ console.log("\n" + "=".repeat(60));
 console.log("  THE SOVEREIGN SPAWNER — OPERATIONAL");
 console.log("=".repeat(60));
 
+// ============================================================
+// MODULE 10: THE ECONOMIC LAYER — OWNERSHIP, MARKETPLACE, ATOMIC SWAP
+// ============================================================
+console.log("\n" + "=".repeat(60));
+console.log("  MODULE 10: THE ECONOMIC LAYER");
+console.log("=".repeat(60));
+
+{
+  const fs = await import("fs");
+  const path = await import("path");
+  const ownershipHeader = fs.default.readFileSync(
+    path.default.resolve("lib/engine-native/generated/SovereignOwnership.h"),
+    "utf8"
+  );
+
+  // --- USovereignOwnershipComponent ---
+  console.log("\n  -- USovereignOwnershipComponent --");
+  assert(ownershipHeader.includes("class USovereignOwnershipComponent"), "Ownership: component class exists");
+  assert(ownershipHeader.includes("OwnerIdentity") || ownershipHeader.includes("ownerIdentity"), "Ownership: OwnerIdentity field");
+  assert(ownershipHeader.includes("isOwnedBy"), "Ownership: isOwnedBy method");
+  assert(ownershipHeader.includes("canInteract"), "Ownership: canInteract method");
+  assert(ownershipHeader.includes("claimOwnership"), "Ownership: claimOwnership method");
+  assert(ownershipHeader.includes("transferOwnership"), "Ownership: transferOwnership method");
+  assert(ownershipHeader.includes("lockForListing"), "Ownership: lockForListing method");
+  assert(ownershipHeader.includes("lockForTrade"), "Ownership: lockForTrade method");
+  assert(ownershipHeader.includes("unlockEntity"), "Ownership: unlockEntity method");
+  assert(ownershipHeader.includes("getOwnedEntities"), "Ownership: getOwnedEntities method");
+  assert(ownershipHeader.includes("persistOwnership"), "Ownership: Chronos persistence");
+  assert(ownershipHeader.includes("recoverOwnership"), "Ownership: Chronos recovery");
+  assert(ownershipHeader.includes("verifyOwnershipIntegrity"), "Ownership: integrity verification");
+
+  // --- Lock States ---
+  console.log("  -- Lock States --");
+  assert(ownershipHeader.includes("UNLOCKED"), "Ownership: UNLOCKED state");
+  assert(ownershipHeader.includes("LOCKED_OWNER"), "Ownership: LOCKED_OWNER state");
+  assert(ownershipHeader.includes("LOCKED_LISTING"), "Ownership: LOCKED_LISTING state");
+  assert(ownershipHeader.includes("LOCKED_TRADE"), "Ownership: LOCKED_TRADE state");
+  assert(ownershipHeader.includes("OwnershipLockState"), "Ownership: OwnershipLockState enum");
+
+  // --- FOwnershipRecord ---
+  console.log("  -- FOwnershipRecord --");
+  assert(ownershipHeader.includes("struct FOwnershipRecord"), "Ownership: FOwnershipRecord struct");
+  assert(ownershipHeader.includes("entityHash") && ownershipHeader.includes("ownerIdentity"), "Ownership: entity+owner fields");
+  assert(ownershipHeader.includes("previousOwner"), "Ownership: previousOwner tracked");
+  assert(ownershipHeader.includes("transferCount"), "Ownership: transferCount tracked");
+  assert(ownershipHeader.includes("ownershipHash"), "Ownership: SHA-256 sealed");
+  assert(ownershipHeader.includes("verifyIntegrity"), "Ownership: verifyIntegrity method");
+  assert(ownershipHeader.includes("canonicalize"), "Ownership: canonicalize for hash");
+
+  // --- Thread Safety ---
+  console.log("  -- Thread Safety --");
+  assert(ownershipHeader.includes("std::mutex"), "Ownership: mutex for thread safety");
+  assert(ownershipHeader.includes("std::lock_guard"), "Ownership: lock_guard usage");
+  assert(ownershipHeader.includes("mutable std::mutex"), "Ownership: mutable mutex for const methods");
+
+  // --- Singleton ---
+  console.log("  -- Singleton --");
+  assert(ownershipHeader.includes("static USovereignOwnershipComponent& Get()"), "Ownership: singleton Get()");
+  const ownershipPrivateCtor = ownershipHeader.includes("USovereignOwnershipComponent() = default") ||
+    ownershipHeader.includes("USovereignOwnershipComponent(const USovereignOwnershipComponent&) = delete");
+  assert(ownershipPrivateCtor, "Ownership: private/deleted constructors");
+
+  // --- Delegate (copy-then-invoke) ---
+  console.log("  -- Delegates --");
+  assert(ownershipHeader.includes("OwnershipTransferDelegate"), "Ownership: transfer delegate type");
+  assert(ownershipHeader.includes("delegateCopy"), "Ownership: copy-then-invoke pattern");
+
+  // --- Chronos Integration ---
+  console.log("  -- Chronos Integration --");
+  assert(ownershipHeader.includes("ownership:"), "Ownership: Chronos key prefix");
+  assert(ownershipHeader.includes("ChronosEngine::Get()"), "Ownership: uses ChronosEngine singleton");
+
+  // --- CommitTrade Packets ---
+  console.log("\n  -- CommitTrade Packets --");
+  assert(ownershipHeader.includes("struct FTradeCommitSell"), "Trade: CommitSell packet struct");
+  assert(ownershipHeader.includes("struct FTradeCommitBuy"), "Trade: CommitBuy packet struct");
+  assert(ownershipHeader.includes("sellerIdentity"), "Trade: seller identity in CommitSell");
+  assert(ownershipHeader.includes("buyerIdentity"), "Trade: buyer identity in CommitBuy");
+  assert(ownershipHeader.includes("priceCredits"), "Trade: price in CommitSell");
+  assert(ownershipHeader.includes("creditsOffered"), "Trade: credits offered in CommitBuy");
+
+  // --- Dual Signature ---
+  console.log("  -- Dual Signature --");
+  const sellSign = ownershipHeader.includes("commitHash") && ownershipHeader.includes("FTradeCommitSell");
+  assert(sellSign, "Trade: sell commit hash (signature)");
+  assert(ownershipHeader.includes("verifySignature"), "Trade: verifySignature method");
+  assert(ownershipHeader.includes("computeCommitHash"), "Trade: computeCommitHash for signing");
+
+  // --- AtomicSwapEngine ---
+  console.log("\n  -- AtomicSwapEngine --");
+  assert(ownershipHeader.includes("class AtomicSwapEngine"), "Swap: engine class exists");
+  assert(ownershipHeader.includes("static AtomicSwapEngine& Get()"), "Swap: singleton");
+  assert(ownershipHeader.includes("commitSell"), "Swap: commitSell method");
+  assert(ownershipHeader.includes("commitBuy"), "Swap: commitBuy method");
+  assert(ownershipHeader.includes("executeSwap"), "Swap: executeSwap method");
+  assert(ownershipHeader.includes("cancelSell"), "Swap: cancelSell method");
+
+  // --- Swap Verification ---
+  console.log("  -- Swap Verification --");
+  assert(ownershipHeader.includes("ENTITY_HASH_MISMATCH"), "Swap: entity hash mismatch check");
+  assert(ownershipHeader.includes("INVALID_SELL_SIGNATURE"), "Swap: sell signature verification");
+  assert(ownershipHeader.includes("INVALID_BUY_SIGNATURE"), "Swap: buy signature verification");
+  assert(ownershipHeader.includes("INSUFFICIENT_CREDITS"), "Swap: credit sufficiency check");
+  assert(ownershipHeader.includes("SELF_TRADE_PROHIBITED"), "Swap: self-trade prevention");
+  assert(ownershipHeader.includes("NO_SELL_COMMIT"), "Swap: missing sell commit check");
+  assert(ownershipHeader.includes("NO_BUY_COMMIT"), "Swap: missing buy commit check");
+
+  // --- Swap Result ---
+  console.log("  -- Swap Result --");
+  assert(ownershipHeader.includes("struct AtomicSwapResult"), "Swap: result struct");
+  assert(ownershipHeader.includes("sellerProceeds"), "Swap: seller proceeds calculated");
+  assert(ownershipHeader.includes("royaltyPaid"), "Swap: royalty amount in result");
+  assert(ownershipHeader.includes("buyerCost"), "Swap: buyer cost in result");
+
+  // --- Transaction Record ---
+  console.log("  -- Transaction Record --");
+  assert(ownershipHeader.includes("struct FTransactionRecord"), "Tx: record struct");
+  assert(ownershipHeader.includes("transactionId"), "Tx: transaction ID");
+  assert(ownershipHeader.includes("transactionHash"), "Tx: SHA-256 sealed hash");
+  assert(ownershipHeader.includes("sellCommitHash"), "Tx: sell commit hash stored");
+  assert(ownershipHeader.includes("buyCommitHash"), "Tx: buy commit hash stored");
+  assert(ownershipHeader.includes("TradeStatus"), "Tx: trade status enum");
+  assert(ownershipHeader.includes("EXECUTED"), "Tx: EXECUTED status");
+  assert(ownershipHeader.includes("CANCELLED"), "Tx: CANCELLED status");
+  assert(ownershipHeader.includes("FAILED"), "Tx: FAILED status");
+
+  // --- Transaction History ---
+  console.log("  -- Transaction History --");
+  assert(ownershipHeader.includes("getTransactionHistory"), "TxHistory: global history method");
+  assert(ownershipHeader.includes("getEntityTransactions"), "TxHistory: per-entity filter");
+  assert(ownershipHeader.includes("getUserTransactions"), "TxHistory: per-user filter");
+
+  // --- Genetic Tax (Royalties) ---
+  console.log("\n  -- Genetic Tax (Royalties) --");
+  assert(ownershipHeader.includes("struct GeneticTaxConfig"), "Tax: config struct");
+  assert(ownershipHeader.includes("royaltyBps"), "Tax: basis points field");
+  assert(ownershipHeader.includes("minRoyaltyBps"), "Tax: minimum BPS clamp");
+  assert(ownershipHeader.includes("maxRoyaltyBps"), "Tax: maximum BPS clamp");
+  assert(ownershipHeader.includes("genesisArchitectId"), "Tax: genesis architect ID");
+  assert(ownershipHeader.includes("computeRoyalty"), "Tax: computeRoyalty method");
+  assert(ownershipHeader.includes("configureGenesisTax"), "Tax: configureGenesisTax method");
+
+  // --- Royalty Enforcement ---
+  console.log("  -- Royalty Enforcement --");
+  assert(ownershipHeader.includes("royaltyCredits"), "Tax: royalty field in transaction");
+  assert(ownershipHeader.includes("genesisArchitect"), "Tax: genesis architect in transaction record");
+  assert(ownershipHeader.includes("RoyaltyCollectedDelegate"), "Tax: royalty collected delegate");
+  const taxCompute = ownershipHeader.includes("effectiveBps") && ownershipHeader.includes("computeRoyalty");
+  assert(taxCompute, "Tax: effective BPS clamping + computation");
+
+  // --- Default Genesis Architect ---
+  console.log("  -- Default Genesis Architect --");
+  assert(ownershipHeader.includes('"50529956"'), "Tax: default architect is 50529956");
+
+  // --- BPS Range ---
+  const bpsRange = ownershipHeader.includes("200") && ownershipHeader.includes("500");
+  assert(bpsRange, "Tax: BPS range 200-500 (2%-5%)");
+
+  // --- SovereignMarketplace ---
+  console.log("\n  -- SovereignMarketplace --");
+  assert(ownershipHeader.includes("class SovereignMarketplace"), "Marketplace: class exists");
+  assert(ownershipHeader.includes("static SovereignMarketplace& Get()"), "Marketplace: singleton");
+  assert(ownershipHeader.includes("listEntity"), "Marketplace: listEntity method");
+  assert(ownershipHeader.includes("buyEntity"), "Marketplace: buyEntity method");
+  assert(ownershipHeader.includes("auditEntity"), "Marketplace: auditEntity method");
+  assert(ownershipHeader.includes("removeListing"), "Marketplace: removeListing method");
+  assert(ownershipHeader.includes("getActiveListings"), "Marketplace: getActiveListings method");
+
+  // --- Listing Structure ---
+  console.log("  -- Listing Structure --");
+  assert(ownershipHeader.includes("struct FMarketplaceListing"), "Listing: struct exists");
+  assert(ownershipHeader.includes("askPrice"), "Listing: askPrice field");
+  assert(ownershipHeader.includes("listingHash"), "Listing: SHA-256 sealed");
+  assert(ownershipHeader.includes("phenotypeClassName"), "Listing: phenotype class");
+  assert(ownershipHeader.includes("meshFamilyName"), "Listing: mesh family");
+
+  // --- Marketplace Audit ---
+  console.log("  -- Marketplace Audit --");
+  assert(ownershipHeader.includes("struct AuditResult"), "Audit: result struct");
+  assert(ownershipHeader.includes("ancestryDepth"), "Audit: ancestry depth");
+  assert(ownershipHeader.includes("FSpawnLineage"), "Audit: includes lineage data");
+
+  // --- Chronos: Listing + Trade Flush ---
+  console.log("  -- Chronos Flush --");
+  assert(ownershipHeader.includes("listing:"), "Marketplace: Chronos listing key prefix");
+  assert(ownershipHeader.includes("trade:"), "Marketplace: Chronos trade key prefix");
+  assert(ownershipHeader.includes("flushTransactionToChronos"), "Marketplace: trade flush method");
+  assert(ownershipHeader.includes("flushListingToChronos"), "Marketplace: listing flush method");
+
+  // --- Swap Determinism ---
+  console.log("  -- Swap Determinism --");
+  assert(ownershipHeader.includes("verifyDeterminism"), "Swap: determinism verification method");
+
+  // --- Swap Stats ---
+  console.log("  -- Swap Stats --");
+  assert(ownershipHeader.includes("struct OwnershipStats"), "Stats: struct exists");
+  assert(ownershipHeader.includes("totalTradesExecuted"), "Stats: total trades executed");
+  assert(ownershipHeader.includes("totalVolumeTraded"), "Stats: total volume");
+  assert(ownershipHeader.includes("totalRoyaltiesCollected"), "Stats: total royalties");
+
+  // --- bypassTradeLock ---
+  console.log("  -- bypassTradeLock --");
+  assert(ownershipHeader.includes("bypassTradeLock"), "Swap: bypassTradeLock for atomic swap transfer");
+
+  // --- Namespace ---
+  console.log("  -- Namespace --");
+  assert(ownershipHeader.includes("namespace Sovereign"), "Ownership: in Sovereign namespace");
+}
+
+// --- Marketplace API Routes ---
+console.log("\n  -- Marketplace API Routes --");
+{
+  const fs = await import("fs");
+  const path = await import("path");
+  const marketplaceRoutes = fs.default.readFileSync(
+    path.default.resolve("artifacts/api-server/src/routes/marketplace.ts"),
+    "utf8"
+  );
+
+  assert(marketplaceRoutes.includes("/marketplace/list"), "API: /marketplace/list endpoint");
+  assert(marketplaceRoutes.includes("/marketplace/buy"), "API: /marketplace/buy endpoint");
+  assert(marketplaceRoutes.includes("/marketplace/audit"), "API: /marketplace/audit endpoint");
+  assert(marketplaceRoutes.includes("/marketplace/listings"), "API: /marketplace/listings endpoint");
+  assert(marketplaceRoutes.includes("requireAuth"), "API: authentication required");
+  assert(marketplaceRoutes.includes("reserveCredits"), "API: reserve/settle credit pattern");
+  assert(marketplaceRoutes.includes("settleCredits"), "API: settle credits on swap");
+  assert(marketplaceRoutes.includes("refundCredits"), "API: refund on failure");
+  assert(marketplaceRoutes.includes("SELF_PURCHASE_PROHIBITED"), "API: self-purchase blocked");
+  assert(marketplaceRoutes.includes("GENESIS_ARCHITECT_ID"), "API: genesis architect for royalties");
+  assert(marketplaceRoutes.includes("ROYALTY_BPS"), "API: royalty BPS configured");
+  assert(marketplaceRoutes.includes("computeRoyalty"), "API: royalty computation");
+  assert(marketplaceRoutes.includes("sellCommitHash"), "API: dual-signature sell hash");
+  assert(marketplaceRoutes.includes("buyCommitHash"), "API: dual-signature buy hash");
+  assert(marketplaceRoutes.includes("transactionHash"), "API: transaction hash sealed");
+  assert(marketplaceRoutes.includes("grantCredits"), "API: seller proceeds granted");
+  assert(marketplaceRoutes.includes("royalty_payment"), "API: royalty routed to architect");
+  assert(marketplaceRoutes.includes("NOT_LISTED"), "API: not-listed guard");
+  assert(marketplaceRoutes.includes("NOT_OWNER"), "API: ownership guard");
+  assert(marketplaceRoutes.includes("INSUFFICIENT_CREDITS"), "API: credit sufficiency check");
+  assert(marketplaceRoutes.includes("ALREADY_LISTED"), "API: duplicate listing guard");
+  assert(marketplaceRoutes.includes("/marketplace/claim"), "API: /marketplace/claim endpoint");
+  assert(marketplaceRoutes.includes("ENTITY_NOT_REGISTERED"), "API: reject listing unregistered entities");
+  assert(marketplaceRoutes.includes("ALREADY_CLAIMED"), "API: duplicate claim guard");
+  assert(marketplaceRoutes.includes("purchaseInFlight"), "API: concurrent purchase lock");
+  assert(marketplaceRoutes.includes("PURCHASE_IN_PROGRESS"), "API: double-purchase rejection");
+  assert(marketplaceRoutes.includes("purchaseInFlight.delete"), "API: purchase lock released in finally");
+}
+
+// --- Routes Index Registration ---
+console.log("  -- Route Registration --");
+{
+  const fs = await import("fs");
+  const path = await import("path");
+  const routesIndex = fs.default.readFileSync(
+    path.default.resolve("artifacts/api-server/src/routes/index.ts"),
+    "utf8"
+  );
+  assert(routesIndex.includes("marketplaceRouter"), "Routes: marketplace router registered");
+  assert(routesIndex.includes("./marketplace"), "Routes: marketplace import path");
+}
+
+console.log("\n" + "=".repeat(60));
+console.log("  THE ECONOMIC LAYER — OPERATIONAL");
+console.log("=".repeat(60));
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

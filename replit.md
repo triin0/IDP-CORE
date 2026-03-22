@@ -195,7 +195,9 @@ Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardenin
   - **FastAPI**: `presence_relay.py` (PresenceManager class with asyncio-safe WebSocket relay, automatic dead connection cleanup, `resolve_conflict()` for deterministic last-write-wins, `get_active_peers()` with timeout filtering); `/ws/presence/{user_id}` WebSocket endpoint and `/api/presence/active` REST endpoint injected into main.py.
   - **Mobile**: `lib/haptic-presence.ts` (6 event types: peer:joined, peer:left, object:moved, object:created, object:deleted, conflict:resolved; mapped to expo-haptics ImpactFeedbackStyle/NotificationFeedbackType; 100ms throttle; `usePresenceHaptics()` WebSocket listener hook); adds expo-haptics dependency.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 1,214 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests + 50 Engine B Transport & Auth Bridge tests + 53 Chronos Engine tests + 86 Biological Forge tests + 92 Sovereign Showroom tests + 160 Sovereign Arena tests.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 1,568 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests + 50 Engine B Transport & Auth Bridge tests + 53 Chronos Engine tests + 86 Biological Forge tests + 92 Sovereign Showroom tests + 160 Sovereign Arena tests + 326 Sovereign Spawner tests + 189 Economic Layer tests (Ownership + Marketplace API + Route Registration).
+
+**Grand Total: ~2,748 tests (1,568 TS + 1,180 C++)**. C++ breakdown: 21 serializer + 83 transport + 100 chronos + 176 forge + 201 showroom + 137 arena + 326 spawner + 136 ownership = 1,180.
 
 ## Engine B: The Native Foundry (Pydantic→UE5 Transpiler)
 A transpilation pipeline that reads Engine A's Pydantic schemas and generates type-safe C++/UE5 code with SHA-256 parity.
@@ -291,6 +293,29 @@ A transpilation pipeline that reads Engine A's Pydantic schemas and generates ty
 - **SpawnerStats**: totalSpawns, totalMutations, maxGenerationReached, totalFlushed, offspringClassDistribution, inheritanceModeDistribution.
 - C++ conformance: 326/326 tests passing.
 - ASAN (AddressSanitizer): Clean pass on spawner conformance (326 tests) and proof generator. No heap-buffer-overflow, use-after-free, or stack-buffer-overflow detected.
+
+**Module 10 — Sovereign Ownership & The Economic Layer** (`lib/engine-native/generated/SovereignOwnership.h`): Complete ownership, atomic swap, marketplace, and royalty system:
+- **USovereignOwnershipComponent**: Singleton ownership registry. `claimOwnership()`, `isOwnedBy()`, `canInteract()`, `transferOwnership()`. Lock states: UNLOCKED, LOCKED_OWNER, LOCKED_LISTING, LOCKED_TRADE. `FOwnershipRecord` struct with SHA-256 sealed `ownershipHash` via `canonicalize()`. Thread-safe (mutable mutex + lock_guard). Delegates with copy-then-invoke pattern.
+- **Chronos Persistence**: `persistOwnership()` saves all records under `ownership:` key prefix. `recoverOwnership()` restores from ChronosEngine on session reboot. `verifyOwnershipIntegrity()` validates all hashes.
+- **AtomicSwapEngine**: Dual-signature atomic swap protocol. `commitSell()` (seller signs FTradeCommitSell with entityHash, price, sellerIdentity), `commitBuy()` (buyer signs FTradeCommitBuy with creditsOffered, buyerIdentity). `executeSwap()` verifies both signatures via `computeCommitHash()`, checks entity hash match, credit sufficiency, self-trade prevention. On success: transfers ownership (bypassTradeLock=true), routes royalty to GenesisArchitect, records FTransactionRecord, flushes to Chronos under `trade:` prefix. `cancelSell()` reverts lock to UNLOCKED.
+- **Failure Modes**: ENTITY_HASH_MISMATCH, INVALID_SELL_SIGNATURE, INVALID_BUY_SIGNATURE, INSUFFICIENT_CREDITS, SELF_TRADE_PROHIBITED, NO_SELL_COMMIT, NO_BUY_COMMIT, TRANSFER_FAILED. All return `AtomicSwapResult` with `failureReason`.
+- **FTransactionRecord**: transactionId, entityHash, seller/buyer identity, priceCredits, royaltyCredits, genesisArchitect, royaltyBps, sell/buy commit hashes, SHA-256 sealed transactionHash, TradeStatus (PENDING/EXECUTED/CANCELLED/FAILED).
+- **GeneticTaxConfig**: `royaltyBps` clamped 200-500bps (2-5%). `computeRoyalty()` uses ceiling division, minimum 1 credit. GenesisArchitect ID = `"50529956"` (default). `configureGenesisTax()` for runtime reconfiguration.
+- **SovereignMarketplace**: `listEntity()` locks to LOCKED_LISTING, creates FMarketplaceListing with SHA-256 `listingHash`. `buyEntity()` triggers full atomic swap pipeline. `auditEntity()` returns AuditResult with ancestry depth, lineage, pedigree, transaction history. `removeListing()` reverts to UNLOCKED. `getActiveListings()` for browsing.
+- **Transaction History**: `getTransactionHistory()`, `getEntityTransactions()`, `getUserTransactions()` for filtering. OwnershipStats: totalClaimed, totalTransferred, totalLocked, totalUnlocked, totalTradesExecuted, totalVolumeTraded, totalRoyaltiesCollected, totalTradesFailed.
+- **verifyDeterminism()**: Runs same swap twice, confirms identical transaction hash.
+- C++ conformance: 136/136 tests passing.
+- ASAN: heap-use-after-free fixed (sell reference used after erase in executeSwap). Clean pass after fix (LeakSanitizer ptrace limitation in Replit sandbox, not a real leak).
+
+**Marketplace API** (`artifacts/api-server/src/routes/marketplace.ts`): REST endpoints for the Economic Layer:
+- `POST /marketplace/claim`: Register entity ownership (requireAuth, ALREADY_CLAIMED guard). Must be called before listing.
+- `POST /marketplace/list`: List entity for sale (requireAuth, ENTITY_NOT_REGISTERED guard, NOT_OWNER check, ALREADY_LISTED guard, sets LOCKED_LISTING).
+- `POST /marketplace/buy`: Atomic swap purchase (requireAuth, PURCHASE_IN_PROGRESS concurrent lock, SELF_PURCHASE_PROHIBITED, credit reserve/settle pattern, royalty routing to GenesisArchitect, dual-signature sell/buy commit hashes, SHA-256 sealed transactionHash). Purchase lock released in `finally` block to prevent deadlocks.
+- `GET /marketplace/audit/:entityHash`: Full provenance audit (owner, listing status, transaction history, total royalties, total volume).
+- `GET /marketplace/listings`: Browse active listings.
+- `DELETE /marketplace/list/:entityHash`: Remove own listing (reverts to UNLOCKED).
+- Integrates with credit system: `reserveCredits()` → swap → `settleCredits()`, with `refundCredits()` on failure. Seller proceeds via `grantCredits()`. Royalty auto-routed to GENESIS_ARCHITECT_ID.
+- Configurable: `GENESIS_ARCHITECT_ID` and `ROYALTY_BPS` env vars.
 
 **Proof Deliverables** (`lib/engine-native/proofs/`):
 - `genetics_audit.json`: 498-line JSON with full locus-by-locus inheritance audit for Volcanic × Crystalline cross (seed: `obsidian-glass-genesis`). Includes per-locus hex values, raw values, normalized values, inheritance mode, mutation rolls, and integrity verification for all 3 phenotypes.
