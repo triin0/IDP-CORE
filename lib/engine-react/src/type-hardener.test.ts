@@ -7025,6 +7025,428 @@ console.log("\n" + "=".repeat(60));
 console.log("  THE ECONOMIC LAYER — OPERATIONAL");
 console.log("=".repeat(60));
 
+// ============================================================
+// MODULE 11: SOVEREIGN ARENA v2 — REPLAY, HITBOX, SCAR SYSTEM
+// ============================================================
+console.log("\n" + "=".repeat(60));
+console.log("  MODULE 11: SOVEREIGN ARENA v2");
+console.log("=".repeat(60));
+
+{
+  const fs = await import("fs");
+  const path = await import("path");
+  const arenaHeader = fs.default.readFileSync(
+    path.default.resolve("lib/engine-native/generated/SovereignArena.h"),
+    "utf8"
+  );
+
+  // --- Frame-by-Frame Replay Instruction System ---
+  console.log("\n  -- ReplayActionType Enum --");
+  const replayActions = ["IDLE", "MOVE_FORWARD", "MOVE_BACKWARD", "ATTACK_WIND_UP",
+    "ATTACK_STRIKE", "HIT_REACT", "DODGE", "CRITICAL_FLASH", "BLOCK",
+    "KO_COLLAPSE", "VICTORY_POSE", "DEFEAT_SLUMP", "DRAW_STANDOFF",
+    "TRADE_MUTUAL_KO", "ENTRANCE", "TYPE_EFFECT"];
+  for (const action of replayActions) {
+    assert(arenaHeader.includes(action), `ReplayAction: ${action} enum value`);
+    passed++;
+  }
+  assert(arenaHeader.includes("enum class ReplayActionType"), "ReplayAction: enum class defined");
+  passed++;
+  assert(arenaHeader.includes("replayActionToString"), "ReplayAction: toString function");
+  passed++;
+
+  console.log("  -- FReplayInstruction --");
+  assert(arenaHeader.includes("struct FReplayInstruction"), "Replay: instruction struct");
+  passed++;
+  assert(arenaHeader.includes("frameIndex"), "Replay: frameIndex field");
+  passed++;
+  assert(arenaHeader.includes("actorKey"), "Replay: actorKey field");
+  passed++;
+  assert(arenaHeader.includes("positionDeltaX"), "Replay: positionDeltaX");
+  passed++;
+  assert(arenaHeader.includes("positionDeltaY"), "Replay: positionDeltaY");
+  passed++;
+  assert(arenaHeader.includes("positionDeltaZ"), "Replay: positionDeltaZ");
+  passed++;
+  assert(arenaHeader.includes("rotationYaw"), "Replay: rotationYaw");
+  passed++;
+  assert(arenaHeader.includes("rotationPitch"), "Replay: rotationPitch");
+  passed++;
+  assert(arenaHeader.includes("rotationRoll"), "Replay: rotationRoll");
+  passed++;
+  assert(arenaHeader.includes("animationClip"), "Replay: animationClip field");
+  passed++;
+  assert(arenaHeader.includes("durationFrames"), "Replay: durationFrames field");
+  passed++;
+  assert(arenaHeader.includes("vfxTag"), "Replay: vfxTag field");
+  passed++;
+  assert(arenaHeader.includes("intensity"), "Replay: intensity field");
+  passed++;
+  assert(arenaHeader.includes("damageValue"), "Replay: damageValue field");
+  passed++;
+  assert(arenaHeader.includes("isCritical"), "Replay: isCritical field");
+  passed++;
+
+  console.log("  -- FReplayTimeline --");
+  assert(arenaHeader.includes("struct FReplayTimeline"), "Timeline: struct defined");
+  passed++;
+  assert(arenaHeader.includes("sessionId"), "Timeline: sessionId field");
+  passed++;
+  assert(arenaHeader.includes("entityAKey"), "Timeline: entityAKey field");
+  passed++;
+  assert(arenaHeader.includes("entityBKey"), "Timeline: entityBKey field");
+  passed++;
+  assert(arenaHeader.includes("frameRate"), "Timeline: frameRate field");
+  passed++;
+  assert(arenaHeader.includes("totalFrames"), "Timeline: totalFrames field");
+  passed++;
+  assert(arenaHeader.includes("entityAStartX"), "Timeline: entityAStartX position");
+  passed++;
+  assert(arenaHeader.includes("entityBStartX"), "Timeline: entityBStartX position");
+  passed++;
+  assert(arenaHeader.includes("timelineHash"), "Timeline: SHA-256 sealed hash");
+  passed++;
+  assert(arenaHeader.includes("computeHash") && arenaHeader.includes("timelineHash"), "Timeline: computeHash method");
+  passed++;
+  assert(arenaHeader.includes("verifyIntegrity") && arenaHeader.includes("FReplayTimeline"), "Timeline: integrity verification");
+  passed++;
+
+  console.log("  -- ReplayGenerator --");
+  assert(arenaHeader.includes("class ReplayGenerator"), "Replay: generator class");
+  passed++;
+  assert(arenaHeader.includes("generateTimeline"), "Replay: generateTimeline method");
+  passed++;
+  assert(arenaHeader.includes("verifyTimelineDeterminism"), "Replay: determinism verification");
+  passed++;
+  assert(arenaHeader.includes("FRAMES_PER_ROUND"), "Replay: FRAMES_PER_ROUND constant");
+  passed++;
+  assert(arenaHeader.includes("ENTRANCE_FRAMES"), "Replay: ENTRANCE_FRAMES constant");
+  passed++;
+  assert(arenaHeader.includes("WIND_UP_FRAMES"), "Replay: WIND_UP_FRAMES constant");
+  passed++;
+  assert(arenaHeader.includes("STRIKE_FRAMES"), "Replay: STRIKE_FRAMES constant");
+  passed++;
+  assert(arenaHeader.includes("KO_FRAMES"), "Replay: KO_FRAMES constant");
+  passed++;
+  assert(arenaHeader.includes("VICTORY_FRAMES"), "Replay: VICTORY_FRAMES constant");
+  passed++;
+  assert(arenaHeader.includes("OUTCOME_FRAMES"), "Replay: OUTCOME_FRAMES constant");
+  passed++;
+  assert(arenaHeader.includes("APPROACH_DISTANCE"), "Replay: APPROACH_DISTANCE constant");
+  passed++;
+  assert(arenaHeader.includes("RETREAT_DISTANCE"), "Replay: RETREAT_DISTANCE constant");
+  passed++;
+
+  console.log("  -- Replay Animation Clips --");
+  assert(arenaHeader.includes("AM_Entrance_Left"), "Replay: entrance left animation");
+  passed++;
+  assert(arenaHeader.includes("AM_Entrance_Right"), "Replay: entrance right animation");
+  passed++;
+  assert(arenaHeader.includes("AM_Attack_WindUp_"), "Replay: wind-up animation (damage-typed)");
+  passed++;
+  assert(arenaHeader.includes("AM_Attack_Strike_"), "Replay: strike animation (damage-typed)");
+  passed++;
+  assert(arenaHeader.includes("AM_HitReact_Light"), "Replay: light hit react");
+  passed++;
+  assert(arenaHeader.includes("AM_HitReact_Heavy"), "Replay: heavy hit react (critical)");
+  passed++;
+  assert(arenaHeader.includes("AM_Dodge_Side"), "Replay: dodge animation");
+  passed++;
+  assert(arenaHeader.includes("AM_KO_Collapse"), "Replay: KO animation");
+  passed++;
+  assert(arenaHeader.includes("AM_Victory_Pose"), "Replay: victory animation");
+  passed++;
+  assert(arenaHeader.includes("AM_Draw_Standoff"), "Replay: draw standoff animation");
+  passed++;
+  assert(arenaHeader.includes("AM_Trade_KO"), "Replay: trade mutual KO animation");
+  passed++;
+  assert(arenaHeader.includes("AM_Critical_Impact"), "Replay: critical impact animation");
+  passed++;
+
+  console.log("  -- Replay VFX Tags --");
+  assert(arenaHeader.includes("VFX_Spawn_"), "Replay: spawn VFX (damage-typed)");
+  passed++;
+  assert(arenaHeader.includes("VFX_Strike_"), "Replay: strike VFX");
+  passed++;
+  assert(arenaHeader.includes("VFX_Critical_"), "Replay: critical VFX");
+  passed++;
+  assert(arenaHeader.includes("VFX_Impact_"), "Replay: impact VFX");
+  passed++;
+  assert(arenaHeader.includes("VFX_Dodge_Trail"), "Replay: dodge trail VFX");
+  passed++;
+  assert(arenaHeader.includes("VFX_KO_Dust"), "Replay: KO dust VFX");
+  passed++;
+  assert(arenaHeader.includes("VFX_Victory_Aura"), "Replay: victory aura VFX");
+  passed++;
+  assert(arenaHeader.includes("VFX_Trade_Explosion"), "Replay: trade explosion VFX");
+  passed++;
+  assert(arenaHeader.includes("VFX_Draw_Tension"), "Replay: draw tension VFX");
+  passed++;
+  assert(arenaHeader.includes("VFX_TypeEffect_"), "Replay: type effectiveness VFX");
+  passed++;
+
+  console.log("  -- Replay Phases --");
+  assert(arenaHeader.includes("generateEntrance"), "Replay: entrance phase generator");
+  passed++;
+  assert(arenaHeader.includes("generateRoundInstructions"), "Replay: round phase generator");
+  passed++;
+  assert(arenaHeader.includes("generateOutcome"), "Replay: outcome phase generator");
+  passed++;
+
+  // --- Hitbox-Genome Collision Mapping ---
+  console.log("\n  -- CollisionVolumeType Enum --");
+  assert(arenaHeader.includes("enum class CollisionVolumeType"), "Collision: enum class defined");
+  passed++;
+  const volumeTypes = ["SPHERE", "CAPSULE", "BOX", "CONVEX_HULL"];
+  for (const vt of volumeTypes) {
+    assert(arenaHeader.includes(`CollisionVolumeType::${vt}`), `Collision: ${vt} volume type`);
+    passed++;
+  }
+  assert(arenaHeader.includes("collisionVolumeTypeToString"), "Collision: toString function");
+  passed++;
+
+  console.log("  -- FCollisionVolume --");
+  assert(arenaHeader.includes("struct FCollisionVolume"), "Collision: volume struct");
+  passed++;
+  assert(arenaHeader.includes("extentX"), "Collision: extentX field");
+  passed++;
+  assert(arenaHeader.includes("extentY"), "Collision: extentY field");
+  passed++;
+  assert(arenaHeader.includes("extentZ"), "Collision: extentZ field");
+  passed++;
+  assert(arenaHeader.includes("capsuleHalfHeight"), "Collision: capsuleHalfHeight field");
+  passed++;
+  assert(arenaHeader.includes("surfaceArea"), "Collision: surfaceArea field");
+  passed++;
+  const volField = arenaHeader.includes("float volume");
+  assert(volField, "Collision: volume field");
+  passed++;
+  assert(arenaHeader.includes("collisionProfile"), "Collision: collision profile string");
+  passed++;
+  assert(arenaHeader.includes("collisionHash"), "Collision: SHA-256 sealed hash");
+  passed++;
+  assert(arenaHeader.includes("offsetX") && arenaHeader.includes("offsetY") && arenaHeader.includes("offsetZ"), "Collision: offset fields");
+  passed++;
+
+  console.log("  -- FHitboxSet --");
+  assert(arenaHeader.includes("struct FHitboxSet"), "Hitbox: set struct");
+  passed++;
+  assert(arenaHeader.includes("bodyVolume"), "Hitbox: body volume");
+  passed++;
+  assert(arenaHeader.includes("headVolume"), "Hitbox: head volume");
+  passed++;
+  assert(arenaHeader.includes("strikeVolume"), "Hitbox: strike volume");
+  passed++;
+  assert(arenaHeader.includes("totalHitboxVolume"), "Hitbox: total volume calculated");
+  passed++;
+  assert(arenaHeader.includes("totalSurfaceArea"), "Hitbox: total surface area");
+  passed++;
+  assert(arenaHeader.includes("hitboxSetHash"), "Hitbox: set hash SHA-256 sealed");
+  passed++;
+
+  console.log("  -- HitboxGenomeMapper --");
+  assert(arenaHeader.includes("class HitboxGenomeMapper"), "Hitbox: mapper class");
+  passed++;
+  assert(arenaHeader.includes("mapFromPhenotype"), "Hitbox: mapFromPhenotype method");
+  passed++;
+  assert(arenaHeader.includes("verifyDeterminism") && arenaHeader.includes("HitboxGenomeMapper"), "Hitbox: determinism verification");
+  passed++;
+  assert(arenaHeader.includes("meshFamilyToVolumeType"), "Hitbox: mesh→volume mapping");
+  passed++;
+  assert(arenaHeader.includes("createBodyVolume"), "Hitbox: body volume factory");
+  passed++;
+  assert(arenaHeader.includes("createHeadVolume"), "Hitbox: head volume factory");
+  passed++;
+  assert(arenaHeader.includes("createStrikeVolume"), "Hitbox: strike volume factory");
+  passed++;
+
+  console.log("  -- Collision Profiles --");
+  assert(arenaHeader.includes("PhysicsBody_"), "Hitbox: body collision profile (class-typed)");
+  passed++;
+  assert(arenaHeader.includes("Headshot_Critical"), "Hitbox: headshot critical profile");
+  passed++;
+  assert(arenaHeader.includes("StrikeZone_"), "Hitbox: strike zone profile (class-typed)");
+  passed++;
+
+  // --- Scar System ---
+  console.log("\n  -- ScarType Enum --");
+  assert(arenaHeader.includes("enum class ScarType"), "Scar: enum class defined");
+  passed++;
+  const scarTypes = ["VICTORY_MARK", "DEFEAT_WOUND", "TRADE_SCAR", "DRAW_BADGE",
+    "CRITICAL_SURVIVOR", "TYPE_ADVANTAGE_MARK"];
+  for (const st of scarTypes) {
+    assert(arenaHeader.includes(st), `Scar: ${st} type`);
+    passed++;
+  }
+  assert(arenaHeader.includes("scarTypeToString"), "Scar: toString function");
+  passed++;
+
+  console.log("  -- VeteranRank Enum --");
+  assert(arenaHeader.includes("enum class VeteranRank"), "Rank: enum class defined");
+  passed++;
+  const ranks = ["ROOKIE", "WARRIOR", "VETERAN", "CHAMPION", "LEGEND"];
+  for (const r of ranks) {
+    assert(arenaHeader.includes(`VeteranRank::${r}`), `Rank: ${r} value`);
+    passed++;
+  }
+  assert(arenaHeader.includes("veteranRankToString"), "Rank: toString function");
+  passed++;
+  assert(arenaHeader.includes("computeVeteranRank"), "Rank: compute function");
+  passed++;
+
+  console.log("  -- FCombatScar --");
+  assert(arenaHeader.includes("struct FCombatScar"), "Scar: struct defined");
+  passed++;
+  assert(arenaHeader.includes("opponentHash"), "Scar: opponentHash field");
+  passed++;
+  assert(arenaHeader.includes("opponentClass"), "Scar: opponentClass field");
+  passed++;
+  assert(arenaHeader.includes("damageTaken"), "Scar: damageTaken field");
+  passed++;
+  assert(arenaHeader.includes("damageDealt"), "Scar: damageDealt field");
+  passed++;
+  assert(arenaHeader.includes("roundCount"), "Scar: roundCount field");
+  passed++;
+  assert(arenaHeader.includes("survivedCritical"), "Scar: survivedCritical flag");
+  passed++;
+  assert(arenaHeader.includes("hadTypeAdvantage"), "Scar: hadTypeAdvantage flag");
+  passed++;
+  assert(arenaHeader.includes("arenaSessionId") && arenaHeader.includes("FCombatScar"), "Scar: arenaSessionId field");
+  passed++;
+  assert(arenaHeader.includes("scarHash"), "Scar: SHA-256 sealed hash");
+  passed++;
+
+  console.log("  -- FCombatChronicle --");
+  assert(arenaHeader.includes("struct FCombatChronicle"), "Chronicle: struct defined");
+  passed++;
+  const chronFields = ["entityHash", "wins", "losses", "trades", "draws",
+    "totalDamageDealt", "totalDamageTaken", "totalCriticalsSurvived",
+    "totalCriticalsDealt", "typeAdvantageWins", "experiencePoints",
+    "lastCombatTimestamp", "chronicleHash"];
+  for (const field of chronFields) {
+    assert(arenaHeader.includes(field), `Chronicle: ${field} field`);
+    passed++;
+  }
+  assert(arenaHeader.includes("totalFights"), "Chronicle: totalFights method");
+  passed++;
+  assert(arenaHeader.includes("winRate"), "Chronicle: winRate method");
+  passed++;
+
+  console.log("  -- CombatChronicleEngine --");
+  assert(arenaHeader.includes("class CombatChronicleEngine"), "ChronEngine: class defined");
+  passed++;
+  assert(arenaHeader.includes("static CombatChronicleEngine& Get()"), "ChronEngine: singleton");
+  passed++;
+  assert(arenaHeader.includes("postCombatFlush"), "ChronEngine: postCombatFlush method");
+  passed++;
+  assert(arenaHeader.includes("getChronicle"), "ChronEngine: getChronicle method");
+  passed++;
+  assert(arenaHeader.includes("hasChronicle"), "ChronEngine: hasChronicle method");
+  passed++;
+  assert(arenaHeader.includes("chronicleCount"), "ChronEngine: chronicleCount method");
+  passed++;
+  assert(arenaHeader.includes("verifyChronicleIntegrity"), "ChronEngine: integrity verification");
+  passed++;
+  assert(arenaHeader.includes("configureExperience"), "ChronEngine: configureExperience method");
+  passed++;
+
+  console.log("  -- Experience System --");
+  assert(arenaHeader.includes("struct ExperienceConfig"), "XP: config struct");
+  passed++;
+  assert(arenaHeader.includes("baseXpPerFight"), "XP: base XP field");
+  passed++;
+  assert(arenaHeader.includes("victoryBonus"), "XP: victory bonus field");
+  passed++;
+  assert(arenaHeader.includes("criticalHitBonus"), "XP: critical hit bonus");
+  passed++;
+  assert(arenaHeader.includes("typeAdvantageBonus"), "XP: type advantage bonus");
+  passed++;
+  assert(arenaHeader.includes("damageDealtMultiplier"), "XP: damage dealt multiplier");
+  passed++;
+  assert(arenaHeader.includes("survivalBonus"), "XP: survival bonus");
+  passed++;
+
+  console.log("  -- Scar Delegates --");
+  assert(arenaHeader.includes("ScarAcquiredDelegate"), "Delegate: scar acquired");
+  passed++;
+  assert(arenaHeader.includes("RankUpDelegate"), "Delegate: rank up");
+  passed++;
+  assert(arenaHeader.includes("ChronicleUpdatedDelegate"), "Delegate: chronicle updated");
+  passed++;
+  assert(arenaHeader.includes("onScarAcquired"), "Delegate: onScarAcquired setter");
+  passed++;
+  assert(arenaHeader.includes("onRankUp"), "Delegate: onRankUp setter");
+  passed++;
+  assert(arenaHeader.includes("onChronicleUpdated"), "Delegate: onChronicleUpdated setter");
+  passed++;
+
+  console.log("  -- Chronicle Stats --");
+  assert(arenaHeader.includes("struct ChronicleStats"), "Stats: struct defined");
+  passed++;
+  assert(arenaHeader.includes("totalScarsCreated"), "Stats: totalScarsCreated");
+  passed++;
+  assert(arenaHeader.includes("totalXpAwarded"), "Stats: totalXpAwarded");
+  passed++;
+  assert(arenaHeader.includes("totalChroniclesUpdated"), "Stats: totalChroniclesUpdated");
+  passed++;
+  assert(arenaHeader.includes("totalRankUps"), "Stats: totalRankUps");
+  passed++;
+  assert(arenaHeader.includes("totalChronosFlushed"), "Stats: totalChronosFlushed");
+  passed++;
+
+  console.log("  -- Chronos Integration --");
+  assert(arenaHeader.includes('"scar:"'), "Chronos: scar key prefix");
+  passed++;
+  assert(arenaHeader.includes("flushChronicleToChronos"), "Chronos: flush method");
+  passed++;
+  assert(arenaHeader.includes("chronicle-engine"), "Chronos: source tag");
+  passed++;
+
+  console.log("  -- Thread Safety --");
+  assert(arenaHeader.includes("std::mutex") && arenaHeader.includes("CombatChronicleEngine"), "Thread: mutex in CombatChronicleEngine");
+  passed++;
+  assert(arenaHeader.includes("std::lock_guard") && arenaHeader.includes("mutex_"), "Thread: lock_guard usage");
+  passed++;
+
+  console.log("  -- Namespace --");
+  assert(arenaHeader.includes("namespace Sovereign"), "Module11: in Sovereign namespace");
+  passed++;
+}
+
+// --- Module 11 C++ Conformance Test File ---
+console.log("\n  -- C++ Conformance Tests --");
+{
+  const fs = await import("fs");
+  const path = await import("path");
+  const testFile = fs.default.readFileSync(
+    path.default.resolve("lib/engine-native/tests/sovereign_arena_v2_conformance.cpp"),
+    "utf8"
+  );
+
+  assert(testFile.includes("SovereignArena.h"), "C++Test: includes SovereignArena.h");
+  passed++;
+  assert(testFile.includes("ReplayGenerator::generateTimeline"), "C++Test: tests replay generation");
+  passed++;
+  assert(testFile.includes("HitboxGenomeMapper::mapFromPhenotype"), "C++Test: tests hitbox mapping");
+  passed++;
+  assert(testFile.includes("CombatChronicleEngine"), "C++Test: tests scar system");
+  passed++;
+  assert(testFile.includes("postCombatFlush"), "C++Test: tests combat flush");
+  passed++;
+  assert(testFile.includes("verifyIntegrity"), "C++Test: tests integrity verification");
+  passed++;
+  assert(testFile.includes("VeteranRank::LEGEND"), "C++Test: tests veteran progression");
+  passed++;
+  assert(testFile.includes("verifyTimelineDeterminism"), "C++Test: tests replay determinism");
+  passed++;
+  assert(testFile.includes("ARENA v2 RESULTS"), "C++Test: reports results");
+  passed++;
+}
+
+console.log("\n" + "=".repeat(60));
+console.log("  SOVEREIGN ARENA v2 — OPERATIONAL");
+console.log("=".repeat(60));
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

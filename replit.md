@@ -174,7 +174,7 @@ Located at `lib/engine-mobile/src/type-hardener.ts`, runs 12 deterministic rewri
 5. **fixMobileAssetLimits** — Injects `lib/asset-limits.ts` with VRAM-safe limits (1024px max, format whitelist) when image assets detected.
 6. **fixDirectReactNavigation** — Replaces `@react-navigation/native` imports with `expo-router` equivalents (file-based routing mandatory).
 7. **fixFlatListEnforcement** — Replaces `ScrollView` + `.map()` patterns with `FlatList` for virtualized rendering (60fps list performance); auto-extracts data source, key extractor, and render item; updates react-native imports.
-8. **fixImageOptimization** — Injects `resizeMode="cover"` and `loading="lazy"` on network `<Image>` components with URI sources for bandwidth and memory efficiency.
+8. **fixImageOptimization** — Injects `resizeMode="cover"` and `loading="lazy"` on network o`<Image>` components with URI sources for bandwidth and memory efficiency.
 9. **fixHeavyReRenders** — Wraps components with expensive operations (useEffect, .map, .filter, fetch) in `React.memo()` to prevent unnecessary re-renders; handles default and named exports.
 10. **fixAnimationPerformance** — Replaces core `react-native` `Animated` import with `react-native-reanimated` for native-thread 60fps animations; auto-adds `FadeIn`, `FadeOut`, `SlideInRight` entering animations.
 11. **fixMobilePerformanceConstants** — Injects `lib/performance-wall.ts` with `MOBILE_PERF_LIMITS` (FlatList window size, max simultaneous animations, image cache limits, bundle size caps, target FPS) and `PERF_HINTS` documentation.
@@ -348,6 +348,34 @@ A transpilation pipeline that reads Engine A's Pydantic schemas and generates ty
 - **WebSocket Handshake**: `/ws/presence/{user_id}?token=JWT` — token required. Verified against `user_id` in URL path. On failure: immediate 403 / 1008 Policy Violation. No fallback, no degraded mode.
 - **Forgery Detection**: 4 attack vectors blocked — no token (403), forged token (403), expired token (403), user ID mismatch / identity spoof (403). All logged with `IDENTITY FORGERY BLOCKED` prefix.
 - **Frontend** (`artifacts/showroom-web/src/lib/use-presence-socket.ts`): Fetches session token via HTTP POST before WebSocket connect. Appends token as query parameter. Tracks `authStatus: pending | authenticated | rejected`.
+
+## Module 11: Sovereign Arena v2 — Replay, Hitbox-Genome, Scar System
+All systems in `lib/engine-native/generated/SovereignArena.h` within `namespace Sovereign`.
+
+**Frame-by-Frame Replay Instruction System:**
+- `ReplayActionType` enum: 16 actions (IDLE, MOVE_FORWARD, MOVE_BACKWARD, ATTACK_WIND_UP, ATTACK_STRIKE, HIT_REACT, DODGE, CRITICAL_FLASH, BLOCK, KO_COLLAPSE, VICTORY_POSE, DEFEAT_SLUMP, DRAW_STANDOFF, TRADE_MUTUAL_KO, ENTRANCE, TYPE_EFFECT).
+- `FReplayInstruction` struct: frameIndex, actorKey, action, positionDelta XYZ, rotation YPR, animationClip, durationFrames, vfxTag, intensity, damageValue, isCritical, damageType. SHA-256 canonicalized.
+- `FReplayTimeline` struct: sessionId, entityAKey/BKey, frameRate (60fps), totalFrames, start positions, instructions vector, finalOutcome, timelineHash (SHA-256). `computeHash()` seals full instruction stream. `verifyIntegrity()` detects tampering.
+- `ReplayGenerator` class: `generateTimeline(FInteractionResult)` converts round-by-round combat into UE5 frame instructions. Three phases: entrance (60 frames), per-round (approach→wind-up→strike→hit/dodge→retreat), outcome (KO/victory/trade/draw). Constants: FRAMES_PER_ROUND=90, ENTRANCE=60, WIND_UP=15, STRIKE=8, HIT_REACT=20, DODGE=18, CRITICAL_FLASH=12, KO=45, VICTORY=60, OUTCOME=60. `verifyTimelineDeterminism()` confirms identical hash across runs.
+- Animation clips: damage-type suffixed (e.g., `AM_Attack_Strike_THERMAL`). VFX tags: spawn, strike, critical, impact, dodge trail, KO dust, victory aura, trade explosion, draw tension, type effectiveness.
+
+**Hitbox-Genome Collision Mapping:**
+- `CollisionVolumeType` enum: SPHERE, CAPSULE, BOX, CONVEX_HULL.
+- `FCollisionVolume` struct: volumeType, extents XYZ, radius, capsuleHalfHeight, offset XYZ, surfaceArea, volume, collisionProfile, collisionHash (SHA-256).
+- `FHitboxSet` struct: entityKey, bodyVolume, headVolume, strikeVolume, totalHitboxVolume, totalSurfaceArea, hitboxSetHash.
+- `HitboxGenomeMapper` class: `mapFromPhenotype(FVisualPhenotype, entityKey)` reads Morphology Loci (baseMeshIndex, scaleX/Y/Z) → 3 collision volumes. Mesh family mapping: Sphere(0)→SPHERE, Cube(1)→BOX, Cylinder(2)→CAPSULE, Klein(10)/Trefoil(11)/Dodecahedron(12)→CONVEX_HULL. Scale genes directly affect collision extents (clamped 0.1-5.0). Body volume typed by phenotype class (e.g., `PhysicsBody_VOLCANIC`). Head always SPHERE with `Headshot_Critical` profile. Strike always CAPSULE with `StrikeZone_` class prefix. `verifyDeterminism()` confirms byte-identical hashes.
+
+**Scar System (Combat Chronicle):**
+- `ScarType` enum: VICTORY_MARK, DEFEAT_WOUND, TRADE_SCAR, DRAW_BADGE, CRITICAL_SURVIVOR, TYPE_ADVANTAGE_MARK.
+- `VeteranRank` enum: ROOKIE (0-4 fights), WARRIOR (5-14), VETERAN (15-29), CHAMPION (30-49), LEGEND (50+). `computeVeteranRank(totalFights)`.
+- `FCombatScar` struct: type, opponentHash, opponentClass, damageTaken/Dealt, roundCount, survivedCritical, hadTypeAdvantage, timestamp, arenaSessionId, scarHash (SHA-256).
+- `FCombatChronicle` struct: entityHash, wins/losses/trades/draws, totalDamageDealt/Taken, totalCriticalsSurvived/Dealt, typeAdvantageWins, experiencePoints, rank, scars vector, chronicleHash, lastCombatTimestamp. `totalFights()`, `winRate()`, `verifyIntegrity()`.
+- `ExperienceConfig` struct: baseXpPerFight=100, victoryBonus=200, criticalHitBonus=50, typeAdvantageBonus=75, damageDealtMultiplier=2.0, survivalBonus=1.5x (below 20HP).
+- `CombatChronicleEngine` singleton: `postCombatFlush(result, phenoA, phenoB)` updates both entities' chronicles, creates scars, awards XP, computes veteran rank, flushes to Chronos under `scar:` key prefix. Thread-safe (mutex + lock_guard). Delegates: `onScarAcquired`, `onRankUp`, `onChronicleUpdated` (copy-then-invoke pattern). `ChronicleStats`: totalScarsCreated, totalXpAwarded, totalChroniclesUpdated, totalRankUps, totalChronosFlushed.
+
+**Test Coverage:**
+- C++ conformance: `lib/engine-native/tests/sovereign_arena_v2_conformance.cpp` — 179 tests (replay timeline, hitbox mapping, scar system, veteran progression, determinism, tamper detection, delegates, enum coverage). ASAN clean.
+- TypeScript: 1,964 total TS tests (Module 11 adds ~200 assertions covering all structs, enums, methods, animation clips, VFX tags, collision profiles, experience config, Chronos integration, thread safety).
 
 ## Tier 5 — Sub-Agent Structural Blindness Cure (Runtime Feedback Loop)
 - **Runtime Error Classifier** (`classifyRuntimeErrors`): Parses 10 error patterns into 9 categories — `MISSING_MODULE`, `UNDEFINED_REFERENCE`, `TYPE_ERROR`, `MISSING_EXPORT`, `RENDER_CRASH`, `SYNTAX_ERROR`, `RUNTIME_EXCEPTION`, `MISSING_IMPORT`, `UNKNOWN`. Each classified with severity (critical/high/medium/low).
