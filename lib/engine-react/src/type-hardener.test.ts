@@ -7997,6 +7997,191 @@ console.log("\n=== Module 14: Sovereign Intel — DNA-Driven Behavioral AI ===")
   passed++;
 }
 
+{
+  console.log("\n--- Module 15: SovereignPassport VMO Assertions ---");
+
+  const fs = await import("fs");
+  const path = await import("path");
+  const passportHeader = fs.readFileSync(path.resolve("lib/engine-native/generated/SovereignPassport.h"), "utf-8");
+
+  assert(passportHeader.includes("enum class ShaderType"), "M15: ShaderType enum exists");
+  passed++;
+  assert(passportHeader.includes("STANDARD_PBR"), "M15: STANDARD_PBR shader");
+  passed++;
+  assert(passportHeader.includes("ANISOTROPIC_GLASS"), "M15: ANISOTROPIC_GLASS shader");
+  passed++;
+  assert(passportHeader.includes("SUBSURFACE_SCATTER"), "M15: SUBSURFACE_SCATTER shader");
+  passed++;
+  assert(passportHeader.includes("EMISSIVE_PULSE"), "M15: EMISSIVE_PULSE shader");
+  passed++;
+  assert(passportHeader.includes("METALLIC_FLAKE"), "M15: METALLIC_FLAKE shader");
+  passed++;
+  assert(passportHeader.includes("ETHEREAL_TRANSLUCENT"), "M15: ETHEREAL_TRANSLUCENT shader");
+  passed++;
+  assert(passportHeader.includes("VOLCANIC_LAVA"), "M15: VOLCANIC_LAVA shader");
+  passed++;
+  assert(passportHeader.includes("AQUEOUS_CAUSTIC"), "M15: AQUEOUS_CAUSTIC shader");
+  passed++;
+
+  assert(passportHeader.includes("enum class MeshArchetype"), "M15: MeshArchetype enum exists");
+  passed++;
+  assert(passportHeader.includes("SMOOTH_ORB"), "M15: SMOOTH_ORB archetype");
+  passed++;
+  assert(passportHeader.includes("ANGULAR_SHARD"), "M15: ANGULAR_SHARD archetype");
+  passed++;
+  assert(passportHeader.includes("JAGGED_CRYSTAL"), "M15: JAGGED_CRYSTAL archetype");
+  passed++;
+  assert(passportHeader.includes("FLOWING_TENDRIL"), "M15: FLOWING_TENDRIL archetype");
+  passed++;
+  assert(passportHeader.includes("DENSE_MONOLITH"), "M15: DENSE_MONOLITH archetype");
+  passed++;
+  assert(passportHeader.includes("HOLLOW_SHELL"), "M15: HOLLOW_SHELL archetype");
+  passed++;
+  assert(passportHeader.includes("COMPOUND_CLUSTER"), "M15: COMPOUND_CLUSTER archetype");
+  passed++;
+  assert(passportHeader.includes("ORGANIC_BLOOM"), "M15: ORGANIC_BLOOM archetype");
+  passed++;
+
+  assert(passportHeader.includes("struct FMaterialManifest"), "M15: FMaterialManifest struct");
+  passed++;
+  assert(passportHeader.includes("struct FGeometryManifest"), "M15: FGeometryManifest struct");
+  passed++;
+  assert(passportHeader.includes("struct FBehaviorManifest"), "M15: FBehaviorManifest struct");
+  passed++;
+  assert(passportHeader.includes("struct FEnvironmentManifest"), "M15: FEnvironmentManifest struct");
+  passed++;
+  assert(passportHeader.includes("struct FVisualManifestObject"), "M15: FVisualManifestObject struct");
+  passed++;
+  assert(passportHeader.includes("struct FSovereignPassport"), "M15: FSovereignPassport struct");
+  passed++;
+
+  assert(passportHeader.includes("shaderType"), "M15: VMO has shaderType field");
+  passed++;
+  assert(passportHeader.includes("roughness"), "M15: VMO has roughness field");
+  passed++;
+  assert(passportHeader.includes("metalness"), "M15: VMO has metalness field");
+  passed++;
+  assert(passportHeader.includes("refractionIndex"), "M15: VMO has refractionIndex");
+  passed++;
+  assert(passportHeader.includes("emissionPulseHz"), "M15: VMO has emissionPulseHz");
+  passed++;
+  assert(passportHeader.includes("glowIntensity"), "M15: VMO has glowIntensity");
+  passed++;
+  assert(passportHeader.includes("subsurfaceColor"), "M15: VMO has subsurfaceColor");
+  passed++;
+  assert(passportHeader.includes("primaryColor"), "M15: VMO has primaryColor");
+  passed++;
+  assert(passportHeader.includes("accentColor"), "M15: VMO has accentColor");
+  passed++;
+  assert(passportHeader.includes("anisotropyStrength"), "M15: VMO has anisotropyStrength");
+  passed++;
+
+  assert(passportHeader.includes("meshArchetype"), "M15: VMO has meshArchetype");
+  passed++;
+  assert(passportHeader.includes("baseMeshFamily"), "M15: VMO has baseMeshFamily");
+  passed++;
+  assert(passportHeader.includes("animationFrequency"), "M15: VMO has animationFrequency");
+  passed++;
+  assert(passportHeader.includes("lodLevels"), "M15: VMO has lodLevels");
+  passed++;
+
+  assert(passportHeader.includes("aggressionBias"), "M15: BehaviorManifest aggressionBias");
+  passed++;
+  assert(passportHeader.includes("defenseBias"), "M15: BehaviorManifest defenseBias");
+  passed++;
+  assert(passportHeader.includes("confidenceLevel"), "M15: BehaviorManifest confidenceLevel");
+  passed++;
+  assert(passportHeader.includes("preferredAction"), "M15: BehaviorManifest preferredAction");
+  passed++;
+  assert(passportHeader.includes("secondaryAction"), "M15: BehaviorManifest secondaryAction");
+  passed++;
+
+  assert(passportHeader.includes("activeBuffs"), "M15: EnvironmentManifest activeBuffs");
+  passed++;
+  assert(passportHeader.includes("synergyGrade"), "M15: EnvironmentManifest synergyGrade");
+  passed++;
+  assert(passportHeader.includes("thermalStress"), "M15: EnvironmentManifest thermalStress");
+  passed++;
+  assert(passportHeader.includes("biomeName"), "M15: EnvironmentManifest biomeName");
+  passed++;
+
+  assert(passportHeader.includes("passportSignature"), "M15: passport has signature");
+  passed++;
+  assert(passportHeader.includes("verifySignature"), "M15: passport verifySignature");
+  passed++;
+  assert(passportHeader.includes("verifyFull"), "M15: passport verifyFull");
+  passed++;
+  assert(passportHeader.includes("computeSignature"), "M15: passport computeSignature");
+  passed++;
+  assert(passportHeader.includes("detectTampering"), "M15: authority detectTampering");
+  passed++;
+
+  assert(passportHeader.includes("classifyShader"), "M15: classifyShader static method");
+  passed++;
+  assert(passportHeader.includes("classifyMeshArchetype"), "M15: classifyMeshArchetype static method");
+  passed++;
+  assert(passportHeader.includes("computeActiveBuffs"), "M15: computeActiveBuffs static method");
+  passed++;
+  assert(passportHeader.includes("computeSubsurfaceColor"), "M15: computeSubsurfaceColor static method");
+  passed++;
+
+  assert(passportHeader.includes("buildVMO"), "M15: authority buildVMO");
+  passed++;
+  assert(passportHeader.includes("issuePassport"), "M15: authority issuePassport");
+  passed++;
+  assert(passportHeader.includes("exportPassportJSON"), "M15: authority exportPassportJSON");
+  passed++;
+  assert(passportHeader.includes("generateUE5PassportStruct"), "M15: UE5 USTRUCT generator");
+  passed++;
+
+  assert(passportHeader.includes("USTRUCT(BlueprintType)"), "M15: UE5 USTRUCT annotation");
+  passed++;
+  assert(passportHeader.includes("UPROPERTY(EditAnywhere, BlueprintReadWrite)"), "M15: UE5 UPROPERTY annotation");
+  passed++;
+  assert(passportHeader.includes("FSovereignEntityPassport"), "M15: UE5 entity passport struct");
+  passed++;
+
+  assert(passportHeader.includes("SovereignPassportAuthority"), "M15: singleton class name");
+  passed++;
+  assert(passportHeader.includes("PassportIssuedDelegate"), "M15: delegate type");
+  passed++;
+  assert(passportHeader.includes("FPassportStats"), "M15: stats struct");
+  passed++;
+
+  assert(passportHeader.includes("manifestHash"), "M15: VMO manifestHash");
+  passed++;
+  assert(passportHeader.includes("passportVersion"), "M15: passport version field");
+  passed++;
+  assert(passportHeader.includes("phenotypeHash"), "M15: passport links phenotypeHash");
+  passed++;
+  assert(passportHeader.includes("profileHash"), "M15: passport links profileHash");
+  passed++;
+  assert(passportHeader.includes("genomeHash"), "M15: passport links genomeHash");
+  passed++;
+
+  const passportTestFile = fs.readFileSync(path.resolve("lib/engine-native/tests/sovereign_passport_conformance.cpp"), "utf-8");
+  assert(passportTestFile.includes("PASSPORT RESULTS"), "M15-Test: reports results");
+  passed++;
+  assert(passportTestFile.includes("shader_classify_volcanic_lava"), "M15-Test: shader classification tests");
+  passed++;
+  assert(passportTestFile.includes("mesh_archetype_crystalline_jagged"), "M15-Test: mesh archetype tests");
+  passed++;
+  assert(passportTestFile.includes("active_buffs_computation"), "M15-Test: active buffs tests");
+  passed++;
+  assert(passportTestFile.includes("passport_tamper_detection"), "M15-Test: tamper detection tests");
+  passed++;
+  assert(passportTestFile.includes("genesis_ancestors_passports"), "M15-Test: genesis ancestor tests");
+  passed++;
+  assert(passportTestFile.includes("vmo_determinism"), "M15-Test: VMO determinism tests");
+  passed++;
+  assert(passportTestFile.includes("passport_json_export"), "M15-Test: JSON export tests");
+  passed++;
+  assert(passportTestFile.includes("ue5_passport_struct"), "M15-Test: UE5 struct tests");
+  passed++;
+  assert(passportTestFile.includes("different_genomes_different_passports"), "M15-Test: genome uniqueness tests");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

@@ -460,7 +460,34 @@ The World Weaver introduces deterministic environment generation using the same 
 - C++ conformance: `lib/engine-native/tests/sovereign_intel_conformance.cpp` — 71 tests (archetype/action enums, weight defaults/canonicalization, profile generation/determinism, decision utility vectors, situational context effects, locus byte mapping/overlap verification, synergy/thermal modifiers, genesis integration, arena e2e, SHA-256 golden hash, delegates, stats tracking, UE5 codegen, class modifier verification).
 - TypeScript: 2,446 total TS tests (Module 14 adds ~244 assertions covering all structs, enums, methods, locus tables, genome byte mappings, PhenotypeClass modifiers, archetype scoring, utility computation, synergy/thermal effects, SHA-256, delegates, caching, UE5 generation, test file verification).
 
-**Test Barrier: 2,944** (184 Arena v2 + 136 Ownership + 107 Habitat + 71 Intel + 2,446 TS — 100% PASS)
+## Module 15: Sovereign Bridge — Universal Export & Visual Manifest
+The Sovereign Bridge is the Universal Translator that converts internal genome data into explicit rendering instructions. It issues a cryptographically signed "Digital Passport" containing the entity's entire Sovereign Identity — visual, behavioral, and environmental — in a format any renderer (UE5, React, external platforms) can consume without guessing.
+
+**C++ Header:** `lib/engine-native/generated/SovereignPassport.h`
+
+**ShaderType enum (8):** STANDARD_PBR, ANISOTROPIC_GLASS, SUBSURFACE_SCATTER, EMISSIVE_PULSE, METALLIC_FLAKE, ETHEREAL_TRANSLUCENT, VOLCANIC_LAVA, AQUEOUS_CAUSTIC.
+- Classification logic: VOLCANIC+emission>2→VOLCANIC_LAVA, AQUEOUS+subsurface>0.5→AQUEOUS_CAUSTIC, ETHEREAL+opacity<0.7→ETHEREAL_TRANSLUCENT, anisotropy>0.5+opacity<0.8→ANISOTROPIC_GLASS, subsurface>0.4→SUBSURFACE_SCATTER, emission>3→EMISSIVE_PULSE, metallic>0.6→METALLIC_FLAKE, else→STANDARD_PBR.
+
+**MeshArchetype enum (8):** SMOOTH_ORB, ANGULAR_SHARD, JAGGED_CRYSTAL, FLOWING_TENDRIL, DENSE_MONOLITH, HOLLOW_SHELL, COMPOUND_CLUSTER, ORGANIC_BLOOM.
+- Classification logic: CRYSTALLINE→JAGGED_CRYSTAL, ORGANIC→ORGANIC_BLOOM, Sphere/Ico/Geodesic→SMOOTH_ORB, Cube/Prism/Octahedron/Tetrahedron→ANGULAR_SHARD, Torus/Helix/Trefoil/Mobius/Klein→FLOWING_TENDRIL, Cylinder/Capsule→DENSE_MONOLITH, Cone/Dodecahedron→COMPOUND_CLUSTER.
+
+**Visual Manifest Object (VMO) — The "Cube-Killer":**
+- FMaterialManifest: shaderType, roughness, metalness, refractionIndex (1.0+anisotropy×0.5), emissionIntensity, emissionPulseHz (animFreq×0.2), glowIntensity (emission×0.3), opacity, subsurfaceStrength, subsurfaceColor (PhenotypeClass-driven), primaryColor (hex), accentColor (hex), fresnelPower, anisotropyStrength.
+- FGeometryManifest: meshArchetype, baseMeshFamily, scaleX/Y/Z, animationFrequency, uvTilingU/V, lodLevels.
+- FBehaviorManifest: archetypeName, aggressionBias, defenseBias, elusivenessBias, confidenceLevel, preferredAction, secondaryAction.
+- FEnvironmentManifest: biomeName, synergyGrade, synergyCoefficient, thermalStress, activeBuffs[].
+
+**Active Buffs (7):** ATTACK_BOOST (modifier>1.05), DEFENSE_BOOST, SPEED_BOOST, ACCURACY_BOOST, EVASION_BOOST, THERMAL_RESISTANCE (thermalStress>0.3), HABITAT_AFFINITY (coefficient>0.5).
+
+**FSovereignPassport:** genomeHash, entityKey, phenotypeHash, profileHash, phenotypeClass, archetypeName, VMO, passportSignature (SHA-256 seal of canonicalized passport). `verifyFull()` = signature + VMO integrity check. `detectTampering()` increments stats.
+
+**SovereignPassportAuthority (singleton):** buildVMO(), issuePassport(), verifyPassport(), detectTampering(), exportPassportJSON(), generateUE5PassportStruct(). Thread-safe. Delegates: PassportIssuedDelegate.
+
+**Test Coverage:**
+- C++ conformance: `lib/engine-native/tests/sovereign_passport_conformance.cpp` — 62 tests (enum strings, struct defaults, canonicalization, VMO integrity/hash/determinism, material/geometry/behavior/environment mapping from Forge/Intel/Habitat, shader/mesh classification, active buffs, passport signing/verification/tamper detection, JSON export, UE5 codegen, genesis ancestor passports, genome uniqueness, refraction/pulse/glow formulas, LOD levels, delegate firing, stats tracking).
+- TypeScript: 2,608 total TS tests (Module 15 adds 162 assertions covering all enums, structs, fields, methods, mapping logic, UE5 annotations, classification functions, test file verification).
+
+**Test Barrier: 3,121** (137 Arena v2 + 136 Ownership + 107 Habitat + 71 Intel + 62 Passport + 2,608 TS — 100% PASS)
 
 ## Tier 5 — Sub-Agent Structural Blindness Cure (Runtime Feedback Loop)
 - **Runtime Error Classifier** (`classifyRuntimeErrors`): Parses 10 error patterns into 9 categories — `MISSING_MODULE`, `UNDEFINED_REFERENCE`, `TYPE_ERROR`, `MISSING_EXPORT`, `RENDER_CRASH`, `SYNTAX_ERROR`, `RUNTIME_EXCEPTION`, `MISSING_IMPORT`, `UNKNOWN`. Each classified with severity (critical/high/medium/low).
