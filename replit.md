@@ -441,6 +441,27 @@ The World Weaver introduces deterministic environment generation using the same 
 - C++ conformance: `lib/engine-native/tests/sovereign_habitat_conformance.cpp` — 107 tests (biome/synergy enums, struct defaults, canonicalization, habitat generation, range validation, determinism, epoch transitions, synergy calculation, stat application, clamping, delegates, caching, UE5 codegen, genesis integration, SHA-256 golden hash cross-verification, end-to-end arena integration, byte-mapping integrity, formula component decomposition).
 - TypeScript: 2,202 total TS tests (Module 13 adds ~238 assertions covering all structs, enums, methods, locus tables, synergy matrix, delegates, thread safety, UE5 generation, test file verification).
 
+## Module 14: Sovereign Intel — DNA-Driven Behavioral AI
+- **File:** `lib/engine-native/generated/SovereignIntel.h` (header-only, ~500 lines)
+- **Architecture:** Pure utility-function AI — no FSM. Behavioral weights derived directly from the 32-byte creature genome. Same DNA bytes that define appearance also drive combat behavior.
+- **BehaviorArchetype enum (6):** AGGRESSIVE, DEFENSIVE, EVASIVE, TACTICAL, BERSERKER, SENTINEL. Classification via weighted scoring formulas.
+- **ActionType enum (8):** STRIKE, GUARD, FLANK, CHARGE, RETREAT, COUNTER, FEINT, HOLD.
+- **Core structs:** FBehavioralWeights (8 float fields: aggression, stoicism, elusiveness, decisiveness, adaptability, confidence, attackFrequency, defenseBias), FBehavioralProfile (weights + archetype + hash), FDecisionResult (chosen action + 8 utility scores + hash), FSituationalContext (healthRatio, enemyHealthRatio, distanceNorm, roundNumber, synergyCoefficient, thermalStress, isHomeHabitat), FActionUtility, FBehavioralLocusEntry, FIntelStats.
+- **BehavioralLocusTable:** Morphology bytes 10-17 (4×uint16 = 8 bytes → aggression, decisiveness, defenseBias, stoicism), Material bytes 6-9 (4×uint8 = 4 bytes → stoicism, defenseBias, aggression, elusiveness), Anisotropy bytes 22-25 (4×uint8 = 4 bytes → elusiveness, attackFrequency, adaptability×2). totalMappedBytes = 16.
+- **Genome sharing (by design):** Modules 11, 13, 14 all read from the same 32-byte genome. Byte sharing is intentional — behavior emerges from the same DNA that defines appearance and habitat affinity.
+- **PhenotypeClass modifiers:** VOLCANIC(+aggression), CRYSTALLINE(+decisiveness), METALLIC(+stoicism), ETHEREAL(+elusiveness), ORGANIC(+adaptability), AQUEOUS(+confidence). Applied via applyClassModifiers().
+- **Utility vector:** 8 action utilities computed from weights + situational context (urgency, proximity, healthAdvantage, roundProgress, homeBonus, thermalPenalty). Max utility wins.
+- **Synergy integration:** generateProfileWithSynergy() boosts confidence based on synergy coefficient. Thermal stress penalizes adaptability.
+- **SovereignIntelKernel:** Meyers singleton via Get(). Thread-safe (std::mutex + lock_guard). Profile caching by sourceHash. Delegates: ProfileGeneratedDelegate, DecisionMadeDelegate.
+- **UE5 codegen:** generateUE5BehaviorTree() emits USTRUCT(BlueprintType) FSovereignBehaviorProfile with UPROPERTY fields.
+- **SHA-256:** Profile and decision hashes via SovereignSHA256::hash(canonicalize()). verifyIntegrity() + verifyDeterminism() methods.
+
+**Test Coverage:**
+- C++ conformance: `lib/engine-native/tests/sovereign_intel_conformance.cpp` — 71 tests (archetype/action enums, weight defaults/canonicalization, profile generation/determinism, decision utility vectors, situational context effects, locus byte mapping/overlap verification, synergy/thermal modifiers, genesis integration, arena e2e, SHA-256 golden hash, delegates, stats tracking, UE5 codegen, class modifier verification).
+- TypeScript: 2,446 total TS tests (Module 14 adds ~244 assertions covering all structs, enums, methods, locus tables, genome byte mappings, PhenotypeClass modifiers, archetype scoring, utility computation, synergy/thermal effects, SHA-256, delegates, caching, UE5 generation, test file verification).
+
+**Test Barrier: 2,944** (184 Arena v2 + 136 Ownership + 107 Habitat + 71 Intel + 2,446 TS — 100% PASS)
+
 ## Tier 5 — Sub-Agent Structural Blindness Cure (Runtime Feedback Loop)
 - **Runtime Error Classifier** (`classifyRuntimeErrors`): Parses 10 error patterns into 9 categories — `MISSING_MODULE`, `UNDEFINED_REFERENCE`, `TYPE_ERROR`, `MISSING_EXPORT`, `RENDER_CRASH`, `SYNTAX_ERROR`, `RUNTIME_EXCEPTION`, `MISSING_IMPORT`, `UNKNOWN`. Each classified with severity (critical/high/medium/low).
 - **Targeted Repair Engine** (`applyRuntimeRepairs`): Maps classified errors to corrective code transforms — auto-adds missing deps to package.json, injects missing imports by scanning for export declarations, adds `export` to unexported symbols, injects optional chaining for null access crashes, wraps object renders with `String()`.

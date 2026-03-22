@@ -7720,6 +7720,283 @@ console.log("\n=== Module 13: Sovereign Habitat — World Weaver ===");
   passed++;
 }
 
+console.log("\n=== Module 14: Sovereign Intel — DNA-Driven Behavioral AI ===");
+{
+  const fs = (await import("fs")).default;
+  const path = (await import("path")).default;
+
+  const intelHeaderPath = path.resolve("lib/engine-native/generated/SovereignIntel.h");
+  const intelHeader = fs.readFileSync(intelHeaderPath, "utf-8");
+
+  assert(intelHeader.includes("enum class BehaviorArchetype"), "M14: BehaviorArchetype enum exists");
+  passed++;
+  assert(intelHeader.includes("AGGRESSIVE"), "M14: AGGRESSIVE archetype");
+  passed++;
+  assert(intelHeader.includes("DEFENSIVE"), "M14: DEFENSIVE archetype");
+  passed++;
+  assert(intelHeader.includes("EVASIVE"), "M14: EVASIVE archetype");
+  passed++;
+  assert(intelHeader.includes("TACTICAL"), "M14: TACTICAL archetype");
+  passed++;
+  assert(intelHeader.includes("BERSERKER"), "M14: BERSERKER archetype");
+  passed++;
+  assert(intelHeader.includes("SENTINEL"), "M14: SENTINEL archetype");
+  passed++;
+
+  assert(intelHeader.includes("enum class ActionType"), "M14: ActionType enum exists");
+  passed++;
+  assert(intelHeader.includes("STRIKE"), "M14: STRIKE action");
+  passed++;
+  assert(intelHeader.includes("GUARD"), "M14: GUARD action");
+  passed++;
+  assert(intelHeader.includes("FLANK"), "M14: FLANK action");
+  passed++;
+  assert(intelHeader.includes("CHARGE"), "M14: CHARGE action");
+  passed++;
+  assert(intelHeader.includes("RETREAT"), "M14: RETREAT action");
+  passed++;
+  assert(intelHeader.includes("COUNTER"), "M14: COUNTER action");
+  passed++;
+  assert(intelHeader.includes("FEINT"), "M14: FEINT action");
+  passed++;
+  assert(intelHeader.includes("HOLD"), "M14: HOLD action");
+  passed++;
+
+  assert(intelHeader.includes("struct FBehavioralWeights"), "M14: FBehavioralWeights struct");
+  passed++;
+  assert(intelHeader.includes("float aggression"), "M14: aggression weight");
+  passed++;
+  assert(intelHeader.includes("float stoicism"), "M14: stoicism weight");
+  passed++;
+  assert(intelHeader.includes("float elusiveness"), "M14: elusiveness weight");
+  passed++;
+  assert(intelHeader.includes("float decisiveness"), "M14: decisiveness weight");
+  passed++;
+  assert(intelHeader.includes("float adaptability"), "M14: adaptability weight");
+  passed++;
+  assert(intelHeader.includes("float confidence"), "M14: confidence weight");
+  passed++;
+  assert(intelHeader.includes("float attackFrequency"), "M14: attackFrequency weight");
+  passed++;
+  assert(intelHeader.includes("float defenseBias"), "M14: defenseBias weight");
+  passed++;
+
+  assert(intelHeader.includes("struct FBehavioralProfile"), "M14: FBehavioralProfile struct");
+  passed++;
+  assert(intelHeader.includes("struct FDecisionResult"), "M14: FDecisionResult struct");
+  passed++;
+  assert(intelHeader.includes("struct FActionUtility"), "M14: FActionUtility struct");
+  passed++;
+  assert(intelHeader.includes("struct FSituationalContext"), "M14: FSituationalContext struct");
+  passed++;
+
+  assert(intelHeader.includes("class SovereignIntelKernel"), "M14: SovereignIntelKernel class");
+  passed++;
+  assert(intelHeader.includes("generateProfile"), "M14: generateProfile method");
+  passed++;
+  assert(intelHeader.includes("generateProfileWithSynergy"), "M14: generateProfileWithSynergy method");
+  passed++;
+  assert(intelHeader.includes("decide("), "M14: decide method");
+  passed++;
+  assert(intelHeader.includes("decideInContext"), "M14: decideInContext method");
+  passed++;
+  assert(intelHeader.includes("verifyDeterminism"), "M14: verifyDeterminism method");
+  passed++;
+  assert(intelHeader.includes("generateUE5BehaviorTree"), "M14: UE5 BehaviorTree generation");
+  passed++;
+
+  assert(intelHeader.includes("class BehavioralLocusTable"), "M14: BehavioralLocusTable class");
+  passed++;
+  assert(intelHeader.includes("morphologyLoci"), "M14: morphologyLoci table");
+  passed++;
+  assert(intelHeader.includes("materialLoci"), "M14: materialLoci table");
+  passed++;
+  assert(intelHeader.includes("anisotropyLoci"), "M14: anisotropyLoci table");
+  passed++;
+  assert(intelHeader.includes("totalMappedBytes"), "M14: totalMappedBytes method");
+  passed++;
+
+  assert(intelHeader.includes("computeWeightsFromGenome"), "M14: genome-to-weights computation");
+  passed++;
+  assert(intelHeader.includes("classifyArchetype"), "M14: archetype classification");
+  passed++;
+  assert(intelHeader.includes("computeUtilityVector"), "M14: utility vector computation");
+  passed++;
+  assert(intelHeader.includes("applyClassModifiers"), "M14: class modifier application");
+  passed++;
+
+  assert(intelHeader.includes("genome[12]") && intelHeader.includes("genome[13]"), "M14: scaleX bytes 12-13 → aggression");
+  passed++;
+  assert(intelHeader.includes("genome[16]") && intelHeader.includes("genome[17]"), "M14: scaleZ bytes 16-17 → stoicism");
+  passed++;
+  assert(intelHeader.includes("genome[6]"), "M14: metallic byte 6 → stoicism");
+  passed++;
+  assert(intelHeader.includes("genome[9]"), "M14: opacity byte 9 → elusiveness");
+  passed++;
+  assert(intelHeader.includes("genome[23]"), "M14: anisotropy byte 23 → attackFrequency");
+  passed++;
+  assert(intelHeader.includes("genome[22]"), "M14: subsurface byte 22 → elusiveness");
+  passed++;
+  assert(intelHeader.includes("genome[24]") && intelHeader.includes("genome[25]"), "M14: fresnel bytes 24-25 → adaptability");
+  passed++;
+
+  assert(intelHeader.includes("PhenotypeClass::VOLCANIC"), "M14: VOLCANIC class modifier");
+  passed++;
+  assert(intelHeader.includes("PhenotypeClass::CRYSTALLINE"), "M14: CRYSTALLINE class modifier");
+  passed++;
+  assert(intelHeader.includes("PhenotypeClass::METALLIC"), "M14: METALLIC class modifier");
+  passed++;
+  assert(intelHeader.includes("PhenotypeClass::ETHEREAL"), "M14: ETHEREAL class modifier");
+  passed++;
+  assert(intelHeader.includes("PhenotypeClass::ORGANIC"), "M14: ORGANIC class modifier");
+  passed++;
+  assert(intelHeader.includes("PhenotypeClass::AQUEOUS"), "M14: AQUEOUS class modifier");
+  passed++;
+
+  assert(intelHeader.includes("aggressiveScore"), "M14: aggressive archetype scoring");
+  passed++;
+  assert(intelHeader.includes("defensiveScore"), "M14: defensive archetype scoring");
+  passed++;
+  assert(intelHeader.includes("evasiveScore"), "M14: evasive archetype scoring");
+  passed++;
+  assert(intelHeader.includes("tacticalScore"), "M14: tactical archetype scoring");
+  passed++;
+  assert(intelHeader.includes("berserkerScore"), "M14: berserker archetype scoring");
+  passed++;
+  assert(intelHeader.includes("sentinelScore"), "M14: sentinel archetype scoring");
+  passed++;
+
+  assert(intelHeader.includes("strikeU"), "M14: strike utility computation");
+  passed++;
+  assert(intelHeader.includes("guardU"), "M14: guard utility computation");
+  passed++;
+  assert(intelHeader.includes("flankU"), "M14: flank utility computation");
+  passed++;
+  assert(intelHeader.includes("chargeU"), "M14: charge utility computation");
+  passed++;
+  assert(intelHeader.includes("retreatU"), "M14: retreat utility computation");
+  passed++;
+  assert(intelHeader.includes("counterU"), "M14: counter utility computation");
+  passed++;
+  assert(intelHeader.includes("feintU"), "M14: feint utility computation");
+  passed++;
+  assert(intelHeader.includes("holdU"), "M14: hold utility computation");
+  passed++;
+
+  assert(intelHeader.includes("confidenceBoost"), "M14: synergy confidence boost");
+  passed++;
+  assert(intelHeader.includes("thermalPenalty"), "M14: thermal penalty on adaptability");
+  passed++;
+  assert(intelHeader.includes("isHomeHabitat"), "M14: home habitat bonus");
+  passed++;
+  assert(intelHeader.includes("homeBonus"), "M14: homeBonus utility modifier");
+  passed++;
+
+  assert(intelHeader.includes("SovereignSHA256::hash"), "M14: SHA-256 integration");
+  passed++;
+  assert(intelHeader.includes("verifyIntegrity"), "M14: integrity verification");
+  passed++;
+  assert(intelHeader.includes("canonicalize"), "M14: canonicalization methods");
+  passed++;
+
+  assert(intelHeader.includes("std::mutex"), "M14: mutex for thread safety");
+  passed++;
+  assert(intelHeader.includes("std::lock_guard"), "M14: lock_guard usage");
+  passed++;
+  assert(intelHeader.includes("ProfileGeneratedDelegate"), "M14: profile delegate type");
+  passed++;
+  assert(intelHeader.includes("DecisionMadeDelegate"), "M14: decision delegate type");
+  passed++;
+  assert(intelHeader.includes("onProfileGenerated"), "M14: profile delegate setter");
+  passed++;
+  assert(intelHeader.includes("onDecisionMade"), "M14: decision delegate setter");
+  passed++;
+
+  assert(intelHeader.includes("USTRUCT(BlueprintType)"), "M14: UE5 USTRUCT generation");
+  passed++;
+  assert(intelHeader.includes("UPROPERTY(EditAnywhere"), "M14: UE5 UPROPERTY generation");
+  passed++;
+  assert(intelHeader.includes("FSovereignBehaviorProfile"), "M14: UE5 behavior profile struct");
+  passed++;
+
+  assert(intelHeader.includes("FIntelStats"), "M14: FIntelStats tracking struct");
+  passed++;
+  assert(intelHeader.includes("archetypeDistribution"), "M14: archetype distribution tracking");
+  passed++;
+  assert(intelHeader.includes("totalProfilesGenerated"), "M14: profile generation counter");
+  passed++;
+  assert(intelHeader.includes("totalDecisionsMade"), "M14: decision counter");
+  passed++;
+
+  assert(intelHeader.includes("profileCache_"), "M14: profile caching");
+  passed++;
+
+  assert(intelHeader.includes("healthRatio"), "M14: health ratio in context");
+  passed++;
+  assert(intelHeader.includes("enemyHealthRatio"), "M14: enemy health ratio");
+  passed++;
+  assert(intelHeader.includes("distanceNorm"), "M14: distance normalization");
+  passed++;
+  assert(intelHeader.includes("roundNumber"), "M14: round number tracking");
+  passed++;
+  assert(intelHeader.includes("synergyCoefficient"), "M14: synergy coefficient in context");
+  passed++;
+  assert(intelHeader.includes("thermalStress"), "M14: thermal stress in context");
+  passed++;
+
+  assert(intelHeader.includes("urgency"), "M14: urgency factor in utility");
+  passed++;
+  assert(intelHeader.includes("proximity"), "M14: proximity factor in utility");
+  passed++;
+  assert(intelHeader.includes("healthAdvantage"), "M14: health advantage factor");
+  passed++;
+  assert(intelHeader.includes("roundProgress"), "M14: round progress factor");
+  passed++;
+
+  assert(intelHeader.includes("std::max(0.0f, std::min(1.0f"), "M14: weight clamping [0,1]");
+  passed++;
+  assert(intelHeader.includes("FBehavioralLocusEntry"), "M14: FBehavioralLocusEntry struct");
+  passed++;
+  assert(intelHeader.includes("targetWeight"), "M14: locus-to-weight mapping field");
+  passed++;
+
+  const intelTestPath = path.resolve("lib/engine-native/tests/sovereign_intel_conformance.cpp");
+  const intelTestFile = fs.readFileSync(intelTestPath, "utf-8");
+
+  assert(intelTestFile.includes("SOVEREIGN INTEL CONFORMANCE TESTS"), "M14-Test: test file header");
+  passed++;
+  assert(intelTestFile.includes("archetype_aggressive_string"), "M14-Test: archetype enum tests");
+  passed++;
+  assert(intelTestFile.includes("action_strike_string"), "M14-Test: action enum tests");
+  passed++;
+  assert(intelTestFile.includes("profile_weights_in_range"), "M14-Test: weight range tests");
+  passed++;
+  assert(intelTestFile.includes("profile_determinism"), "M14-Test: determinism tests");
+  passed++;
+  assert(intelTestFile.includes("decision_utility_vector_8_actions"), "M14-Test: utility vector tests");
+  passed++;
+  assert(intelTestFile.includes("low_health_increases_retreat_utility"), "M14-Test: situational context tests");
+  passed++;
+  assert(intelTestFile.includes("home_habitat_boosts_offensive"), "M14-Test: habitat synergy tests");
+  passed++;
+  assert(intelTestFile.includes("different_genomes_different_profiles"), "M14-Test: DNA uniqueness tests");
+  passed++;
+  assert(intelTestFile.includes("genesis_ancestors_varied_archetypes"), "M14-Test: genesis integration");
+  passed++;
+  assert(intelTestFile.includes("e2e_arena_with_intel_decisions"), "M14-Test: arena integration");
+  passed++;
+  assert(intelTestFile.includes("sha256_profile_hash_64_chars"), "M14-Test: SHA-256 verification");
+  passed++;
+  assert(intelTestFile.includes("INTEL RESULTS"), "M14-Test: reports results");
+  passed++;
+  assert(intelTestFile.includes("profile_generated_delegate"), "M14-Test: delegate tests");
+  passed++;
+  assert(intelTestFile.includes("locus_no_byte_overlap"), "M14-Test: byte overlap verification");
+  passed++;
+  assert(intelTestFile.includes("formula_synergy_coefficient_decomposition") === false, "M14-Test: no habitat formula bleeding");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
