@@ -1,13 +1,106 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls, Environment, ContactShadows, AdaptiveDpr,
-  AdaptiveEvents, Text, MeshReflectorMaterial,
+  AdaptiveEvents, RoundedBox, Text, MeshReflectorMaterial, useGLTF,
 } from "@react-three/drei";
-import { Suspense, useState, useRef, useCallback, useMemo, useEffect, Component, type ReactNode, type ErrorInfo } from "react";
+import { Suspense, useState, useRef, useCallback, useMemo, useEffect, Component, type ReactNode } from "react";
 import * as THREE from "three";
 import { sha256 } from "../utils/crypto";
 
 const PASS_52_ENABLED = false;
+const MOVE_SPEED = 4.0;
+const TURN_SPEED = 2.5;
+
+type SynapseAction =
+  | { type: "MOVE_ACTION"; direction: "forward" | "backward" }
+  | { type: "TURN_ACTION"; direction: "left" | "right" };
+
+interface SynapseState {
+  actions: Set<string>;
+  dispatch: (action: SynapseAction) => void;
+  release: (action: SynapseAction) => void;
+}
+
+function useSynapseInput(): SynapseState {
+  const actions = useRef<Set<string>>(new Set());
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    const keyToAction: Record<string, SynapseAction> = {
+      w: { type: "MOVE_ACTION", direction: "forward" },
+      W: { type: "MOVE_ACTION", direction: "forward" },
+      s: { type: "MOVE_ACTION", direction: "backward" },
+      S: { type: "MOVE_ACTION", direction: "backward" },
+      a: { type: "TURN_ACTION", direction: "left" },
+      A: { type: "TURN_ACTION", direction: "left" },
+      d: { type: "TURN_ACTION", direction: "right" },
+      D: { type: "TURN_ACTION", direction: "right" },
+      ArrowUp: { type: "MOVE_ACTION", direction: "forward" },
+      ArrowDown: { type: "MOVE_ACTION", direction: "backward" },
+      ArrowLeft: { type: "TURN_ACTION", direction: "left" },
+      ArrowRight: { type: "TURN_ACTION", direction: "right" },
+    };
+
+    const actionKey = (a: SynapseAction) => `${a.type}:${a.direction}`;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const action = keyToAction[e.key];
+      if (action) {
+        e.preventDefault();
+        const key = actionKey(action);
+        if (!actions.current.has(key)) {
+          actions.current.add(key);
+          console.log(`[Synapse] DISPATCH ${action.type}(${action.direction})`);
+          forceUpdate(n => n + 1);
+        }
+      }
+    };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      const action = keyToAction[e.key];
+      if (action) {
+        const key = actionKey(action);
+        actions.current.delete(key);
+        console.log(`[Synapse] RELEASE ${action.type}(${action.direction})`);
+        forceUpdate(n => n + 1);
+      }
+    };
+
+    const onFocusLost = () => {
+      if (actions.current.size > 0) {
+        console.log(`[Synapse] FOCUS LOST — releasing ${actions.current.size} latched actions`);
+        actions.current.clear();
+        forceUpdate(n => n + 1);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onFocusLost);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) onFocusLost();
+    });
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onFocusLost);
+    };
+  }, []);
+
+  return {
+    actions: actions.current,
+    dispatch: useCallback((a: SynapseAction) => actions.current.add(`${a.type}:${a.direction}`), []),
+    release: useCallback((a: SynapseAction) => actions.current.delete(`${a.type}:${a.direction}`), []),
+  };
+}
+
+interface MirrorTransform {
+  posX: number;
+  posZ: number;
+  rotY: number;
+  speed: number;
+}
 
 class WebGLErrorBoundary extends Component<
   { children: ReactNode },
@@ -52,50 +145,206 @@ interface Vehicle {
   color: string;
 }
 
-interface NexusSyncState {
-  syncState: "LIVE" | "STALE" | "GHOST" | "FAST_FORWARDING" | "DISCONNECTED";
-  entityHash: string;
+const PAINT_MATERIAL_PROPS = {
+  metalness: 0.9,
+  roughness: 0.1,
+  clearcoat: 1.0,
+  clearcoatRoughness: 0.03,
+  envMapIntensity: 2.0,
+  reflectivity: 1.0,
+};
+
+const GLASS_MATERIAL_PROPS = {
+  metalness: 0.0,
+  roughness: 0.05,
+  transparent: true,
+  opacity: 0.3,
+  transmission: 0.9,
+  thickness: 0.5,
+  ior: 1.5,
+  envMapIntensity: 1.0,
+  color: "#88aacc",
+};
+
+const CHROME_MATERIAL_PROPS = {
+  metalness: 0.9,
+  roughness: 0.1,
+  envMapIntensity: 2.5,
+  color: "#e8e8e8",
+};
+
+function GLBModel({ url, color }: { url: string; color: string }) {
+  const { scene } = useGLTF(url);
+  const clonedScene = useMemo(() => scene.clone(true), [scene]);
+  const createdMaterials = useRef<THREE.Material[]>([]);
+
+  useEffect(() => {
+    createdMaterials.current.forEach(m => m.dispose());
+    createdMaterials.current = [];
+
+    let meshCount = 0;
+    let vertexCount = 0;
+    clonedScene.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        meshCount++;
+        const mesh = child as THREE.Mesh;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        if (mesh.geometry.attributes.position) {
+          vertexCount += mesh.geometry.attributes.position.count;
+        }
+        const name = mesh.name.toLowerCase();
+        let mat: THREE.Material;
+        if (name.includes("glass") || name.includes("windshield") || name.includes("window")) {
+          mat = new THREE.MeshPhysicalMaterial({ ...GLASS_MATERIAL_PROPS });
+        } else if (name.includes("chrome") || name.includes("trim") || name.includes("grill")) {
+          mat = new THREE.MeshPhysicalMaterial({ ...CHROME_MATERIAL_PROPS });
+        } else {
+          mat = new THREE.MeshPhysicalMaterial({ color, ...PAINT_MATERIAL_PROPS });
+        }
+        mesh.material = mat;
+        createdMaterials.current.push(mat);
+      }
+    });
+
+    console.log(`[Pass 41] GLB Asset Conduit: VALID | meshes:${meshCount} verts:${vertexCount}`);
+
+    return () => {
+      createdMaterials.current.forEach(m => m.dispose());
+      createdMaterials.current = [];
+    };
+  }, [clonedScene, color]);
+
+  return <primitive object={clonedScene} />;
 }
 
-function useNexusSync(entityId: string): NexusSyncState {
-  const [state, setState] = useState<NexusSyncState>({
-    syncState: "LIVE",
-    entityHash: "",
-  });
+function FallbackLexus({ color }: { color: string }) {
+  return (
+    <group>
+      <RoundedBox args={[3.8, 0.8, 1.7]} radius={0.15} position={[0, 0, 0] as [number, number, number]} castShadow receiveShadow>
+        <meshPhysicalMaterial color={color} {...PAINT_MATERIAL_PROPS} />
+      </RoundedBox>
+      <RoundedBox args={[2.2, 0.7, 1.6]} radius={0.2} position={[0.1, 0.65, 0] as [number, number, number]} castShadow receiveShadow>
+        <meshPhysicalMaterial color={color} {...PAINT_MATERIAL_PROPS} />
+      </RoundedBox>
+      <mesh position={[0.1, 0.65, 0] as [number, number, number]}>
+        <boxGeometry args={[2.0, 0.5, 1.55]} />
+        <meshPhysicalMaterial {...GLASS_MATERIAL_PROPS} />
+      </mesh>
+      {([[-1.3, -0.15, 0.85], [-1.3, -0.15, -0.85], [1.3, -0.15, 0.85], [1.3, -0.15, -0.85]] as [number, number, number][]).map((pos, i) => (
+        <mesh key={`tire-${i}`} position={pos} rotation={[Math.PI / 2, 0, 0] as [number, number, number]} castShadow>
+          <cylinderGeometry args={[0.35, 0.35, 0.2, 24]} />
+          <meshStandardMaterial color="#1a1a1a" metalness={0.0} roughness={0.85} />
+        </mesh>
+      ))}
+      {([[-1.3, -0.15, 0.85], [-1.3, -0.15, -0.85], [1.3, -0.15, 0.85], [1.3, -0.15, -0.85]] as [number, number, number][]).map((pos, i) => (
+        <mesh key={`rim-${i}`} position={pos} rotation={[Math.PI / 2, 0, 0] as [number, number, number]}>
+          <cylinderGeometry args={[0.22, 0.22, 0.22, 8]} />
+          <meshPhysicalMaterial {...CHROME_MATERIAL_PROPS} />
+        </mesh>
+      ))}
+      <mesh position={[-1.95, 0.05, 0.7] as [number, number, number]}>
+        <sphereGeometry args={[0.15, 16, 16]} />
+        <meshStandardMaterial color="#fff" emissive="#fff" emissiveIntensity={0.8} />
+      </mesh>
+      <mesh position={[-1.95, 0.05, -0.7] as [number, number, number]}>
+        <sphereGeometry args={[0.15, 16, 16]} />
+        <meshStandardMaterial color="#fff" emissive="#fff" emissiveIntensity={0.8} />
+      </mesh>
+      <mesh position={[1.95, 0.05, 0.6] as [number, number, number]}>
+        <boxGeometry args={[0.1, 0.15, 0.3]} />
+        <meshStandardMaterial color="#ff2222" emissive="#ff0000" emissiveIntensity={0.5} />
+      </mesh>
+      <mesh position={[1.95, 0.05, -0.6] as [number, number, number]}>
+        <boxGeometry args={[0.1, 0.15, 0.3]} />
+        <meshStandardMaterial color="#ff2222" emissive="#ff0000" emissiveIntensity={0.5} />
+      </mesh>
+    </group>
+  );
+}
+
+const _tmpForward = new THREE.Vector3();
+const _tmpAxis = new THREE.Vector3(0, 1, 0);
+const MIRROR_THROTTLE_MS = 50;
+
+function LexusVehicle({ color, vehicleId, synapse, onMirrorUpdate }: {
+  color: string;
+  vehicleId: string;
+  synapse: SynapseState;
+  onMirrorUpdate: (t: MirrorTransform) => void;
+}) {
+  const groupRef = useRef<THREE.Group>(null!);
+  const [glbStatus, setGlbStatus] = useState<"checking" | "available" | "unavailable">("checking");
+  const glbPath = `/models/lexus-${vehicleId}.glb`;
+  const lastMirrorTime = useRef<number>(0);
 
   useEffect(() => {
     let cancelled = false;
-    sha256(`nexus:${entityId}:${Date.now()}`).then(hash => {
-      if (!cancelled) setState(prev => ({ ...prev, entityHash: hash.slice(0, 16) }));
-    });
+    setGlbStatus("checking");
+    fetch(glbPath, { method: "HEAD" })
+      .then(res => {
+        if (cancelled) return;
+        const ct = res.headers.get("content-type") || "";
+        const isBinary = res.ok && (
+          ct.includes("model/gltf-binary") ||
+          ct.includes("application/octet-stream") ||
+          ct.includes("model/gltf+json")
+        );
+        setGlbStatus(isBinary ? "available" : "unavailable");
+        if (isBinary) console.log(`[Synapse] GLB validated: ${glbPath} (${ct})`);
+        else console.log(`[Synapse] GLB unavailable (${ct}), using procedural fallback`);
+      })
+      .catch(() => { if (!cancelled) setGlbStatus("unavailable"); });
     return () => { cancelled = true; };
-  }, [entityId]);
-
-  return state;
-}
-
-function ChromeSphere() {
-  const meshRef = useRef<THREE.Mesh>(null!);
+  }, [glbPath]);
 
   useFrame((_, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.15;
+    if (!groupRef.current) return;
+    const g = groupRef.current;
+    let speed = 0;
+
+    if (synapse.actions.has("TURN_ACTION:left")) {
+      g.rotation.y += TURN_SPEED * delta;
+    }
+    if (synapse.actions.has("TURN_ACTION:right")) {
+      g.rotation.y -= TURN_SPEED * delta;
+    }
+
+    _tmpForward.set(0, 0, -1).applyAxisAngle(_tmpAxis, g.rotation.y);
+
+    if (synapse.actions.has("MOVE_ACTION:forward")) {
+      g.position.addScaledVector(_tmpForward, MOVE_SPEED * delta);
+      speed = MOVE_SPEED;
+    }
+    if (synapse.actions.has("MOVE_ACTION:backward")) {
+      g.position.addScaledVector(_tmpForward, -MOVE_SPEED * delta * 0.6);
+      speed = -MOVE_SPEED * 0.6;
+    }
+
+    const clampR = 12;
+    g.position.x = Math.max(-clampR, Math.min(clampR, g.position.x));
+    g.position.z = Math.max(-clampR, Math.min(clampR, g.position.z));
+
+    const now = performance.now();
+    if (now - lastMirrorTime.current > MIRROR_THROTTLE_MS) {
+      lastMirrorTime.current = now;
+      onMirrorUpdate({
+        posX: g.position.x,
+        posZ: g.position.z,
+        rotY: g.rotation.y,
+        speed,
+      });
     }
   });
 
   return (
-    <mesh ref={meshRef} position={[0, 1.2, 0] as [number, number, number]} castShadow receiveShadow>
-      <sphereGeometry args={[1.5, 64, 64]} />
-      <meshPhysicalMaterial
-        color="#c0c0c0"
-        metalness={0.9}
-        roughness={0.1}
-        clearcoat={1.0}
-        clearcoatRoughness={0.03}
-        envMapIntensity={2.5}
-        reflectivity={1.0}
-      />
-    </mesh>
+    <group ref={groupRef} position={[0, 0.6, 0] as [number, number, number]}>
+      {glbStatus === "available" ? (
+        <GLBModel url={glbPath} color={color} />
+      ) : glbStatus === "unavailable" ? (
+        <FallbackLexus color={color} />
+      ) : null}
+    </group>
   );
 }
 
@@ -190,24 +439,76 @@ function BidPanel({ vehicle, onBid, lastBid }: {
   );
 }
 
-function NexusHUD({ nexusState }: { nexusState: NexusSyncState }) {
+function BehavioralMirrorHUD({ mirror, entityHash, activeActions }: {
+  mirror: MirrorTransform;
+  entityHash: string;
+  activeActions: Set<string>;
+}) {
+  const stateColor = "#00ff88";
+  const activeList = Array.from(activeActions);
+
   return (
     <div style={{
       position: "absolute", top: 24, left: "50%", transform: "translateX(-50%)",
-      display: "flex", alignItems: "center", gap: 8,
-      padding: "6px 14px", borderRadius: 20,
-      background: "rgba(0,0,0,0.8)", border: "1px solid #ffaa0033",
-      fontFamily: "monospace", fontSize: 11, zIndex: 10,
+      display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+      padding: "8px 16px", borderRadius: 12,
+      background: "rgba(0,0,0,0.85)", border: `1px solid ${stateColor}33`,
+      fontFamily: "monospace", fontSize: 11, zIndex: 10, minWidth: 320,
     }}>
-      <div style={{
-        width: 8, height: 8, borderRadius: "50%",
-        background: "#ffaa00",
-        boxShadow: "0 0 6px #ffaa00",
-      }} />
-      <span style={{ color: "#ffaa00" }}>NEXUS STANDBY (P52 OFF)</span>
-      {nexusState.entityHash && (
-        <span style={{ color: "#555" }}>[{nexusState.entityHash}]</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+        <div style={{
+          width: 8, height: 8, borderRadius: "50%",
+          background: stateColor, boxShadow: `0 0 6px ${stateColor}`,
+        }} />
+        <span style={{ color: stateColor }}>BEHAVIORAL MIRROR</span>
+        {entityHash && <span style={{ color: "#555", marginLeft: "auto" }}>[{entityHash}]</span>}
+      </div>
+      <div style={{ display: "flex", gap: 16, color: "#888", width: "100%", justifyContent: "space-between" }}>
+        <span>X: <span style={{ color: "#fff" }}>{mirror.posX.toFixed(2)}</span></span>
+        <span>Z: <span style={{ color: "#fff" }}>{mirror.posZ.toFixed(2)}</span></span>
+        <span>ROT: <span style={{ color: "#fff" }}>{(mirror.rotY * (180 / Math.PI)).toFixed(1)}deg</span></span>
+        <span>SPD: <span style={{ color: mirror.speed !== 0 ? "#00ff88" : "#555" }}>{Math.abs(mirror.speed).toFixed(1)}</span></span>
+      </div>
+      {activeList.length > 0 && (
+        <div style={{ display: "flex", gap: 6, width: "100%", flexWrap: "wrap" }}>
+          {activeList.map(a => (
+            <span key={a} style={{
+              padding: "2px 6px", borderRadius: 4, fontSize: 9,
+              background: "rgba(0,255,136,0.15)", color: "#00ff88", border: "1px solid #00ff8833",
+            }}>
+              {a}
+            </span>
+          ))}
+        </div>
       )}
+    </div>
+  );
+}
+
+function WASDHint() {
+  const keys = [
+    { label: "W", sub: "FWD", row: 0, col: 1 },
+    { label: "A", sub: "LEFT", row: 1, col: 0 },
+    { label: "S", sub: "BACK", row: 1, col: 1 },
+    { label: "D", sub: "RIGHT", row: 1, col: 2 },
+  ];
+  return (
+    <div style={{
+      position: "absolute", bottom: 80, right: 24,
+      display: "grid", gridTemplateColumns: "repeat(3, 36px)", gridTemplateRows: "repeat(2, 36px)",
+      gap: 3, fontFamily: "monospace",
+    }}>
+      {keys.map(k => (
+        <div key={k.label} style={{
+          gridRow: k.row + 1, gridColumn: k.col + 1,
+          width: 36, height: 36, borderRadius: 6,
+          border: "1px solid #333", background: "rgba(0,0,0,0.6)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        }}>
+          <span style={{ color: "#c9a96e", fontSize: 13, fontWeight: 700, lineHeight: 1 }}>{k.label}</span>
+          <span style={{ color: "#555", fontSize: 7, lineHeight: 1 }}>{k.sub}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -221,9 +522,23 @@ export default function ShowroomScene() {
 
   const [vehicleIdx, setVehicleIdx] = useState(0);
   const [lastBid, setLastBid] = useState<string | null>(null);
+  const [mirror, setMirror] = useState<MirrorTransform>({ posX: 0, posZ: 0, rotY: 0, speed: 0 });
+  const [entityHash, setEntityHash] = useState("");
   const stateVersions = useRef<Record<string, number>>({});
   const selectedVehicle = vehicles[vehicleIdx];
-  const nexusState = useNexusSync(selectedVehicle.id);
+  const synapse = useSynapseInput();
+
+  useEffect(() => {
+    let cancelled = false;
+    sha256(`nexus:${selectedVehicle.id}:${Date.now()}`).then(hash => {
+      if (!cancelled) setEntityHash(hash.slice(0, 16));
+    });
+    return () => { cancelled = true; };
+  }, [selectedVehicle.id]);
+
+  const handleMirrorUpdate = useCallback((t: MirrorTransform) => {
+    setMirror(t);
+  }, []);
 
   const handleBid = useCallback(async (amount: number) => {
     try {
@@ -247,29 +562,29 @@ export default function ShowroomScene() {
       if (resp.ok) {
         const data = await resp.json();
         if (data.state_version != null) stateVersions.current[versionKey] = data.state_version;
-        const hashNote = data.payload_hash ? ` [SHA-256: ${data.payload_hash.slice(0, 12)}…]` : "";
+        const hashNote = data.payload_hash ? ` [SHA-256: ${data.payload_hash.slice(0, 12)}...]` : "";
         const versionNote = data.state_version != null ? ` [v${data.state_version}]` : "";
         setLastBid(`Bid of $${amount.toLocaleString()} placed on ${selectedVehicle.name}${hashNote}${versionNote}`);
       } else if (resp.status === 409) {
         const conflict = await resp.json();
         if (conflict.code === "STATE_VERSION_CONFLICT") {
           stateVersions.current[versionKey] = conflict.serverVersion;
-          setLastBid(`SHADOW BRANCH — corrected to v${conflict.serverVersion}. Retry.`);
+          setLastBid(`SHADOW BRANCH -- corrected to v${conflict.serverVersion}. Retry.`);
         }
       } else {
         const err = await resp.json().catch(() => null);
-        setLastBid(err?.code === "INTEGRITY_HASH_MISMATCH" ? "INTEGRITY FAULT" : "Bid failed — try again");
+        setLastBid(err?.code === "INTEGRITY_HASH_MISMATCH" ? "INTEGRITY FAULT" : "Bid failed -- try again");
       }
     } catch {
-      setLastBid("API offline — bid queued locally");
+      setLastBid("API offline -- bid queued locally");
     }
   }, [selectedVehicle]);
 
   return (
-    <div style={{ width: "100vw", height: "100vh", background: "#050510", overflow: "hidden" }}>
+    <div style={{ width: "100vw", height: "100vh", background: "#050510", overflow: "hidden" }} tabIndex={0}>
       <WebGLErrorBoundary>
         <Canvas
-          camera={{ position: [5, 3, 8] as [number, number, number], fov: 45 }}
+          camera={{ position: [6, 4, 10] as [number, number, number], fov: 45 }}
           shadows
           gl={{
             antialias: true,
@@ -279,12 +594,21 @@ export default function ShowroomScene() {
             failIfMajorPerformanceCaveat: false,
           }}
           onCreated={({ gl }) => {
-            console.log(`[WebGL] Context created: ${gl.getContext().constructor.name}`);
+            const ctx = gl.getContext();
+            const ctxName = ctx.constructor.name;
+            console.log(`[WebGL] Context created: ${ctxName} -- GPU forced high-fidelity, safe-mode DISABLED`);
+            if (ctx instanceof WebGL2RenderingContext || ctx instanceof WebGLRenderingContext) {
+              const debugInfo = ctx.getExtension("WEBGL_debug_renderer_info");
+              if (debugInfo) {
+                const renderer = ctx.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                console.log(`[WebGL] GPU: ${renderer} -- headless bypass ACTIVE`);
+              }
+            }
           }}
         >
           <AdaptiveDpr pixelated />
           <AdaptiveEvents />
-          <fog attach="fog" args={["#050510", 12, 35]} />
+          <fog attach="fog" args={["#050510", 15, 40]} />
 
           <ambientLight intensity={0.8} />
           <hemisphereLight args={["#c9a96e", "#050510", 0.4]} />
@@ -294,7 +618,12 @@ export default function ShowroomScene() {
           <pointLight position={[3, 4, -3] as [number, number, number]} intensity={1} color="#8888ff" />
 
           <Suspense fallback={null}>
-            <ChromeSphere />
+            <LexusVehicle
+              color={selectedVehicle.color}
+              vehicleId={selectedVehicle.id}
+              synapse={synapse}
+              onMirrorUpdate={handleMirrorUpdate}
+            />
           </Suspense>
           <Suspense fallback={null}>
             <PriceTag vehicle={selectedVehicle} />
@@ -312,7 +641,7 @@ export default function ShowroomScene() {
             minPolarAngle={0.3}
             maxPolarAngle={Math.PI / 2.2}
             minDistance={4}
-            maxDistance={15}
+            maxDistance={20}
             enablePan={false}
           />
         </Canvas>
@@ -321,7 +650,7 @@ export default function ShowroomScene() {
       <div style={{ position: "absolute", top: 24, left: 28, fontFamily: "'Inter', sans-serif" }}>
         <div style={{ color: "#c9a96e", fontSize: 11, letterSpacing: 5, marginBottom: 4 }}>SOVEREIGN SHOWROOM</div>
         <h1 style={{ color: "#fff", fontSize: 32, fontWeight: 800, margin: 0, letterSpacing: 2 }}>LEXUS RX</h1>
-        <p style={{ color: "#555", fontSize: 13, marginTop: 4 }}>1-Primitive Chrome Test | WebGL Bridge Proof</p>
+        <p style={{ color: "#555", fontSize: 13, marginTop: 4 }}>Synapse-Driven | WASD Controls Active</p>
       </div>
 
       <div style={{
@@ -345,13 +674,14 @@ export default function ShowroomScene() {
       </div>
 
       <BidPanel vehicle={selectedVehicle} onBid={handleBid} lastBid={lastBid} />
-      <NexusHUD nexusState={nexusState} />
+      <BehavioralMirrorHUD mirror={mirror} entityHash={entityHash} activeActions={synapse.actions} />
+      <WASDHint />
 
       <div style={{
         position: "absolute", bottom: 28, left: 28, fontSize: 11, color: "#333",
         fontFamily: "monospace",
       }}>
-        1 MESH | sphereGeometry(1.5, 64, 64) | metalness:0.9 roughness:0.1 clearcoat:1.0 | ACES Filmic | HDR city env
+        Synapse WASD | Behavioral Mirror | GLB Pipeline | Safe-mode DISABLED | GPU forced
       </div>
     </div>
   );

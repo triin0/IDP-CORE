@@ -96,6 +96,15 @@ A transpilation pipeline generating type-safe C++/UE5 code from Pydantic schemas
 - **The Sovereign Synapse — Logic & Intent Pipeline:** Intercepts, sanitizes, and validates natural language "Intent Strings" into Sovereign Action Structs, enforcing a 10-pass "Reality Check" (Pass 50) and a behavioral mirror for prediction reconciliation.
 - **The Sovereign Nexus — Multi-Entity Orchestration & Sync:** High-concurrency fleet orchestrator with entity registry, "Quantum Lock" (Pass 51) for LWW conflict resolution, delta compression, "Ghost Reconciliation" (Pass 52) for smooth sync, and SHA-256 integrity.
 
+**Lexus RX300 Showroom (artifacts/showroom-web):**
+- GLB model pipeline: CC0 car models at `public/models/` with content-type validation (HEAD probe rejects Vite SPA HTML fallback).
+- PBR materials: metalness 0.9, roughness 0.1, clearcoat 1.0 (paint); transmission 0.9 (glass); chrome envMapIntensity 2.5.
+- WASD/Arrow key input via Synapse action dispatch: `MOVE_ACTION(forward|backward)`, `TURN_ACTION(left|right)`.
+- Behavioral Mirror HUD: real-time X/Z/ROT/SPD telemetry, throttled at 20Hz to avoid React state thrashing.
+- Pre-allocated vectors in useFrame (zero per-frame GC). Focus-loss handler clears latched keys.
+- No emoji fallback. WebGL error boundary is text-only. Canvas mounts unconditionally (failIfMajorPerformanceCaveat: false).
+- HDR city env map, ACES Filmic tone mapping, ContactShadows, MeshReflectorMaterial floor.
+
 ## External Dependencies
 *   **Monorepo Tool:** pnpm workspaces
 *   **Database:** PostgreSQL, Drizzle ORM
