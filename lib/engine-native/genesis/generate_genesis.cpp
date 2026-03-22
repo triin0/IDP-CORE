@@ -156,13 +156,18 @@ int main() {
         std::string finalHash = SovereignSHA256::hash(genomeHex + ":" + GENESIS_SALT);
 
         int collisionAttempts = 0;
-        for (const auto& existing : population) {
-            if (countSharedLoci(genome, existing.genome) > MAX_SHARED_LOCI) {
-                mutateMorphology(genome, rng);
-                genomeHex = bytesToHex(genome);
-                finalHash = SovereignSHA256::hash(genomeHex + ":" + GENESIS_SALT);
-                collisionAttempts++;
-                break;
+        bool collisionFound = true;
+        while (collisionFound && collisionAttempts < 100) {
+            collisionFound = false;
+            for (const auto& existing : population) {
+                if (countSharedLoci(genome, existing.genome) > MAX_SHARED_LOCI) {
+                    mutateMorphology(genome, rng);
+                    genomeHex = bytesToHex(genome);
+                    finalHash = SovereignSHA256::hash(genomeHex + ":" + GENESIS_SALT);
+                    collisionAttempts++;
+                    collisionFound = true;
+                    break;
+                }
             }
         }
 
@@ -178,7 +183,7 @@ int main() {
         entity.genome = genome;
         entity.phenotypeClass = phenotypeClassToString(phenotype.classification);
         entity.meshFamily = phenotype.morphology.meshFamilyName();
-        entity.forgeValid = true;
+        entity.forgeValid = phenotype.sourceHash == finalHash && !phenotype.phenotypeHash.empty();
         entity.integrityValid = phenotype.verifyIntegrity();
 
         entity.pureLociCount = 0;
@@ -344,10 +349,10 @@ int main() {
             manifest << "        \"scaleY\": " << e.phenotype.morphology.scaleY << ",\n";
             manifest << "        \"scaleZ\": " << e.phenotype.morphology.scaleZ << "\n";
             manifest << "      },\n";
-            manifest << "      \"primaryColor\": [" << e.phenotype.primaryColor.r << ", "
-                     << e.phenotype.primaryColor.g << ", " << e.phenotype.primaryColor.b << "],\n";
-            manifest << "      \"accentColor\": [" << e.phenotype.accentColor.r << ", "
-                     << e.phenotype.accentColor.g << ", " << e.phenotype.accentColor.b << "]\n";
+            manifest << "      \"primaryColor\": [" << e.phenotype.primaryColor.R << ", "
+                     << e.phenotype.primaryColor.G << ", " << e.phenotype.primaryColor.B << "],\n";
+            manifest << "      \"accentColor\": [" << e.phenotype.accentColor.R << ", "
+                     << e.phenotype.accentColor.G << ", " << e.phenotype.accentColor.B << "]\n";
             manifest << "    }";
             if (i < population.size() - 1) manifest << ",";
             manifest << "\n";

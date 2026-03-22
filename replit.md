@@ -376,6 +376,38 @@ All systems in `lib/engine-native/generated/SovereignArena.h` within `namespace 
 **Test Coverage:**
 - C++ conformance: `lib/engine-native/tests/sovereign_arena_v2_conformance.cpp` — 179 tests (replay timeline, hitbox mapping, scar system, veteran progression, determinism, tamper detection, delegates, enum coverage). ASAN clean.
 - TypeScript: 1,964 total TS tests (Module 11 adds ~200 assertions covering all structs, enums, methods, animation clips, VFX tags, collision profiles, experience config, Chronos integration, thread safety).
+- **Total Test Barrier: 2,284 (184 Arena v2 + 136 Ownership + 1,964 TS) — 100% PASS**
+
+## Module 12: Genesis Event — 100 Ancestor Genomes
+The Genesis Event mints the founding population of 100 deterministic Sovereign entities using a fixed `GENESIS_SALT`. Every future hybrid traces its lineage to these 100 hashes.
+
+**Standalone Tool:** `lib/engine-native/genesis/generate_genesis.cpp` — compiled C++ binary, does not modify core engine headers.
+
+**Rarity Distribution Algorithm:**
+- Bytes 30–31 of each 32-byte genome encode a 16-bit rarity word. `P = (rarityWord / 65535) * 100`.
+- `P < 3` → LEGENDARY (forced 100% primary/accent purity + Golden Fresnel byte 24–25 = 0xFFD7).
+- `P < 10` → EPIC (2 pure loci + elevated animFreq 0xC000+).
+- `P < 30` → RARE (1 pure locus).
+- Otherwise → COMMON (standard ranges).
+- Actual distribution from deterministic salt: 77 Common, 11 Rare, 7 Epic, 5 Legendary.
+
+**Collision Detection:** No two genomes share >12 identical loci (out of 16). If collision detected, morphology bytes (10–17: meshIndex, scaleX/Y/Z) are auto-mutated. Max shared loci in population: 6.
+
+**Metadata (Chronos SPedigree):**
+- Generation: 0, Origin: `GENESIS_EVENT_2026`, Architect: `50529956`.
+- Per-entity pedigreeHash = SHA-256 of canonicalized pedigree payload.
+
+**Deliverables (all in `lib/engine-native/genesis/`):**
+- `genesis_manifest.json` — 3,217 lines: all 100 SHA-256 genomes with rarity, phenotypeClass, meshFamily, material, morphology, primaryColor, accentColor, genome hex, pedigreeHash.
+- `genesis_audit.log` — 157 lines: conformance report (forge pass/fail, integrity, invisible scale check, mesh index validation, per-entity table).
+- `claim_bootstrap.sql` — 134 lines: DDL + INSERT for `genesis_entities` table (claim_status=UNCLAIMED, indexes on rarity/class/status).
+
+**Conformance Results:**
+- Forge: 100/100 pass. Integrity: 100/100 pass.
+- Invisible entities: 0. Invalid mesh index: 0.
+- Hash uniqueness: 100/100. Determinism: VERIFIED.
+- Phenotype classes: ORGANIC(60), ETHEREAL(22), AQUEOUS(8), METALLIC(8), VOLCANIC(2).
+- Mesh families: 16 distinct families (Klein 11, Trefoil 10, Cube/Cylinder/Dodecahedron/Octahedron/Torus/Capsule/Geodesic 7 each, Mobius/Sphere 5-6 each, etc.).
 
 ## Tier 5 — Sub-Agent Structural Blindness Cure (Runtime Feedback Loop)
 - **Runtime Error Classifier** (`classifyRuntimeErrors`): Parses 10 error patterns into 9 categories — `MISSING_MODULE`, `UNDEFINED_REFERENCE`, `TYPE_ERROR`, `MISSING_EXPORT`, `RENDER_CRASH`, `SYNTAX_ERROR`, `RUNTIME_EXCEPTION`, `MISSING_IMPORT`, `UNKNOWN`. Each classified with severity (critical/high/medium/low).
