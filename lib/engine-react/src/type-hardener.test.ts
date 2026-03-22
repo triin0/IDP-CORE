@@ -8182,6 +8182,201 @@ console.log("\n=== Module 14: Sovereign Intel — DNA-Driven Behavioral AI ===")
   passed++;
 }
 
+{
+  console.log("\n--- Module 16: SovereignVisualSynthesizer Assertions ---");
+
+  const fs = await import("fs");
+  const path = await import("path");
+  const synthHeader = fs.readFileSync(path.resolve("lib/engine-native/generated/SovereignVisualSynthesizer.h"), "utf-8");
+
+  assert(synthHeader.includes("struct FSDFPrimitive"), "M16: FSDFPrimitive struct");
+  passed++;
+  assert(synthHeader.includes("SPHERE"), "M16: SDF SPHERE shape");
+  passed++;
+  assert(synthHeader.includes("BOX"), "M16: SDF BOX shape");
+  passed++;
+  assert(synthHeader.includes("CYLINDER"), "M16: SDF CYLINDER shape");
+  passed++;
+  assert(synthHeader.includes("TORUS"), "M16: SDF TORUS shape");
+  passed++;
+  assert(synthHeader.includes("CONE"), "M16: SDF CONE shape");
+  passed++;
+  assert(synthHeader.includes("CAPSULE"), "M16: SDF CAPSULE shape");
+  passed++;
+
+  assert(synthHeader.includes("struct FSDFComposition"), "M16: FSDFComposition struct");
+  passed++;
+  assert(synthHeader.includes("globalBlendFactor"), "M16: SDF globalBlendFactor");
+  passed++;
+  assert(synthHeader.includes("boundingRadius"), "M16: SDF boundingRadius");
+  passed++;
+  assert(synthHeader.includes("primitiveCount"), "M16: SDF primitiveCount");
+  passed++;
+
+  assert(synthHeader.includes("struct FSynthesizedVertex"), "M16: FSynthesizedVertex struct");
+  passed++;
+  assert(synthHeader.includes("struct FSynthesizedMesh"), "M16: FSynthesizedMesh struct");
+  passed++;
+  assert(synthHeader.includes("vertexCount"), "M16: mesh vertexCount");
+  passed++;
+  assert(synthHeader.includes("triangleCount"), "M16: mesh triangleCount");
+  passed++;
+  assert(synthHeader.includes("meshHash"), "M16: mesh hash integrity");
+  passed++;
+
+  assert(synthHeader.includes("enum class VFXType"), "M16: VFXType enum");
+  passed++;
+  assert(synthHeader.includes("EMISSION_PULSE"), "M16: VFX EMISSION_PULSE");
+  passed++;
+  assert(synthHeader.includes("IMPACT_SHOCKWAVE"), "M16: VFX IMPACT_SHOCKWAVE");
+  passed++;
+  assert(synthHeader.includes("SHIELD_FLARE"), "M16: VFX SHIELD_FLARE");
+  passed++;
+  assert(synthHeader.includes("DODGE_AFTERIMAGE"), "M16: VFX DODGE_AFTERIMAGE");
+  passed++;
+  assert(synthHeader.includes("CHARGE_BUILDUP"), "M16: VFX CHARGE_BUILDUP");
+  passed++;
+  assert(synthHeader.includes("COUNTER_FLASH"), "M16: VFX COUNTER_FLASH");
+  passed++;
+  assert(synthHeader.includes("FEINT_SHIMMER"), "M16: VFX FEINT_SHIMMER");
+  passed++;
+  assert(synthHeader.includes("IDLE_AMBIENT"), "M16: VFX IDLE_AMBIENT");
+  passed++;
+
+  assert(synthHeader.includes("struct FVFXDescriptor"), "M16: FVFXDescriptor struct");
+  passed++;
+  assert(synthHeader.includes("emissionColor"), "M16: VFX emissionColor");
+  passed++;
+  assert(synthHeader.includes("particleScale"), "M16: VFX particleScale");
+  passed++;
+  assert(synthHeader.includes("particleCount"), "M16: VFX particleCount");
+  passed++;
+  assert(synthHeader.includes("durationMs"), "M16: VFX durationMs");
+  passed++;
+  assert(synthHeader.includes("pulseHz"), "M16: VFX pulseHz");
+  passed++;
+
+  assert(synthHeader.includes("struct FShaderParameters"), "M16: FShaderParameters struct");
+  passed++;
+  assert(synthHeader.includes("baseColorR"), "M16: shader baseColor");
+  passed++;
+  assert(synthHeader.includes("emissiveR"), "M16: shader emissive");
+  passed++;
+  assert(synthHeader.includes("subsurfaceR"), "M16: shader subsurface");
+  passed++;
+  assert(synthHeader.includes("weatheringIntensity"), "M16: shader weathering");
+  passed++;
+  assert(synthHeader.includes("microDisplacementFreq"), "M16: shader microDisplacement");
+  passed++;
+  assert(synthHeader.includes("displacementScale"), "M16: shader displacementScale");
+  passed++;
+  assert(synthHeader.includes("isValid"), "M16: shader isValid boundary check");
+  passed++;
+
+  assert(synthHeader.includes("struct FSynthesisResult"), "M16: FSynthesisResult struct");
+  passed++;
+  assert(synthHeader.includes("synthesisHash"), "M16: synthesis hash");
+  passed++;
+  assert(synthHeader.includes("synthesisTimestamp"), "M16: synthesis timestamp");
+  passed++;
+
+  assert(synthHeader.includes("SovereignVisualSynthesizer"), "M16: singleton class");
+  passed++;
+  assert(synthHeader.includes("buildSDFComposition"), "M16: buildSDFComposition method");
+  passed++;
+  assert(synthHeader.includes("buildShaderParameters"), "M16: buildShaderParameters method");
+  passed++;
+  assert(synthHeader.includes("synthesizeMesh"), "M16: synthesizeMesh method");
+  passed++;
+  assert(synthHeader.includes("mapActionToVFX"), "M16: mapActionToVFX method");
+  passed++;
+  assert(synthHeader.includes("triggerActionVFX"), "M16: triggerActionVFX method");
+  passed++;
+  assert(synthHeader.includes("verifySynthesisDeterminism"), "M16: determinism verification");
+  passed++;
+  assert(synthHeader.includes("generateUE5SynthesizerCode"), "M16: UE5 code generation");
+  passed++;
+  assert(synthHeader.includes("generateHLSLShaderStub"), "M16: HLSL shader generation");
+  passed++;
+
+  assert(synthHeader.includes("buildSmoothOrb"), "M16: SDF smooth orb builder");
+  passed++;
+  assert(synthHeader.includes("buildAngularShard"), "M16: SDF angular shard builder");
+  passed++;
+  assert(synthHeader.includes("buildJaggedCrystal"), "M16: SDF jagged crystal builder");
+  passed++;
+  assert(synthHeader.includes("buildFlowingTendril"), "M16: SDF flowing tendril builder");
+  passed++;
+  assert(synthHeader.includes("buildDenseMonolith"), "M16: SDF dense monolith builder");
+  passed++;
+  assert(synthHeader.includes("buildHollowShell"), "M16: SDF hollow shell builder");
+  passed++;
+  assert(synthHeader.includes("buildCompoundCluster"), "M16: SDF compound cluster builder");
+  passed++;
+  assert(synthHeader.includes("buildOrganicBloom"), "M16: SDF organic bloom builder");
+  passed++;
+  assert(synthHeader.includes("evaluateSDF"), "M16: SDF evaluation function");
+  passed++;
+  assert(synthHeader.includes("generateMarchingCubesMesh"), "M16: marching cubes mesh gen");
+  passed++;
+
+  assert(synthHeader.includes("applyWeatheringFromArchetype"), "M16: weathering application");
+  passed++;
+  assert(synthHeader.includes("parseHexColor"), "M16: hex color parser");
+  passed++;
+  assert(synthHeader.includes("computeResolution"), "M16: LOD resolution computation");
+  passed++;
+
+  assert(synthHeader.includes("UCLASS(BlueprintType)"), "M16: UE5 UCLASS annotation");
+  passed++;
+  assert(synthHeader.includes("UProceduralMeshComponent"), "M16: UE5 ProceduralMesh");
+  passed++;
+  assert(synthHeader.includes("UMaterialInstanceDynamic"), "M16: UE5 MaterialInstance");
+  passed++;
+  assert(synthHeader.includes("UNiagaraComponent"), "M16: UE5 Niagara VFX");
+  passed++;
+
+  assert(synthHeader.includes("LavaPulse"), "M16: HLSL volcanic lava pulse");
+  passed++;
+  assert(synthHeader.includes("CausticPattern"), "M16: HLSL aqueous caustic");
+  passed++;
+  assert(synthHeader.includes("FresnelTerm"), "M16: HLSL ethereal fresnel");
+  passed++;
+  assert(synthHeader.includes("FlakePattern"), "M16: HLSL metallic flake");
+  passed++;
+  assert(synthHeader.includes("clamp(Roughness"), "M16: HLSL GPU safety clamp");
+  passed++;
+
+  assert(synthHeader.includes("SynthesisCompleteDelegate"), "M16: synthesis delegate");
+  passed++;
+  assert(synthHeader.includes("VFXTriggeredDelegate"), "M16: VFX delegate");
+  passed++;
+  assert(synthHeader.includes("FSynthesizerStats"), "M16: stats struct");
+  passed++;
+
+  const synthTestFile = fs.readFileSync(path.resolve("lib/engine-native/tests/sovereign_visual_synthesizer_conformance.cpp"), "utf-8");
+  assert(synthTestFile.includes("SYNTHESIZER RESULTS"), "M16-Test: reports results");
+  passed++;
+  assert(synthTestFile.includes("sdf_composition_all_archetypes"), "M16-Test: all archetypes tested");
+  passed++;
+  assert(synthTestFile.includes("mesh_synthesis_determinism"), "M16-Test: mesh determinism");
+  passed++;
+  assert(synthTestFile.includes("shader_weathering_volcanic"), "M16-Test: volcanic weathering");
+  passed++;
+  assert(synthTestFile.includes("vfx_strike_emission_pulse"), "M16-Test: VFX action mapping");
+  passed++;
+  assert(synthTestFile.includes("hlsl_all_have_gpu_safety_clamp"), "M16-Test: GPU safety");
+  passed++;
+  assert(synthTestFile.includes("genesis_ancestors_synthesis"), "M16-Test: genesis synthesis");
+  passed++;
+  assert(synthTestFile.includes("mesh_lod_reduces_vertices"), "M16-Test: LOD reduction");
+  passed++;
+  assert(synthTestFile.includes("full_synthesis_determinism"), "M16-Test: full pipeline determinism");
+  passed++;
+  assert(synthTestFile.includes("tamper_detection_mesh"), "M16-Test: tamper detection");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

@@ -487,7 +487,38 @@ The Sovereign Bridge is the Universal Translator that converts internal genome d
 - C++ conformance: `lib/engine-native/tests/sovereign_passport_conformance.cpp` — 62 tests (enum strings, struct defaults, canonicalization, VMO integrity/hash/determinism, material/geometry/behavior/environment mapping from Forge/Intel/Habitat, shader/mesh classification, active buffs, passport signing/verification/tamper detection, JSON export, UE5 codegen, genesis ancestor passports, genome uniqueness, refraction/pulse/glow formulas, LOD levels, delegate firing, stats tracking).
 - TypeScript: 2,608 total TS tests (Module 15 adds 162 assertions covering all enums, structs, fields, methods, mapping logic, UE5 annotations, classification functions, test file verification).
 
-**Test Barrier: 3,121** (137 Arena v2 + 136 Ownership + 107 Habitat + 71 Intel + 62 Passport + 2,608 TS — 100% PASS)
+## Module 16: High-Fidelity Forge — SDF Mesh Synthesizer & Sovereign Shader Library
+The High-Fidelity Forge transforms VMO instructions into real-time 3D synthesis. It consumes a SovereignPassport and outputs a procedural mesh via SDF blending, shader parameters via hex-color parsing and weathering, and VFX descriptors via action-to-visual mapping. The "Placeholder Cube" is dead.
+
+**C++ Header:** `lib/engine-native/generated/SovereignVisualSynthesizer.h`
+
+**SDF Mesh Synthesizer:**
+- FSDFPrimitive: 6 shapes (SPHERE, BOX, CYLINDER, TORUS, CONE, CAPSULE) with position, size, blendRadius, weight (negative = subtraction).
+- FSDFComposition: per-archetype primitive layouts with globalBlendFactor and boundingRadius.
+- 8 archetype builders: buildSmoothOrb (2 spheres, blend 0.5), buildAngularShard (box+cone+wing, blend 0.05), buildJaggedCrystal (5 cones radial, blend 0.1), buildFlowingTendril (torus+3 capsules, blend 0.6), buildDenseMonolith (box+sphere cap, blend 0.15), buildHollowShell (outer-inner sphere+cylinder subtraction, blend 0.3), buildCompoundCluster (4 mixed nodes, blend 0.25), buildOrganicBloom (bulb+5 petals+stem, blend 0.7).
+- evaluateSDF: Per-primitive distance functions with smooth-min blending (k-based). Subtraction via max(result, -dist).
+- generateMarchingCubesMesh: Resolution-based voxel sampling, gradient-based normals, UV tiling from VMO.
+- LOD: 4 levels (32/16/8/4 resolution). Higher LOD = fewer vertices.
+
+**Sovereign Shader Library (HLSL):**
+- FShaderParameters: 20+ fields — baseColor RGBA, emissive RGB, roughness, metallic, opacity, refractionIndex (clamped 1-3), subsurface RGB/strength, anisotropy, fresnelPower (0-20), displacementScale, emissionPulseHz, glowIntensity, weatheringIntensity, microDisplacementFreq.
+- isValid(): GPU-safety boundary check — refractionIndex [1,3], roughness [0,1], metallic [0,1], opacity [0,1], fresnel [0,20].
+- 8 HLSL stubs: VOLCANIC_LAVA (LavaPulse + CrackDisplacement), AQUEOUS_CAUSTIC (CausticPattern + VoronoiNoise), ETHEREAL_TRANSLUCENT (FresnelTerm edge glow), ANISOTROPIC_GLASS (AnisotropicHighlight + Refraction), SUBSURFACE_SCATTER (MSM_Subsurface profile), EMISSIVE_PULSE (sin-based pulse), METALLIC_FLAKE (FlakePattern + FlakeNormal), STANDARD_PBR (baseline).
+- All shaders end with GPU safety clamp: Roughness [0.04,1], Metallic [0,1], Opacity [0,1].
+- Dynamic weathering: VOLCANIC→cracks (weathering 0.8, microDisp 5Hz), AQUEOUS→ripples (0.3, 2Hz), JAGGED_CRYSTAL→fractures (0.5, 8Hz), ORGANIC_BLOOM→organic (0.2, 1.5Hz).
+
+**Frame-Buffer Handshake (VFX):**
+- VFXType enum (8): EMISSION_PULSE, IMPACT_SHOCKWAVE, SHIELD_FLARE, DODGE_AFTERIMAGE, CHARGE_BUILDUP, COUNTER_FLASH, FEINT_SHIMMER, IDLE_AMBIENT.
+- Action→VFX mapping: STRIKE→EMISSION_PULSE (300ms, intensity 2+), GUARD→SHIELD_FLARE (800ms), CHARGE→CHARGE_BUILDUP (1200ms, intensity 3), RETREAT→DODGE_AFTERIMAGE (400ms), COUNTER→COUNTER_FLASH (200ms), FEINT→FEINT_SHIMMER (600ms), FLANK→DODGE_AFTERIMAGE (500ms), HOLD→IDLE_AMBIENT (2000ms).
+- emissionColor from VMO primaryColor. particleScale from geometry scaleX.
+
+**SovereignVisualSynthesizer (singleton):** synthesize(passport) → FSynthesisResult (mesh + shaderParams + sdfComposition + idleVFX + hash). triggerActionVFX() for combat integration. verifySynthesisDeterminism(). UE5 codegen: UCLASS with SynthesizeMesh (UProceduralMeshComponent), CreateMaterialInstance (UMaterialInstanceDynamic), TriggerActionVFX (UNiagaraComponent).
+
+**Test Coverage:**
+- C++ conformance: `lib/engine-native/tests/sovereign_visual_synthesizer_conformance.cpp` — 72 tests (SDF primitives/composition/determinism, shader parameters/clamping/weathering/canonicalization, VFX action mapping/emission color/particle scale, mesh synthesis/vertices/indices/LOD/normals/UVs/hash integrity, full pipeline/determinism/different genomes, HLSL generation/GPU safety, UE5 codegen, stats/delegates/tamper detection, genesis ancestor synthesis).
+- TypeScript: 2,780 total TS tests (Module 16 adds 172 assertions).
+
+**Test Barrier: 3,365** (137 Arena v2 + 136 Ownership + 107 Habitat + 71 Intel + 62 Passport + 72 Synthesizer + 2,780 TS — 100% PASS)
 
 ## Tier 5 — Sub-Agent Structural Blindness Cure (Runtime Feedback Loop)
 - **Runtime Error Classifier** (`classifyRuntimeErrors`): Parses 10 error patterns into 9 categories — `MISSING_MODULE`, `UNDEFINED_REFERENCE`, `TYPE_ERROR`, `MISSING_EXPORT`, `RENDER_CRASH`, `SYNTAX_ERROR`, `RUNTIME_EXCEPTION`, `MISSING_IMPORT`, `UNKNOWN`. Each classified with severity (critical/high/medium/low).
