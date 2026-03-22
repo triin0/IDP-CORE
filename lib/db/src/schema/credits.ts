@@ -6,7 +6,7 @@ export const CREDIT_COSTS = {
   generation: 50,
   refinement: 10,
   verification_only: 2,
-  starter_grant: 200,
+  starter_grant: 500,
 } as const;
 
 export type CreditActionType =
