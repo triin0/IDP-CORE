@@ -16,29 +16,25 @@ class WebGLErrorBoundary extends Component<
   state = { hasError: false, errorMsg: "" };
   static getDerivedStateFromError(error: Error) {
     const msg = error.message?.toLowerCase() ?? "";
-    const isRealWebGLFailure =
-      msg.includes("webgl") ||
-      msg.includes("context") ||
-      msg.includes("gpu") ||
-      msg.includes("renderer") ||
-      msg.includes("getcontext");
-    if (isRealWebGLFailure) {
+    const isHardwareAbsent =
+      (msg.includes("webgl") && msg.includes("not supported")) ||
+      (msg.includes("getcontext") && msg.includes("null")) ||
+      msg.includes("no webgl");
+    if (isHardwareAbsent) {
       return { hasError: true, errorMsg: error.message };
     }
     return null;
   }
   componentDidCatch(error: Error, info: ErrorInfo) {
     const msg = error.message?.toLowerCase() ?? "";
-    const isRealWebGLFailure =
-      msg.includes("webgl") ||
-      msg.includes("context") ||
-      msg.includes("gpu") ||
-      msg.includes("renderer") ||
-      msg.includes("getcontext");
-    if (isRealWebGLFailure) {
-      console.warn("[ShowroomScene] WebGL hardware unavailable:", error.message);
+    const isHardwareAbsent =
+      (msg.includes("webgl") && msg.includes("not supported")) ||
+      (msg.includes("getcontext") && msg.includes("null")) ||
+      msg.includes("no webgl");
+    if (isHardwareAbsent) {
+      console.warn("[ShowroomScene] WebGL hardware absent:", error.message);
     } else {
-      console.error("[ShowroomScene] Three.js render error (not WebGL):", error.message);
+      console.error("[ShowroomScene] Three.js render error (recoverable):", error.message);
     }
   }
   render() {
@@ -385,7 +381,16 @@ function LexusVehicle({ color, nexusState, vehicleId }: {
     let cancelled = false;
     setGlbAvailable(false);
     fetch(glbUrl, { method: "HEAD" })
-      .then(res => { if (!cancelled && res.ok) setGlbAvailable(true); })
+      .then(res => {
+        if (cancelled) return;
+        const contentType = res.headers.get("content-type") || "";
+        const isGLB = res.ok && (
+          contentType.includes("model/gltf-binary") ||
+          contentType.includes("application/octet-stream") ||
+          contentType.includes("model/gltf+json")
+        );
+        if (isGLB) setGlbAvailable(true);
+      })
       .catch(() => { if (!cancelled) setGlbAvailable(false); });
     return () => { cancelled = true; };
   }, [glbUrl]);
