@@ -36,3 +36,9 @@ id = "mlkr2mCYf1K_89k9BCMxc"
 uri = "file://PROJECT_SHOWROOM_AUDIT.md"
 type = "text"
 title = "Project Showroom — Lexus RX300 Vindicator Audit Report"
+
+[[outputs]]
+id = "0SeEAj2eEIcZLIsGsn8pd"
+uri = "file://IDP_CORE_Engine_Summary.md"
+type = "text"
+title = "IDP.CORE Engine Summary - Engines A & B with 10x Opportunities"
