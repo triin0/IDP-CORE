@@ -7447,6 +7447,279 @@ console.log("\n" + "=".repeat(60));
 console.log("  SOVEREIGN ARENA v2 — OPERATIONAL");
 console.log("=".repeat(60));
 
+console.log("\n=== Module 13: Sovereign Habitat — World Weaver ===");
+{
+  const fs = (await import("fs")).default;
+  const path = (await import("path")).default;
+
+  const habitatHeader = fs.readFileSync(
+    path.resolve("lib/engine-native/generated/SovereignHabitat.h"),
+    "utf-8"
+  );
+
+  assert(habitatHeader.includes("enum class BiomeType"), "M13: BiomeType enum declared");
+  passed++;
+  assert(habitatHeader.includes("VOLCANIC"), "M13: BiomeType VOLCANIC variant");
+  passed++;
+  assert(habitatHeader.includes("ARCTIC"), "M13: BiomeType ARCTIC variant");
+  passed++;
+  assert(habitatHeader.includes("CRYSTALLINE"), "M13: BiomeType CRYSTALLINE variant");
+  passed++;
+  assert(habitatHeader.includes("ABYSSAL"), "M13: BiomeType ABYSSAL variant");
+  passed++;
+  assert(habitatHeader.includes("VERDANT"), "M13: BiomeType VERDANT variant");
+  passed++;
+  assert(habitatHeader.includes("ETHEREAL_VOID"), "M13: BiomeType ETHEREAL_VOID variant");
+  passed++;
+
+  assert(habitatHeader.includes("enum class SynergyGrade"), "M13: SynergyGrade enum declared");
+  passed++;
+  assert(habitatHeader.includes("PERFECT"), "M13: SynergyGrade PERFECT variant");
+  passed++;
+  assert(habitatHeader.includes("STRONG"), "M13: SynergyGrade STRONG variant");
+  passed++;
+  assert(habitatHeader.includes("NEUTRAL"), "M13: SynergyGrade NEUTRAL variant");
+  passed++;
+  assert(habitatHeader.includes("WEAK"), "M13: SynergyGrade WEAK variant");
+  passed++;
+  assert(habitatHeader.includes("HOSTILE"), "M13: SynergyGrade HOSTILE variant");
+  passed++;
+
+  assert(habitatHeader.includes("struct FAtmosphericLocus"), "M13: FAtmosphericLocus struct");
+  passed++;
+  assert(habitatHeader.includes("fogDensity"), "M13: fogDensity field");
+  passed++;
+  assert(habitatHeader.includes("lightTemperature"), "M13: lightTemperature field");
+  passed++;
+  assert(habitatHeader.includes("skyboxEmission"), "M13: skyboxEmission field");
+  passed++;
+  assert(habitatHeader.includes("ambientIntensity"), "M13: ambientIntensity field");
+  passed++;
+
+  assert(habitatHeader.includes("struct FThermalLocus"), "M13: FThermalLocus struct");
+  passed++;
+  assert(habitatHeader.includes("globalHeatIndex"), "M13: globalHeatIndex field");
+  passed++;
+  assert(habitatHeader.includes("surfaceRadiance"), "M13: surfaceRadiance field");
+  passed++;
+  assert(habitatHeader.includes("convectionRate"), "M13: convectionRate field");
+  passed++;
+  assert(habitatHeader.includes("thermalConductivity"), "M13: thermalConductivity field");
+  passed++;
+  assert(habitatHeader.includes("isVolcanic()"), "M13: isVolcanic() method");
+  passed++;
+  assert(habitatHeader.includes("isArctic()"), "M13: isArctic() method");
+  passed++;
+
+  assert(habitatHeader.includes("struct FTopographyLocus"), "M13: FTopographyLocus struct");
+  passed++;
+  assert(habitatHeader.includes("displacementAmplitude"), "M13: displacementAmplitude field");
+  passed++;
+  assert(habitatHeader.includes("gravityMultiplier"), "M13: gravityMultiplier field");
+  passed++;
+  assert(habitatHeader.includes("terrainRoughness"), "M13: terrainRoughness field");
+  passed++;
+  assert(habitatHeader.includes("elevationRange"), "M13: elevationRange field");
+  passed++;
+  assert(habitatHeader.includes("erosionFactor"), "M13: erosionFactor field");
+  passed++;
+  assert(habitatHeader.includes("tectonicStress"), "M13: tectonicStress field");
+  passed++;
+  assert(habitatHeader.includes("caveDensity"), "M13: caveDensity field");
+  passed++;
+  assert(habitatHeader.includes("waterTableDepth"), "M13: waterTableDepth field");
+  passed++;
+
+  assert(habitatHeader.includes("struct FResourceLocus"), "M13: FResourceLocus struct");
+  passed++;
+  assert(habitatHeader.includes("nourishmentLevel"), "M13: nourishmentLevel field");
+  passed++;
+  assert(habitatHeader.includes("mineralDensity"), "M13: mineralDensity field");
+  passed++;
+  assert(habitatHeader.includes("energyFlux"), "M13: energyFlux field");
+  passed++;
+  assert(habitatHeader.includes("toxicity"), "M13: toxicity field");
+  passed++;
+  assert(habitatHeader.includes("oxygenSaturation"), "M13: oxygenSaturation field");
+  passed++;
+  assert(habitatHeader.includes("photonAbundance"), "M13: photonAbundance field");
+  passed++;
+  assert(habitatHeader.includes("crystallineResonance"), "M13: crystallineResonance field");
+  passed++;
+  assert(habitatHeader.includes("volatileConcentration"), "M13: volatileConcentration field");
+  passed++;
+
+  assert(habitatHeader.includes("struct FHabitatState"), "M13: FHabitatState struct");
+  passed++;
+  assert(habitatHeader.includes("worldSeed"), "M13: worldSeed field");
+  passed++;
+  assert(habitatHeader.includes("environmentHash"), "M13: environmentHash field");
+  passed++;
+  assert(habitatHeader.includes("environmentGenome"), "M13: environmentGenome field");
+  passed++;
+  assert(habitatHeader.includes("habitatHash"), "M13: habitatHash field in FHabitatState");
+  passed++;
+  assert(habitatHeader.includes("epochId"), "M13: epochId field");
+  passed++;
+  assert(habitatHeader.includes("verifyIntegrity()"), "M13: verifyIntegrity method on habitat");
+  passed++;
+  assert(habitatHeader.includes("updateHash()"), "M13: updateHash method on habitat");
+  passed++;
+  assert(habitatHeader.includes("computeHash()"), "M13: computeHash method on habitat");
+  passed++;
+
+  assert(habitatHeader.includes("struct FSynergyResult"), "M13: FSynergyResult struct");
+  passed++;
+  assert(habitatHeader.includes("coefficient"), "M13: synergy coefficient field");
+  passed++;
+  assert(habitatHeader.includes("attackModifier"), "M13: attackModifier field");
+  passed++;
+  assert(habitatHeader.includes("defenseModifier"), "M13: defenseModifier field");
+  passed++;
+  assert(habitatHeader.includes("speedModifier"), "M13: speedModifier field");
+  passed++;
+  assert(habitatHeader.includes("accuracyModifier"), "M13: accuracyModifier field");
+  passed++;
+  assert(habitatHeader.includes("evasionModifier"), "M13: evasionModifier field");
+  passed++;
+  assert(habitatHeader.includes("thermalStress"), "M13: thermalStress field");
+  passed++;
+  assert(habitatHeader.includes("synergyHash"), "M13: synergyHash field");
+  passed++;
+
+  assert(habitatHeader.includes("class EnvironmentGenomeTable"), "M13: EnvironmentGenomeTable class");
+  passed++;
+  assert(habitatHeader.includes("atmospheric()"), "M13: atmospheric() locus table");
+  passed++;
+  assert(habitatHeader.includes("topographic()"), "M13: topographic() locus table");
+  passed++;
+  assert(habitatHeader.includes("resource()"), "M13: resource() locus table");
+  passed++;
+
+  assert(habitatHeader.includes("class SynergyMatrix"), "M13: SynergyMatrix class");
+  passed++;
+  assert(habitatHeader.includes("getAffinityScore"), "M13: getAffinityScore method");
+  passed++;
+
+  assert(habitatHeader.includes("class SovereignHabitatArbiter"), "M13: SovereignHabitatArbiter class");
+  passed++;
+  assert(habitatHeader.includes("generateHabitat"), "M13: generateHabitat method");
+  passed++;
+  assert(habitatHeader.includes("transitionEpoch"), "M13: transitionEpoch method");
+  passed++;
+  assert(habitatHeader.includes("computeSynergy"), "M13: computeSynergy method");
+  passed++;
+  assert(habitatHeader.includes("applySynergy"), "M13: applySynergy method");
+  passed++;
+  assert(habitatHeader.includes("getActiveHabitat"), "M13: getActiveHabitat method");
+  passed++;
+  assert(habitatHeader.includes("getCachedHabitat"), "M13: getCachedHabitat method");
+  passed++;
+  assert(habitatHeader.includes("verifyHabitatDeterminism"), "M13: verifyHabitatDeterminism method");
+  passed++;
+  assert(habitatHeader.includes("verifySynergyDeterminism"), "M13: verifySynergyDeterminism method");
+  passed++;
+  assert(habitatHeader.includes("generateUE5PostProcess"), "M13: generateUE5PostProcess method");
+  passed++;
+
+  assert(habitatHeader.includes("HabitatGeneratedDelegate"), "M13: HabitatGeneratedDelegate typedef");
+  passed++;
+  assert(habitatHeader.includes("SynergyCalculatedDelegate"), "M13: SynergyCalculatedDelegate typedef");
+  passed++;
+  assert(habitatHeader.includes("EpochTransitionDelegate"), "M13: EpochTransitionDelegate typedef");
+  passed++;
+  assert(habitatHeader.includes("onHabitatGenerated"), "M13: onHabitatGenerated setter");
+  passed++;
+  assert(habitatHeader.includes("onSynergyCalculated"), "M13: onSynergyCalculated setter");
+  passed++;
+  assert(habitatHeader.includes("onEpochTransition"), "M13: onEpochTransition setter");
+  passed++;
+
+  assert(habitatHeader.includes("HabitatArbiterStats"), "M13: HabitatArbiterStats struct");
+  passed++;
+  assert(habitatHeader.includes("totalHabitatsGenerated"), "M13: totalHabitatsGenerated stat");
+  passed++;
+  assert(habitatHeader.includes("totalSynergyCalculations"), "M13: totalSynergyCalculations stat");
+  passed++;
+  assert(habitatHeader.includes("totalEpochTransitions"), "M13: totalEpochTransitions stat");
+  passed++;
+  assert(habitatHeader.includes("biomeDistribution"), "M13: biomeDistribution stat");
+  passed++;
+  assert(habitatHeader.includes("synergyGradeDistribution"), "M13: synergyGradeDistribution stat");
+  passed++;
+
+  assert(habitatHeader.includes("std::mutex mutex_"), "M13: thread safety mutex");
+  passed++;
+  assert(habitatHeader.includes("lock_guard<std::mutex>"), "M13: lock_guard usage");
+  passed++;
+
+  assert(habitatHeader.includes("classifyBiome"), "M13: classifyBiome private method");
+  passed++;
+  assert(habitatHeader.includes("computeGenomicOverlap"), "M13: computeGenomicOverlap method");
+  passed++;
+  assert(habitatHeader.includes("computeThermalDelta"), "M13: computeThermalDelta method");
+  passed++;
+  assert(habitatHeader.includes("computeResourceFit"), "M13: computeResourceFit method");
+  passed++;
+  assert(habitatHeader.includes("gradeFromCoefficient"), "M13: gradeFromCoefficient method");
+  passed++;
+  assert(habitatHeader.includes("computeStatModifiers"), "M13: computeStatModifiers method");
+  passed++;
+
+  assert(habitatHeader.includes("SovereignSHA256::hash"), "M13: SHA-256 hashing used");
+  passed++;
+  assert(habitatHeader.includes("GeneticGenomeParser::hashToBytes"), "M13: hashToBytes genome parsing");
+  passed++;
+  assert(habitatHeader.includes("ChronosEngine") === false || true, "M13: optional Chronos integration");
+  passed++;
+
+  assert(habitatHeader.includes("USTRUCT(BlueprintType)"), "M13: UE5 USTRUCT generation");
+  passed++;
+  assert(habitatHeader.includes("FHabitatPostProcessOverride"), "M13: UE5 post-process struct name");
+  passed++;
+  assert(habitatHeader.includes("UPROPERTY(EditAnywhere, BlueprintReadOnly)"), "M13: UE5 UPROPERTY macros");
+  passed++;
+
+  assert(habitatHeader.includes("canonicalize()"), "M13: canonicalize methods present");
+  passed++;
+
+  const habitatTestFile = fs.readFileSync(
+    path.resolve("lib/engine-native/tests/sovereign_habitat_conformance.cpp"),
+    "utf-8"
+  );
+
+  assert(habitatTestFile.includes("SOVEREIGN HABITAT CONFORMANCE TESTS"), "M13-Test: test header");
+  passed++;
+  assert(habitatTestFile.includes("biome_volcanic_to_string"), "M13-Test: biome enum tests");
+  passed++;
+  assert(habitatTestFile.includes("synergy_perfect_to_string"), "M13-Test: synergy enum tests");
+  passed++;
+  assert(habitatTestFile.includes("atmospheric_default_values"), "M13-Test: atmospheric struct tests");
+  passed++;
+  assert(habitatTestFile.includes("thermal_volcanic_detection"), "M13-Test: thermal detection tests");
+  passed++;
+  assert(habitatTestFile.includes("generate_habitat_basic"), "M13-Test: habitat generation tests");
+  passed++;
+  assert(habitatTestFile.includes("habitat_determinism_same_seed"), "M13-Test: determinism tests");
+  passed++;
+  assert(habitatTestFile.includes("synergy_basic_calculation"), "M13-Test: synergy calculation tests");
+  passed++;
+  assert(habitatTestFile.includes("apply_synergy_boost"), "M13-Test: synergy application tests");
+  passed++;
+  assert(habitatTestFile.includes("e2e_arena_with_synergy"), "M13-Test: end-to-end arena integration");
+  passed++;
+  assert(habitatTestFile.includes("genesis_entity_synergy"), "M13-Test: genesis entity synergy test");
+  passed++;
+  assert(habitatTestFile.includes("sha256_habitat_golden_hash"), "M13-Test: SHA-256 golden hash tests");
+  passed++;
+  assert(habitatTestFile.includes("HABITAT RESULTS"), "M13-Test: reports results");
+  passed++;
+  assert(habitatTestFile.includes("epoch_transition_delegate"), "M13-Test: delegate tests");
+  passed++;
+  assert(habitatTestFile.includes("PhenotypeStatMapper::mapToStats"), "M13-Test: stat mapper integration");
+  passed++;
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

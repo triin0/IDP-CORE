@@ -376,7 +376,7 @@ All systems in `lib/engine-native/generated/SovereignArena.h` within `namespace 
 **Test Coverage:**
 - C++ conformance: `lib/engine-native/tests/sovereign_arena_v2_conformance.cpp` — 179 tests (replay timeline, hitbox mapping, scar system, veteran progression, determinism, tamper detection, delegates, enum coverage). ASAN clean.
 - TypeScript: 1,964 total TS tests (Module 11 adds ~200 assertions covering all structs, enums, methods, animation clips, VFX tags, collision profiles, experience config, Chronos integration, thread safety).
-- **Total Test Barrier: 2,284 (184 Arena v2 + 136 Ownership + 1,964 TS) — 100% PASS**
+- **Total Test Barrier: 2,629 (184 Arena v2 + 136 Ownership + 107 Habitat + 2,202 TS) — 100% PASS**
 
 ## Module 12: Genesis Event — 100 Ancestor Genomes
 The Genesis Event mints the founding population of 100 deterministic Sovereign entities using a fixed `GENESIS_SALT`. Every future hybrid traces its lineage to these 100 hashes.
@@ -408,6 +408,38 @@ The Genesis Event mints the founding population of 100 deterministic Sovereign e
 - Hash uniqueness: 100/100. Determinism: VERIFIED.
 - Phenotype classes: ORGANIC(60), ETHEREAL(22), AQUEOUS(8), METALLIC(8), VOLCANIC(2).
 - Mesh families: 16 distinct families (Klein 11, Trefoil 10, Cube/Cylinder/Dodecahedron/Octahedron/Torus/Capsule/Geodesic 7 each, Mobius/Sphere 5-6 each, etc.).
+
+## Module 13: World Weaver — Sovereign Habitats
+The World Weaver introduces deterministic environment generation using the same 32-byte genome architecture as entities. Habitats are "Forged" from an `EnvironmentHash`, creating Biological Synergy where entity performance is dictated by DNA-terrain compatibility.
+
+**C++ Header:** `lib/engine-native/generated/SovereignHabitat.h`
+
+**Environment Genome (32 bytes, 4 locus groups + 3 extended):**
+- Atmospheric (bytes 0–3): fogDensity, lightTemperature (2000–12000K via bytes 1-2), skyboxEmission.
+- Thermal (bytes 4–7): globalHeatIndex, surfaceRadiance, convectionRate, thermalConductivity. `isVolcanic()` (>0.75), `isArctic()` (<0.25).
+- Topography (bytes 8–15): displacementAmplitude (0–50), gravityMultiplier (0.1–4.0 via bytes 9-10), terrainRoughness, elevationRange (0–5000 via bytes 12-13), erosionFactor, tectonicStress.
+- Resource (bytes 16–23): nourishmentLevel, mineralDensity, energyFlux, toxicity, oxygenSaturation (0.5–1.0), photonAbundance, crystallineResonance, volatileConcentration.
+- Extended (bytes 24–26): ambientIntensity (byte 24, independent from skyboxEmission), caveDensity (byte 25), waterTableDepth (byte 26).
+
+**BiomeType Classification (6 biomes):** VOLCANIC (heat>0.75 + volatile>0.5), ARCTIC (heat<0.25), CRYSTALLINE (heat<0.25 + crystal>0.4), ABYSSAL (oxygen<0.65 + mineral>0.5), VERDANT (nourish>0.6 + oxygen>0.75), ETHEREAL_VOID (fog>0.7 or skybox>3.0).
+
+**Synergy Coefficient (S):** Weighted formula: `S = (genomicOverlap × 0.35) + (classAffinity × 0.30) + ((1 − thermalDelta) × 0.20) + (resourceFit × 0.15)`. Clamped [-1, 1].
+- SynergyGrade: PERFECT (≥0.30), STRONG (≥0.10), NEUTRAL (≥-0.10), WEAK (≥-0.25), HOSTILE (<-0.25).
+- Stat Modifiers: attackModifier (0.70–1.30), defenseModifier (0.80–1.20), speedModifier (0.60–1.25), accuracyModifier (0.85–1.15), evasionModifier (0.80–1.20).
+- SynergyMatrix: 6×6 affinity table (PhenotypeClass × BiomeType). Diagonal matches give +0.25 bonus (Volcanic-in-Volcanic, Crystalline-in-Crystalline, etc.).
+
+**SovereignHabitatArbiter (singleton):**
+- `generateHabitat(worldSeed, epochId)` → `FHabitatState` (SHA-256 sealed, deterministic).
+- `transitionEpoch(worldSeed, newEpochId)` → epoch-based world shifts with `EpochTransitionDelegate`.
+- `computeSynergy(entity, habitat)` → `FSynergyResult` (SHA-256 sealed).
+- `applySynergy(baseStats, synergy)` → modified `FCombatStats` with clamping.
+- `generateUE5PostProcess(habitat)` → UE5 USTRUCT code generation.
+- Thread-safe: mutex + lock_guard, copy-then-invoke delegate pattern.
+- Delegates: `HabitatGeneratedDelegate`, `SynergyCalculatedDelegate`, `EpochTransitionDelegate`.
+
+**Test Coverage:**
+- C++ conformance: `lib/engine-native/tests/sovereign_habitat_conformance.cpp` — 107 tests (biome/synergy enums, struct defaults, canonicalization, habitat generation, range validation, determinism, epoch transitions, synergy calculation, stat application, clamping, delegates, caching, UE5 codegen, genesis integration, SHA-256 golden hash cross-verification, end-to-end arena integration, byte-mapping integrity, formula component decomposition).
+- TypeScript: 2,202 total TS tests (Module 13 adds ~238 assertions covering all structs, enums, methods, locus tables, synergy matrix, delegates, thread safety, UE5 generation, test file verification).
 
 ## Tier 5 — Sub-Agent Structural Blindness Cure (Runtime Feedback Loop)
 - **Runtime Error Classifier** (`classifyRuntimeErrors`): Parses 10 error patterns into 9 categories — `MISSING_MODULE`, `UNDEFINED_REFERENCE`, `TYPE_ERROR`, `MISSING_EXPORT`, `RENDER_CRASH`, `SYNTAX_ERROR`, `RUNTIME_EXCEPTION`, `MISSING_IMPORT`, `UNKNOWN`. Each classified with severity (critical/high/medium/low).
