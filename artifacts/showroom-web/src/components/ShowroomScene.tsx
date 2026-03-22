@@ -1,4 +1,4 @@
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls, Environment, ContactShadows, AdaptiveDpr,
   AdaptiveEvents, RoundedBox, Text, MeshReflectorMaterial, useGLTF,
@@ -7,19 +7,58 @@ import { Suspense, useState, useRef, useCallback, useMemo, useEffect, Component,
 import * as THREE from "three";
 import { sha256 } from "../utils/crypto";
 
-class WebGLErrorBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
-  static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.warn("[ShowroomScene] WebGL unavailable, showing fallback:", error.message);
+const PASS_52_ENABLED = false;
+
+class WebGLErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { hasError: boolean; errorMsg: string }
+> {
+  state = { hasError: false, errorMsg: "" };
+  static getDerivedStateFromError(error: Error) {
+    const msg = error.message?.toLowerCase() ?? "";
+    const isRealWebGLFailure =
+      msg.includes("webgl") ||
+      msg.includes("context") ||
+      msg.includes("gpu") ||
+      msg.includes("renderer") ||
+      msg.includes("getcontext");
+    if (isRealWebGLFailure) {
+      return { hasError: true, errorMsg: error.message };
+    }
+    return null;
   }
-  render() { return this.state.hasError ? this.props.fallback : this.props.children; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    const msg = error.message?.toLowerCase() ?? "";
+    const isRealWebGLFailure =
+      msg.includes("webgl") ||
+      msg.includes("context") ||
+      msg.includes("gpu") ||
+      msg.includes("renderer") ||
+      msg.includes("getcontext");
+    if (isRealWebGLFailure) {
+      console.warn("[ShowroomScene] WebGL hardware unavailable:", error.message);
+    } else {
+      console.error("[ShowroomScene] Three.js render error (not WebGL):", error.message);
+    }
+  }
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
 }
 
 function detectWebGL(): boolean {
   try {
     const c = document.createElement("canvas");
-    return !!(c.getContext("webgl2") || c.getContext("webgl") || c.getContext("experimental-webgl"));
+    const gl = c.getContext("webgl2") || c.getContext("webgl") || c.getContext("experimental-webgl");
+    if (!gl) return false;
+    if (gl instanceof WebGLRenderingContext || gl instanceof WebGL2RenderingContext) {
+      const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+      if (debugInfo) {
+        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        console.log(`[WebGL] GPU detected: ${renderer}`);
+      }
+    }
+    return true;
   } catch { return false; }
 }
 
@@ -52,9 +91,13 @@ function useNexusSync(entityId: string): NexusSyncState {
   });
 
   useEffect(() => {
+    let cancelled = false;
     sha256(`nexus:${entityId}:${Date.now()}`).then(hash => {
-      setState(prev => ({ ...prev, entityHash: hash.slice(0, 16) }));
+      if (!cancelled) {
+        setState(prev => ({ ...prev, entityHash: hash.slice(0, 16) }));
+      }
     });
+    return () => { cancelled = true; };
   }, [entityId]);
 
   return state;
@@ -350,26 +393,28 @@ function LexusVehicle({ color, nexusState, vehicleId }: {
   useFrame((_, delta) => {
     if (!groupRef.current) return;
 
-    if (nexusState.syncState === "FAST_FORWARDING") {
-      const t = nexusState.interpolationProgress;
-      groupRef.current.position.x = lerpValue(nexusState.ghostTransform.posX, nexusState.currentTransform.posX, t);
-      groupRef.current.position.y = lerpValue(nexusState.ghostTransform.posY, nexusState.currentTransform.posY, t);
-      groupRef.current.position.z = lerpValue(nexusState.ghostTransform.posZ, nexusState.currentTransform.posZ, t);
-      groupRef.current.rotation.y = lerpValue(nexusState.ghostTransform.rotY, nexusState.currentTransform.rotY, t);
-    } else if (nexusState.syncState === "GHOST") {
-      groupRef.current.position.set(
-        nexusState.ghostTransform.posX,
-        nexusState.ghostTransform.posY,
-        nexusState.ghostTransform.posZ,
-      );
-      groupRef.current.rotation.y = nexusState.ghostTransform.rotY;
-    } else if (nexusState.syncState === "STALE") {
-      // Freeze at current transform — do not advance rotation
-    } else if (nexusState.syncState === "DISCONNECTED") {
-      // Freeze at last known position
-    } else {
-      groupRef.current.rotation.y += delta * 0.12;
+    if (PASS_52_ENABLED) {
+      if (nexusState.syncState === "FAST_FORWARDING") {
+        const t = nexusState.interpolationProgress;
+        groupRef.current.position.x = lerpValue(nexusState.ghostTransform.posX, nexusState.currentTransform.posX, t);
+        groupRef.current.position.y = lerpValue(nexusState.ghostTransform.posY, nexusState.currentTransform.posY, t);
+        groupRef.current.position.z = lerpValue(nexusState.ghostTransform.posZ, nexusState.currentTransform.posZ, t);
+        groupRef.current.rotation.y = lerpValue(nexusState.ghostTransform.rotY, nexusState.currentTransform.rotY, t);
+        return;
+      } else if (nexusState.syncState === "GHOST") {
+        groupRef.current.position.set(
+          nexusState.ghostTransform.posX,
+          nexusState.ghostTransform.posY,
+          nexusState.ghostTransform.posZ,
+        );
+        groupRef.current.rotation.y = nexusState.ghostTransform.rotY;
+        return;
+      } else if (nexusState.syncState === "STALE" || nexusState.syncState === "DISCONNECTED") {
+        return;
+      }
     }
+
+    groupRef.current.rotation.y += delta * 0.12;
   });
 
   const handlePass41 = useCallback((result: Pass41Result) => {
@@ -480,13 +525,19 @@ function BidPanel({ vehicle, onBid, lastBid }: {
 }
 
 function NexusHUD({ nexusState }: { nexusState: NexusSyncState }) {
-  const stateColor = {
-    LIVE: "#00ff88",
-    STALE: "#ffaa00",
-    GHOST: "#ff4444",
-    FAST_FORWARDING: "#44aaff",
-    DISCONNECTED: "#666",
-  }[nexusState.syncState] || "#666";
+  const stateColor = PASS_52_ENABLED
+    ? ({
+        LIVE: "#00ff88",
+        STALE: "#ffaa00",
+        GHOST: "#ff4444",
+        FAST_FORWARDING: "#44aaff",
+        DISCONNECTED: "#666",
+      }[nexusState.syncState] || "#666")
+    : "#ffaa00";
+
+  const label = PASS_52_ENABLED
+    ? `NEXUS ${nexusState.syncState}`
+    : "NEXUS STANDBY (P52 OFF)";
 
   return (
     <div style={{
@@ -500,16 +551,34 @@ function NexusHUD({ nexusState }: { nexusState: NexusSyncState }) {
         width: 8, height: 8, borderRadius: "50%",
         background: stateColor,
         boxShadow: `0 0 6px ${stateColor}`,
-        animation: nexusState.syncState === "LIVE" ? "pulse 2s infinite" : "none",
       }} />
       <span style={{ color: stateColor }}>
-        NEXUS {nexusState.syncState}
+        {label}
       </span>
       {nexusState.entityHash && (
         <span style={{ color: "#555" }}>
           [{nexusState.entityHash}]
         </span>
       )}
+    </div>
+  );
+}
+
+function CanvasLoadingPlaceholder() {
+  return (
+    <div style={{
+      width: "100%", height: "100%", display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      background: "radial-gradient(ellipse at center, #111 0%, #050510 70%)",
+    }}>
+      <div style={{
+        width: 40, height: 40, border: "3px solid #333",
+        borderTop: "3px solid #c9a96e", borderRadius: "50%",
+        animation: "spin 1s linear infinite",
+      }} />
+      <div style={{ color: "#555", fontSize: 13, marginTop: 16, fontFamily: "monospace" }}>
+        Initializing WebGL context...
+      </div>
     </div>
   );
 }
@@ -583,15 +652,14 @@ export default function ShowroomScene() {
 
   const webglAvailable = useMemo(() => detectWebGL(), []);
 
-  const canvasFallback = (
+  const hardwareFailFallback = (
     <div style={{
       width: "100%", height: "100%", display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center", background: "radial-gradient(ellipse at center, #111 0%, #050510 70%)",
     }}>
-      <div style={{ fontSize: 64, marginBottom: 16 }}>🚗</div>
       <div style={{ color: "#c9a96e", fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{selectedVehicle.name}</div>
       <div style={{ color: "#666", fontSize: 14, maxWidth: 320, textAlign: "center", lineHeight: 1.6 }}>
-        3D view requires WebGL. Open in a browser with GPU support to see the full interactive showroom.
+        WebGL is not available on this device. The 3D showroom requires GPU hardware acceleration.
       </div>
       <div style={{ color: "#c9a96e", fontSize: 24, fontWeight: 800, marginTop: 16 }}>
         ${selectedVehicle.price.toLocaleString()}
@@ -606,8 +674,12 @@ export default function ShowroomScene() {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
         }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
       `}</style>
-      <WebGLErrorBoundary fallback={canvasFallback}>
+      <WebGLErrorBoundary fallback={hardwareFailFallback}>
         {webglAvailable ? (
           <Canvas
             camera={{ position: [5, 3, 8] as [number, number, number], fov: 45 }}
@@ -616,6 +688,11 @@ export default function ShowroomScene() {
               antialias: true,
               toneMapping: THREE.ACESFilmicToneMapping,
               toneMappingExposure: 1.2,
+              powerPreference: "high-performance",
+              failIfMajorPerformanceCaveat: false,
+            }}
+            onCreated={({ gl }) => {
+              console.log(`[WebGL] Context created: ${gl.getContext().constructor.name}`);
             }}
           >
             <AdaptiveDpr pixelated />
@@ -687,7 +764,9 @@ export default function ShowroomScene() {
               autoRotate={false}
             />
           </Canvas>
-        ) : canvasFallback}
+        ) : (
+          <CanvasLoadingPlaceholder />
+        )}
       </WebGLErrorBoundary>
 
       <div style={{
@@ -726,7 +805,7 @@ export default function ShowroomScene() {
         position: "absolute", bottom: 28, left: 28, fontSize: 11, color: "#333",
         fontFamily: "monospace",
       }}>
-        Pass 40: Visual Sanity | Pass 41: Asset Conduit | Pass 44: Performance Wall | Pass 48: Presence Mirror | Pass 49: Chronos | Pass 51: Quantum Lock | Pass 52: Ghost Reconciliation
+        Pass 40: Visual Sanity | Pass 41: Asset Conduit | Pass 44: Performance Wall | Pass 48: Presence Mirror | Pass 49: Chronos | Pass 51: Quantum Lock | Pass 52: Ghost Reconciliation (STANDBY)
       </div>
     </div>
   );
