@@ -38,6 +38,25 @@ export async function ensureCreditAccount(userId: string): Promise<void> {
     });
 
     console.log(`[credits] Granted ${CREDIT_COSTS.starter_grant} starter credits to user ${userId}`);
+  } else if (existing.balance < CREDIT_COSTS.starter_grant) {
+    const topUp = CREDIT_COSTS.starter_grant - existing.balance;
+    await db
+      .update(userCreditsTable)
+      .set({
+        balance: CREDIT_COSTS.starter_grant,
+        lifetimeGranted: sql`${userCreditsTable.lifetimeGranted} + ${topUp}`,
+      })
+      .where(eq(userCreditsTable.userId, userId));
+
+    await db.insert(creditLedgerTable).values({
+      userId,
+      amount: topUp,
+      actionType: "admin_adjustment",
+      status: "settled",
+      metadata: { reason: "Top-up to match updated starter grant" },
+    });
+
+    console.log(`[credits] Topped up ${topUp} credits for user ${userId} to reach ${CREDIT_COSTS.starter_grant}`);
   }
 }
 
