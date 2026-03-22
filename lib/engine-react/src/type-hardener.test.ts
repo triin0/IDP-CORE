@@ -6159,9 +6159,247 @@ console.log("\n=== Engine B: Sovereign Showroom (Cinematic Layer) ===");
   assert(showroomHeader.includes("SovereignSHA256"), "Showroom: uses SHA-256 for state hashing");
 }
 
+// =====================================================
+// MODULE 8: THE SOVEREIGN ARENA — Deterministic Interaction Layer
+// =====================================================
+{
+  console.log("\n=== Module 8: The Sovereign Arena ===");
+  const fs = await import("fs");
+  const arenaHeader = fs.default.readFileSync("lib/engine-native/generated/SovereignArena.h", "utf-8");
+
+  // --- Enum: InteractionOutcome ---
+  console.log("  -- InteractionOutcome Enum --");
+  assert(arenaHeader.includes("enum class InteractionOutcome"), "Arena: InteractionOutcome enum");
+  assert(arenaHeader.includes("ATTACKER_WINS"), "Arena: ATTACKER_WINS outcome");
+  assert(arenaHeader.includes("DEFENDER_WINS"), "Arena: DEFENDER_WINS outcome");
+  assert(arenaHeader.includes("TRADE"), "Arena: TRADE outcome");
+  assert(arenaHeader.includes("MISS"), "Arena: MISS outcome");
+  assert(arenaHeader.includes("DRAW"), "Arena: DRAW outcome");
+  assert(arenaHeader.includes("outcomeToString"), "Arena: outcomeToString converter");
+
+  // --- Enum: DamageType ---
+  console.log("  -- DamageType Enum --");
+  assert(arenaHeader.includes("enum class DamageType"), "Arena: DamageType enum");
+  assert(arenaHeader.includes("KINETIC"), "Arena: KINETIC damage");
+  assert(arenaHeader.includes("THERMAL"), "Arena: THERMAL damage");
+  assert(arenaHeader.includes("CORROSIVE"), "Arena: CORROSIVE damage");
+  assert(arenaHeader.includes("RADIANT"), "Arena: RADIANT damage");
+  assert(arenaHeader.includes("VOID"), "Arena: VOID damage");
+  assert(arenaHeader.includes("damageTypeToString"), "Arena: damageTypeToString converter");
+
+  // --- FCombatStats struct ---
+  console.log("  -- FCombatStats --");
+  assert(arenaHeader.includes("struct FCombatStats"), "Arena: FCombatStats struct");
+  assert(arenaHeader.includes("attackPower"), "Arena: attackPower field");
+  assert(arenaHeader.includes("defense"), "Arena: defense field");
+  assert(arenaHeader.includes("speed"), "Arena: speed field");
+  assert(arenaHeader.includes("accuracy"), "Arena: accuracy field");
+  assert(arenaHeader.includes("evasion"), "Arena: evasion field");
+  assert(arenaHeader.includes("criticalChance"), "Arena: criticalChance field");
+  assert(arenaHeader.includes("criticalMultiplier"), "Arena: criticalMultiplier field");
+  assert(arenaHeader.includes("resilience"), "Arena: resilience field");
+  assert(arenaHeader.includes("reach"), "Arena: reach field");
+  assert(arenaHeader.includes("mass"), "Arena: mass field");
+  assert(arenaHeader.includes("primaryDamageType"), "Arena: primaryDamageType field");
+  assert(arenaHeader.includes("totalPower()"), "Arena: totalPower method");
+
+  // --- FInteractionRound struct ---
+  console.log("  -- FInteractionRound --");
+  assert(arenaHeader.includes("struct FInteractionRound"), "Arena: FInteractionRound struct");
+  assert(arenaHeader.includes("roundNumber"), "Arena: roundNumber field");
+  assert(arenaHeader.includes("attackerKey"), "Arena: attackerKey field");
+  assert(arenaHeader.includes("defenderKey"), "Arena: defenderKey field");
+  assert(arenaHeader.includes("attackRoll"), "Arena: attackRoll field");
+  assert(arenaHeader.includes("defenseRoll"), "Arena: defenseRoll field");
+  assert(arenaHeader.includes("damageDealt"), "Arena: damageDealt field");
+  assert(arenaHeader.includes("roundHash"), "Arena: roundHash field");
+  assert(arenaHeader.includes("computeHash()"), "Arena: computeHash method");
+
+  // --- FInteractionResult struct ---
+  console.log("  -- FInteractionResult --");
+  assert(arenaHeader.includes("struct FInteractionResult"), "Arena: FInteractionResult struct");
+  assert(arenaHeader.includes("arenaSessionId"), "Arena: arenaSessionId field");
+  assert(arenaHeader.includes("entityAKey"), "Arena: entityAKey field");
+  assert(arenaHeader.includes("entityBKey"), "Arena: entityBKey field");
+  assert(arenaHeader.includes("entityAHealthRemaining"), "Arena: entityAHealthRemaining field");
+  assert(arenaHeader.includes("entityBHealthRemaining"), "Arena: entityBHealthRemaining field");
+  assert(arenaHeader.includes("totalDamageDealtByA"), "Arena: totalDamageDealtByA field");
+  assert(arenaHeader.includes("totalDamageDealtByB"), "Arena: totalDamageDealtByB field");
+  assert(arenaHeader.includes("hitsA"), "Arena: hitsA counter");
+  assert(arenaHeader.includes("hitsB"), "Arena: hitsB counter");
+  assert(arenaHeader.includes("critsA"), "Arena: critsA counter");
+  assert(arenaHeader.includes("critsB"), "Arena: critsB counter");
+  assert(arenaHeader.includes("resultHash"), "Arena: resultHash field");
+  assert(arenaHeader.includes("flushedToArbiter"), "Arena: flushedToArbiter flag");
+  assert(arenaHeader.includes("computeResultHash()"), "Arena: computeResultHash method");
+  assert(arenaHeader.includes("verifyIntegrity()"), "Arena: verifyIntegrity method");
+
+  // --- PhenotypeStatMapper ---
+  console.log("  -- PhenotypeStatMapper --");
+  assert(arenaHeader.includes("class PhenotypeStatMapper"), "Arena: PhenotypeStatMapper class");
+  assert(arenaHeader.includes("mapToStats"), "Arena: mapToStats method");
+  assert(arenaHeader.includes("computeAttackPower"), "Arena: computeAttackPower formula");
+  assert(arenaHeader.includes("computeDefense"), "Arena: computeDefense formula");
+  assert(arenaHeader.includes("computeSpeed"), "Arena: computeSpeed formula");
+  assert(arenaHeader.includes("computeAccuracy"), "Arena: computeAccuracy formula");
+  assert(arenaHeader.includes("computeEvasion"), "Arena: computeEvasion formula");
+  assert(arenaHeader.includes("computeCriticalChance"), "Arena: computeCriticalChance formula");
+  assert(arenaHeader.includes("computeResilience"), "Arena: computeResilience formula");
+  assert(arenaHeader.includes("computeReach"), "Arena: computeReach formula");
+  assert(arenaHeader.includes("computeMass"), "Arena: computeMass formula");
+  assert(arenaHeader.includes("classifyDamageType"), "Arena: classifyDamageType method");
+
+  // --- Stat Mapping Specifics ---
+  console.log("  -- Stat Mapping Logic --");
+  assert(arenaHeader.includes("mat.metallic * 40"), "Arena: attackPower from metallic*40");
+  assert(arenaHeader.includes("mat.roughness * 35"), "Arena: defense from roughness*35");
+  assert(arenaHeader.includes("mat.anisotropy * 20"), "Arena: speed from anisotropy*20");
+  assert(arenaHeader.includes("mat.normalIntensity * 0.2f"), "Arena: accuracy from normalIntensity");
+  assert(arenaHeader.includes("mat.subsurfaceScattering * 0.4f"), "Arena: resilience from SSS");
+  assert(arenaHeader.includes("displacementHeight * 20"), "Arena: attackPower bonus from displacement");
+  assert(arenaHeader.includes("mat.specular * 0.15f"), "Arena: critChance from specular");
+
+  // --- Clamping ---
+  console.log("  -- Stat Clamping --");
+  assert(arenaHeader.includes("clamp(stats.attackPower, 0.0f, 100.0f)"), "Arena: attackPower clamped [0,100]");
+  assert(arenaHeader.includes("clamp(stats.defense, 0.0f, 100.0f)"), "Arena: defense clamped [0,100]");
+  assert(arenaHeader.includes("clamp(stats.speed, 0.0f, 100.0f)"), "Arena: speed clamped [0,100]");
+  assert(arenaHeader.includes("clamp(stats.accuracy, 0.0f, 1.0f)"), "Arena: accuracy clamped [0,1]");
+  assert(arenaHeader.includes("clamp(stats.evasion, 0.0f, 1.0f)"), "Arena: evasion clamped [0,1]");
+  assert(arenaHeader.includes("clamp(stats.criticalChance, 0.0f, 1.0f)"), "Arena: critChance clamped [0,1]");
+  assert(arenaHeader.includes("clamp(stats.criticalMultiplier, 1.0f, 3.0f)"), "Arena: critMult clamped [1,3]");
+  assert(arenaHeader.includes("clamp(stats.resilience, 0.0f, 1.0f)"), "Arena: resilience clamped [0,1]");
+  assert(arenaHeader.includes("clamp(stats.reach, 0.5f, 5.0f)"), "Arena: reach clamped [0.5,5]");
+  assert(arenaHeader.includes("clamp(stats.mass, 0.1f, 10.0f)"), "Arena: mass clamped [0.1,10]");
+
+  // --- FDamageMatrix ---
+  console.log("  -- FDamageMatrix --");
+  assert(arenaHeader.includes("struct FDamageMatrix"), "Arena: FDamageMatrix struct");
+  assert(arenaHeader.includes("getMultiplier"), "Arena: getMultiplier method");
+  assert(arenaHeader.includes("getEffectivenessLabel"), "Arena: getEffectivenessLabel method");
+  assert(arenaHeader.includes("SUPER_EFFECTIVE"), "Arena: SUPER_EFFECTIVE label");
+  assert(arenaHeader.includes("NOT_VERY_EFFECTIVE"), "Arena: NOT_VERY_EFFECTIVE label");
+  assert(arenaHeader.includes("NORMAL"), "Arena: NORMAL label");
+  assert(arenaHeader.includes("matrix[5][5]"), "Arena: 5x5 type matrix");
+
+  // --- DeterministicRNG ---
+  console.log("  -- DeterministicRNG --");
+  assert(arenaHeader.includes("class DeterministicRNG"), "Arena: DeterministicRNG class");
+  assert(arenaHeader.includes("next01()"), "Arena: next01 method");
+  assert(arenaHeader.includes("uint64_t state_"), "Arena: 64-bit state");
+  assert(arenaHeader.includes("6364136223846793005"), "Arena: LCG constant");
+  assert(arenaHeader.includes("xorshifted"), "Arena: xorshift mixing");
+
+  // --- SovereignArena class ---
+  console.log("  -- SovereignArena Class --");
+  assert(arenaHeader.includes("class SovereignArena"), "Arena: SovereignArena class");
+  assert(arenaHeader.includes("SovereignArena& Get()"), "Arena: singleton Get()");
+  assert(arenaHeader.includes("SovereignArena(const SovereignArena&) = delete"), "Arena: copy deleted");
+
+  // --- ArenaConfig ---
+  console.log("  -- ArenaConfig --");
+  assert(arenaHeader.includes("struct ArenaConfig"), "Arena: ArenaConfig struct");
+  assert(arenaHeader.includes("maxRounds"), "Arena: maxRounds config");
+  assert(arenaHeader.includes("startingHealth"), "Arena: startingHealth config");
+  assert(arenaHeader.includes("tradeThreshold"), "Arena: tradeThreshold config");
+  assert(arenaHeader.includes("autoFlushToChronos"), "Arena: autoFlushToChronos config");
+  assert(arenaHeader.includes("missFloor"), "Arena: missFloor config");
+  assert(arenaHeader.includes("configure("), "Arena: configure method");
+  assert(arenaHeader.includes("getConfig()"), "Arena: getConfig method");
+
+  // --- Core interact() method ---
+  console.log("  -- interact() Method --");
+  assert(arenaHeader.includes("interact("), "Arena: interact method");
+  assert(arenaHeader.includes("DeterministicRNG rng(sessionSeed)"), "Arena: RNG seeded from session");
+  assert(arenaHeader.includes("aGoesFirst"), "Arena: speed-based initiative");
+  assert(arenaHeader.includes("resolveAttack"), "Arena: resolveAttack per round");
+  assert(arenaHeader.includes("entityAHealthRemaining -= "), "Arena: health subtraction A");
+  assert(arenaHeader.includes("entityBHealthRemaining -= "), "Arena: health subtraction B");
+
+  // --- Attack Resolution ---
+  console.log("  -- Attack Resolution --");
+  assert(arenaHeader.includes("hitChance"), "Arena: hitChance computation");
+  assert(arenaHeader.includes("attacker.accuracy - defender.evasion"), "Arena: accuracy vs evasion");
+  assert(arenaHeader.includes("config_.missFloor"), "Arena: miss floor enforcement");
+  assert(arenaHeader.includes("typeMultiplier"), "Arena: type multiplier applied");
+  assert(arenaHeader.includes("FDamageMatrix::getMultiplier"), "Arena: damage matrix lookup");
+  assert(arenaHeader.includes("attacker.criticalMultiplier"), "Arena: critical multiplier applied");
+  assert(arenaHeader.includes("damageReduction"), "Arena: damage reduction from defense");
+  assert(arenaHeader.includes("defender.defense * defender.resilience"), "Arena: defense*resilience formula");
+
+  // --- Outcome Determination ---
+  console.log("  -- Outcome Determination --");
+  assert(arenaHeader.includes("determineFinalOutcome"), "Arena: determineFinalOutcome method");
+  assert(arenaHeader.includes("config_.tradeThreshold"), "Arena: trade threshold check");
+
+  // --- SHA-256 Integration ---
+  console.log("  -- SHA-256 Integration --");
+  assert(arenaHeader.includes("SovereignSHA256::hash(sessionSeed)"), "Arena: session ID from SHA-256");
+  assert(arenaHeader.includes("SovereignSHA256::hash(canonicalize())"), "Arena: result hash from SHA-256");
+
+  // --- Chronos Flush ---
+  console.log("  -- Chronos State Arbiter Flush --");
+  assert(arenaHeader.includes("flushToArbiter"), "Arena: flushToArbiter method");
+  assert(arenaHeader.includes("ChronosEngine::Get()"), "Arena: uses ChronosEngine");
+  assert(arenaHeader.includes("chronos.enqueue"), "Arena: enqueues to Chronos");
+  assert(arenaHeader.includes("\"arena:\""), "Arena: arena: key prefix");
+  assert(arenaHeader.includes("\"arena-system\""), "Arena: arena-system author");
+
+  // --- ArenaStats ---
+  console.log("  -- ArenaStats --");
+  assert(arenaHeader.includes("struct ArenaStats"), "Arena: ArenaStats struct");
+  assert(arenaHeader.includes("totalInteractions"), "Arena: totalInteractions counter");
+  assert(arenaHeader.includes("totalRoundsPlayed"), "Arena: totalRoundsPlayed counter");
+  assert(arenaHeader.includes("attackerWins"), "Arena: attackerWins counter");
+  assert(arenaHeader.includes("defenderWins"), "Arena: defenderWins counter");
+  assert(arenaHeader.includes("trades"), "Arena: trades counter");
+  assert(arenaHeader.includes("draws"), "Arena: draws counter");
+  assert(arenaHeader.includes("totalCriticalHits"), "Arena: totalCriticalHits counter");
+  assert(arenaHeader.includes("totalMisses"), "Arena: totalMisses counter");
+  assert(arenaHeader.includes("totalFlushed"), "Arena: totalFlushed counter");
+  assert(arenaHeader.includes("damageTypeDistribution"), "Arena: damageTypeDistribution map");
+
+  // --- Delegates ---
+  console.log("  -- Arena Delegates --");
+  assert(arenaHeader.includes("InteractionCompleteDelegate"), "Arena: InteractionCompleteDelegate type");
+  assert(arenaHeader.includes("RoundResolvedDelegate"), "Arena: RoundResolvedDelegate type");
+  assert(arenaHeader.includes("ArenaFlushDelegate"), "Arena: ArenaFlushDelegate type");
+  assert(arenaHeader.includes("onInteractionComplete"), "Arena: onInteractionComplete setter");
+  assert(arenaHeader.includes("onRoundResolved"), "Arena: onRoundResolved setter");
+  assert(arenaHeader.includes("onFlush"), "Arena: onFlush setter");
+
+  // --- verifyDeterminism ---
+  console.log("  -- Determinism Verification --");
+  assert(arenaHeader.includes("verifyDeterminism"), "Arena: verifyDeterminism method");
+  assert(arenaHeader.includes("verifyResult"), "Arena: verifyResult method");
+
+  // --- Reset & Lifecycle ---
+  console.log("  -- Reset & Lifecycle --");
+  assert(arenaHeader.includes("void reset()"), "Arena: reset method");
+  assert(arenaHeader.includes("history_"), "Arena: internal history vector");
+  assert(arenaHeader.includes("history()"), "Arena: public history accessor");
+  assert(arenaHeader.includes("stats()"), "Arena: public stats accessor");
+
+  // --- Module Include Chain ---
+  console.log("  -- Module Include Chain --");
+  assert(arenaHeader.includes("#include \"SovereignShowroom.h\""), "Arena: includes SovereignShowroom.h");
+  assert(arenaHeader.includes("FVisualPhenotype"), "Arena: uses FVisualPhenotype from Forge");
+  assert(arenaHeader.includes("PhenotypeClass"), "Arena: uses PhenotypeClass enum");
+  assert(arenaHeader.includes("FOrganicMaterialProfile"), "Arena: uses FOrganicMaterialProfile");
+  assert(arenaHeader.includes("FMorphologyDescriptor"), "Arena: uses FMorphologyDescriptor");
+
+  // --- Phenotype → DamageType Classification ---
+  console.log("  -- Phenotype → Damage Classification --");
+  assert(arenaHeader.includes("PhenotypeClass::VOLCANIC") && arenaHeader.includes("DamageType::THERMAL"), "Arena: VOLCANIC → THERMAL");
+  assert(arenaHeader.includes("PhenotypeClass::METALLIC") && arenaHeader.includes("DamageType::KINETIC"), "Arena: METALLIC → KINETIC");
+  assert(arenaHeader.includes("PhenotypeClass::CRYSTALLINE") && arenaHeader.includes("DamageType::RADIANT"), "Arena: CRYSTALLINE → RADIANT");
+  assert(arenaHeader.includes("PhenotypeClass::AQUEOUS") && arenaHeader.includes("DamageType::CORROSIVE"), "Arena: AQUEOUS → CORROSIVE");
+  assert(arenaHeader.includes("PhenotypeClass::ETHEREAL") && arenaHeader.includes("DamageType::VOID"), "Arena: ETHEREAL → VOID");
+}
+
 // --- Cross-Engine Summary ---
 console.log("\n" + "=".repeat(60));
-console.log("  PROJECT SHOWROOM — COMPLETE");
+console.log("  THE SOVEREIGN ARENA — OPERATIONAL");
 console.log("=".repeat(60));
 
 console.log(`\n${"=".repeat(50)}`);

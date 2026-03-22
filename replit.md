@@ -195,7 +195,7 @@ Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardenin
   - **FastAPI**: `presence_relay.py` (PresenceManager class with asyncio-safe WebSocket relay, automatic dead connection cleanup, `resolve_conflict()` for deterministic last-write-wins, `get_active_peers()` with timeout filtering); `/ws/presence/{user_id}` WebSocket endpoint and `/api/presence/active` REST endpoint injected into main.py.
   - **Mobile**: `lib/haptic-presence.ts` (6 event types: peer:joined, peer:left, object:moved, object:created, object:deleted, conflict:resolved; mapped to expo-haptics ImpactFeedbackStyle/NotificationFeedbackType; 100ms throttle; `usePresenceHaptics()` WebSocket listener hook); adds expo-haptics dependency.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 1,054 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests + 50 Engine B Transport & Auth Bridge tests + 53 Chronos Engine tests + 86 Biological Forge tests + 92 Sovereign Showroom tests.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 1,214 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests + 50 Engine B Transport & Auth Bridge tests + 53 Chronos Engine tests + 86 Biological Forge tests + 92 Sovereign Showroom tests + 160 Sovereign Arena tests.
 
 ## Engine B: The Native Foundry (Pydantic→UE5 Transpiler)
 A transpilation pipeline that reads Engine A's Pydantic schemas and generates type-safe C++/UE5 code with SHA-256 parity.
@@ -261,6 +261,19 @@ A transpilation pipeline that reads Engine A's Pydantic schemas and generates ty
 - **Truth Overlay**: `FSovereignPedigree` displays raw 256-bit hash, 16 gene loci (name, byte offset, hex value, normalized value), classification, mesh family. `isVerifiedBadgeGreen()` only returns true when `USovereignHttpClient` confirms local asset matches server `AuthoritativeManifest`.
 - **Verification**: `verifyWithServer()` validates hash against authoritative manifest. 5 states: UNVERIFIED, VERIFIED, MISMATCH, SERVER_UNREACHABLE, PENDING.
 - C++ conformance: 201/201 tests passing.
+
+**Sovereign Arena — The Deterministic Interaction Layer** (`lib/engine-native/generated/SovereignArena.h`): Where two forged entities clash in deterministic combat. Material properties become combat stats. SHA-256 seals every outcome:
+- **PhenotypeStatMapper**: Maps `FVisualPhenotype` → `FCombatStats` (10 stats). metallic→attackPower (×40), roughness→defense (×35), anisotropy→speed (×20), normalIntensity→accuracy, specular→criticalChance, subsurface→resilience. morphology scale→mass/reach. All stats clamped to physical ranges.
+- **DamageType System**: 5 types — KINETIC (Metallic), THERMAL (Volcanic), CORROSIVE (Aqueous), RADIANT (Crystalline), VOID (Ethereal). `FDamageMatrix` 5×5 effectiveness table: e.g. THERMAL→KINETIC is 1.2× (SUPER_EFFECTIVE), CORROSIVE→VOID is 1.3×.
+- **DeterministicRNG**: PCG-family generator seeded from combined entity hashes. LCG with xorshift output mixing. Same inputs → identical random sequence on any hardware.
+- **Combat Resolution**: Speed-based initiative → per-round `resolveAttack()` with accuracy-vs-evasion hit roll, type multiplier, critical chance, defense*resilience damage reduction. `missFloor` prevents 100% evasion locks. Minimum 1 damage on hit.
+- **Outcome Determination**: ATTACKER_WINS (B health ≤ 0), DEFENDER_WINS (A health ≤ 0), TRADE (both KO'd), DRAW (health difference < tradeThreshold).
+- **Round-Level Hashing**: Every `FInteractionRound` gets its own SHA-256 hash. `FInteractionResult` hash covers all rounds + stats + outcome. `verifyIntegrity()` catches any tampered field.
+- **Chronos Flush**: `flushToArbiter()` enqueues session ID, outcome, health, damage totals, and result hash to ChronosEngine under `arena:` key prefix. Outcomes are permanent.
+- **ArenaStats**: Running totals — interactions, rounds played, attacker/defender wins, trades, draws, critical hits, misses, flushed count, damage type distribution.
+- **Delegates**: `InteractionCompleteDelegate`, `RoundResolvedDelegate` (fires per attack), `ArenaFlushDelegate`.
+- **verifyDeterminism()**: Runs same interaction twice and confirms identical result hash + outcome + round count.
+- C++ conformance: 137/137 tests passing.
 
 ## Project Showroom — Physical Runtime
 - **showroom-web** (`artifacts/showroom-web`): React/Vite + Three.js 3D showroom. Hardened by 46 React Vindicator passes. Preview at `/showroom-web/`. WebGL error boundary with graceful fallback for headless/no-GPU environments.
