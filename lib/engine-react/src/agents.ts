@@ -160,7 +160,7 @@ client/package.json MUST have:
 \`\`\`
 
 ### VITE CONFIG (MANDATORY)
-client/vite.config.ts MUST use the Tailwind CSS v4 Vite plugin:
+client/vite.config.ts MUST use the Tailwind CSS v4 Vite plugin AND include server proxy + host config:
 \`\`\`typescript
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
@@ -168,8 +168,19 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    port: 5173,
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+    },
+    allowedHosts: true,
+  },
 });
 \`\`\`
+The proxy config is CRITICAL — without it, the frontend cannot reach the Express API on CodeSandbox or any cloud environment.
 
 ### CLIENT index.html (MANDATORY)
 The client/index.html MUST include Inter and JetBrains Mono font links in <head>:
@@ -1182,6 +1193,9 @@ These are the most frequent build failures. Apply the right fix pattern:
   - Zod schemas: \`body\`, \`params\`, \`query\` as properties of a ZodObject config — these are express-validator patterns, not zod patterns. For zod, define separate schemas and validate in route handlers.
   - Vite/tsconfig: invented compiler or plugin options that don't exist in the actual API.
   Strategy: Find the line number from the error, locate the offending property, and DELETE it. If the object becomes empty, remove the entire options argument. Never invent type augmentations to make hallucinated keys compile.
+
+**Hallucinated middleware / undeclared functions (TS2304):**
+- "Cannot find name 'protect'" or "Cannot find name 'authMiddleware'" → The LLM referenced an auth middleware that was never created. REMOVE the middleware call from the route, or create the missing middleware file. Common hallucinated auth middleware names: \`protect\`, \`authMiddleware\`, \`requireAuth\`, \`isAuthenticated\`, \`verifyToken\`. If the app has no auth feature, simply remove the middleware reference from the route handler.
 
 **Express v5 specific:**
 - Express v5 route handlers return Promise — ensure async handlers are properly typed.

@@ -67,7 +67,6 @@ export function annotateFileSource(
       sourceType: "module",
       plugins: [
         ["@babel/plugin-syntax-typescript", { isTSX: true }],
-        "@babel/plugin-syntax-jsx",
         () => sourceAnnotatorPlugin(filePath),
       ],
       filename: filePath,

@@ -104,7 +104,7 @@ export async function createSandboxForProject(project: Project): Promise<Sandbox
       }
     }
 
-    const previewUrl = `https://${sandboxId}-3000.csb.app`;
+    const previewUrl = `https://${sandboxId}-5173.csb.app`;
 
     const startScript = files.find((f) => f.path === "package.json");
     if (startScript) {
