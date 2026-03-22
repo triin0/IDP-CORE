@@ -1,7 +1,7 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   OrbitControls, Environment, ContactShadows, AdaptiveDpr,
-  AdaptiveEvents, RoundedBox, Text, MeshReflectorMaterial, useGLTF,
+  AdaptiveEvents, Text, MeshReflectorMaterial, useGLTF,
 } from "@react-three/drei";
 import { Suspense, useState, useRef, useCallback, useMemo, useEffect, Component, type ReactNode } from "react";
 import * as THREE from "three";
@@ -218,54 +218,14 @@ function GLBModel({ url, color }: { url: string; color: string }) {
   return <primitive object={clonedScene} />;
 }
 
-function FallbackLexus({ color }: { color: string }) {
-  return (
-    <group>
-      <RoundedBox args={[3.8, 0.8, 1.7]} radius={0.15} position={[0, 0, 0] as [number, number, number]} castShadow receiveShadow>
-        <meshPhysicalMaterial color={color} {...PAINT_MATERIAL_PROPS} />
-      </RoundedBox>
-      <RoundedBox args={[2.2, 0.7, 1.6]} radius={0.2} position={[0.1, 0.65, 0] as [number, number, number]} castShadow receiveShadow>
-        <meshPhysicalMaterial color={color} {...PAINT_MATERIAL_PROPS} />
-      </RoundedBox>
-      <mesh position={[0.1, 0.65, 0] as [number, number, number]}>
-        <boxGeometry args={[2.0, 0.5, 1.55]} />
-        <meshPhysicalMaterial {...GLASS_MATERIAL_PROPS} />
-      </mesh>
-      {([[-1.3, -0.15, 0.85], [-1.3, -0.15, -0.85], [1.3, -0.15, 0.85], [1.3, -0.15, -0.85]] as [number, number, number][]).map((pos, i) => (
-        <mesh key={`tire-${i}`} position={pos} rotation={[Math.PI / 2, 0, 0] as [number, number, number]} castShadow>
-          <cylinderGeometry args={[0.35, 0.35, 0.2, 24]} />
-          <meshStandardMaterial color="#1a1a1a" metalness={0.0} roughness={0.85} />
-        </mesh>
-      ))}
-      {([[-1.3, -0.15, 0.85], [-1.3, -0.15, -0.85], [1.3, -0.15, 0.85], [1.3, -0.15, -0.85]] as [number, number, number][]).map((pos, i) => (
-        <mesh key={`rim-${i}`} position={pos} rotation={[Math.PI / 2, 0, 0] as [number, number, number]}>
-          <cylinderGeometry args={[0.22, 0.22, 0.22, 8]} />
-          <meshPhysicalMaterial {...CHROME_MATERIAL_PROPS} />
-        </mesh>
-      ))}
-      <mesh position={[-1.95, 0.05, 0.7] as [number, number, number]}>
-        <sphereGeometry args={[0.15, 16, 16]} />
-        <meshStandardMaterial color="#fff" emissive="#fff" emissiveIntensity={0.8} />
-      </mesh>
-      <mesh position={[-1.95, 0.05, -0.7] as [number, number, number]}>
-        <sphereGeometry args={[0.15, 16, 16]} />
-        <meshStandardMaterial color="#fff" emissive="#fff" emissiveIntensity={0.8} />
-      </mesh>
-      <mesh position={[1.95, 0.05, 0.6] as [number, number, number]}>
-        <boxGeometry args={[0.1, 0.15, 0.3]} />
-        <meshStandardMaterial color="#ff2222" emissive="#ff0000" emissiveIntensity={0.5} />
-      </mesh>
-      <mesh position={[1.95, 0.05, -0.6] as [number, number, number]}>
-        <boxGeometry args={[0.1, 0.15, 0.3]} />
-        <meshStandardMaterial color="#ff2222" emissive="#ff0000" emissiveIntensity={0.5} />
-      </mesh>
-    </group>
-  );
-}
-
 const _tmpForward = new THREE.Vector3();
 const _tmpAxis = new THREE.Vector3(0, 1, 0);
 const MIRROR_THROTTLE_MS = 50;
+
+function glbUrl(vehicleId: string): string {
+  const base = import.meta.env.BASE_URL || "/";
+  return `${base}models/lexus-${vehicleId}.glb`;
+}
 
 function LexusVehicle({ color, vehicleId, synapse, onMirrorUpdate }: {
   color: string;
@@ -274,29 +234,12 @@ function LexusVehicle({ color, vehicleId, synapse, onMirrorUpdate }: {
   onMirrorUpdate: (t: MirrorTransform) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null!);
-  const [glbStatus, setGlbStatus] = useState<"checking" | "available" | "unavailable">("checking");
-  const glbPath = `/models/lexus-${vehicleId}.glb`;
   const lastMirrorTime = useRef<number>(0);
+  const url = glbUrl(vehicleId);
 
   useEffect(() => {
-    let cancelled = false;
-    setGlbStatus("checking");
-    fetch(glbPath, { method: "HEAD" })
-      .then(res => {
-        if (cancelled) return;
-        const ct = res.headers.get("content-type") || "";
-        const isBinary = res.ok && (
-          ct.includes("model/gltf-binary") ||
-          ct.includes("application/octet-stream") ||
-          ct.includes("model/gltf+json")
-        );
-        setGlbStatus(isBinary ? "available" : "unavailable");
-        if (isBinary) console.log(`[Synapse] GLB validated: ${glbPath} (${ct})`);
-        else console.log(`[Synapse] GLB unavailable (${ct}), using procedural fallback`);
-      })
-      .catch(() => { if (!cancelled) setGlbStatus("unavailable"); });
-    return () => { cancelled = true; };
-  }, [glbPath]);
+    console.log(`[Synapse] Loading GLB: ${url}`);
+  }, [url]);
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
@@ -339,11 +282,7 @@ function LexusVehicle({ color, vehicleId, synapse, onMirrorUpdate }: {
 
   return (
     <group ref={groupRef} position={[0, 0.6, 0] as [number, number, number]}>
-      {glbStatus === "available" ? (
-        <GLBModel url={glbPath} color={color} />
-      ) : glbStatus === "unavailable" ? (
-        <FallbackLexus color={color} />
-      ) : null}
+      <GLBModel url={url} color={color} />
     </group>
   );
 }
