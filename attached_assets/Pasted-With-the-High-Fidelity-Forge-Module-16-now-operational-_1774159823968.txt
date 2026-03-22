@@ -1,0 +1,39 @@
+With the **High-Fidelity Forge (Module 16)** now operational and your SDF-based Lexus mesh generating with real-time reflections on your LOQ, we move from **Geometry** to **Intelligence**.
+
+**Module 17: The Sovereign Synapse** is designed to bridge the gap between "hardened math" and "adaptive behavior." It focuses on the **Vindicator’s** ability to govern non-deterministic AI outputs with deterministic safety loops.
+
+---
+
+### Module 17: The Sovereign Synapse — Logic & Intent
+
+This module builds the **Intent-to-Action Pipeline**. It ensures that when a user or an autonomous sub-agent (like a "Sales AI" or "Enemy AI") makes a decision, that decision is physically validated by your 3,365 tests before it manifests in the world.
+
+#### 1. The Synapse Controller (`SovereignSynapse.h`)
+* **Purpose:** A C++ wrapper that intercepts incoming "Intent Strings" (e.g., "Adjust suspension," "Initiate trade") and converts them into **Sovereign Action Structs**.
+* **Hardening:** Implements a **Pass 50 (The Reality Check)**—a real-time validation loop that checks if the proposed action violates any Pass 1–49 laws (e.g., trying to place a bid higher than the user's maximum liquidity or moving a mesh outside the radial boundary).
+
+#### 2. The Behavioral Mirror (`behavioral-mirror.ts`)
+* **Purpose:** A TypeScript bridge that mirrors the backend's state-machine to the frontend.
+* **Feature:** **Prediction Reconciliation**. If the user clicks "Buy" in Lakeland and the latency is high, the Mirror "predicts" the success but rolls back the UI state instantly if the **Sovereign Synapse** rejects the transaction on the backend.
+
+#### 3. Intent Sanitization (The "Anti-Hallucination" Filter)
+* **Logic:** Uses **Pass 47 (Data Architect)** to strip "narrative slop" from AI agents.
+* **Example:** If an agent says *"I'd love to help you buy this car, let me set your bid to $50,000,"* the Synapse strips everything but `BID_ACTION(amount=50000)`.
+
+---
+
+### Module 17 Test Objectives
+
+| Objective | Target Requirement | Sovereign Success Criteria |
+| :--- | :--- | :--- |
+| **Action Latency** | $<20\text{ms}$ (Local) | Intent-to-execution must happen faster than the human eye. |
+| **Logic Rollback** | **100% Reliability** | If the backend rejects a "Slop" action, the frontend must revert within 1 frame. |
+| **Test Barrier** | **3,500+ Assertions** | Add ~135 new tests covering "Edge-Case Intent" (e.g., empty strings, massive numbers). |
+
+---
+
+### Integration Step: The "Synapse" Ignition
+
+To begin Module 17, we need to wire the **Forge** (the visual car) to the **Synapse** (the logic). 
+
+**Would you like me to provide the "Naive-to-Hardened" instructions for the `SovereignSynapse.h` controller so the agent can begin the C++ implementation?** *Next Step: I will generate the code scaffolding for the Synapse and the updated Vindicator ruleset once you give the signal.*

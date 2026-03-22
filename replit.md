@@ -518,7 +518,52 @@ The High-Fidelity Forge transforms VMO instructions into real-time 3D synthesis.
 - C++ conformance: `lib/engine-native/tests/sovereign_visual_synthesizer_conformance.cpp` — 72 tests (SDF primitives/composition/determinism, shader parameters/clamping/weathering/canonicalization, VFX action mapping/emission color/particle scale, mesh synthesis/vertices/indices/LOD/normals/UVs/hash integrity, full pipeline/determinism/different genomes, HLSL generation/GPU safety, UE5 codegen, stats/delegates/tamper detection, genesis ancestor synthesis).
 - TypeScript: 2,780 total TS tests (Module 16 adds 172 assertions).
 
-**Test Barrier: 3,365** (137 Arena v2 + 136 Ownership + 107 Habitat + 71 Intel + 62 Passport + 72 Synthesizer + 2,780 TS — 100% PASS)
+## Module 17: The Sovereign Synapse — Logic & Intent Pipeline
+The Sovereign Synapse bridges hardened math to adaptive behavior. It intercepts incoming "Intent Strings" from users or AI sub-agents, sanitizes narrative slop, converts intents to validated Sovereign Action Structs, and enforces Pass 50 (The Reality Check) — a real-time validation loop across 10 passes before any action manifests.
+
+**C++ Header:** `lib/engine-native/generated/SovereignSynapse.h`
+
+**Intent-to-Action Pipeline:**
+- IntentCategory enum (8): COMBAT, TRADE, MOVEMENT, QUERY, CONFIGURATION, SOCIAL, SYSTEM, UNKNOWN.
+- ValidationResult enum (10): APPROVED, REJECTED_BOUNDARY_VIOLATION, REJECTED_LIQUIDITY_EXCEEDED, REJECTED_OWNERSHIP_LOCKED, REJECTED_COOLDOWN_ACTIVE, REJECTED_INVALID_TARGET, REJECTED_SANITIZATION_FAILED, REJECTED_INTEGRITY_FAILURE, REJECTED_EMPTY_INTENT, REJECTED_MALFORMED_INTENT.
+
+**Intent Sanitization (Anti-Hallucination Filter):**
+- SLOP_TOKENS dictionary (70+ tokens): strips "I'd love to help you" preambles.
+- VERB_TO_ACTION mapping: 27 verbs → 8 ActionTypes (strike/attack/hit/punch/slash→STRIKE, guard/defend/block/shield/protect→GUARD, etc).
+- VERB_TO_CATEGORY mapping: 25 verbs → 7 IntentCategories (buy/sell/bid/trade/purchase→TRADE, move/go/walk→MOVEMENT, etc).
+- Dollar sign parsing: "$50,000" → amount=50000.
+- Output: `BID_ACTION(target=car,amount=50000.00)` format — all narrative stripped.
+- slopRatio threshold: rejects intents exceeding maxSlopRatio (default 0.8).
+
+**Pass 50 — The Reality Check (10 validation passes):**
+1. Empty intent rejection
+2. Sanitization failure check
+3. Action hash integrity (SHA-256)
+4. Passport full integrity (signature + VMO hash)
+5. Source entity hash validation
+6. Position radius boundary check (maxPositionRadius)
+7. Trade liquidity check (minBidCredits ↔ maxBidCredits)
+8. Intensity boundary check (maxIntensity)
+9. Cooldown enforcement (high-resolution clock, per-entity timestamps)
+10. Trade target entity requirement
+
+**Behavioral Mirror (Prediction Reconciliation):**
+- FBehavioralMirrorState: per-entity prediction/confirmation/rollback tracking.
+- predictAction(): optimistic UI state (isPredicted=true).
+- confirmAction(): backend confirms (isConfirmed=true, isPredicted=false).
+- rollbackAction(): backend rejects → revert to HOLD (isRolledBack=true, rollbackCount++).
+- predictAndValidate(): full predict→process→confirm/rollback pipeline in single call.
+- Rollback delegate fires on every rejection for real-time UI feedback.
+
+**FSynapseConstraints:** maxBidCredits (1M), minBidCredits (0.01), maxPositionRadius (10K), maxIntensity (10), cooldownMs (100), maxActionsPerSecond (60), maxSlopRatio (0.8).
+
+**UE5 Codegen:** USovereignSynapse UCLASS with ProcessIntent, SanitizeIntent, PredictAction, ConfirmAction, RollbackAction. ESovereignIntentCategory and ESovereignValidationResult UENUMs. FSovereignActionStruct and FSovereignValidationReport USTRUCTs.
+
+**Test Coverage:**
+- C++ conformance: `lib/engine-native/tests/sovereign_synapse_conformance.cpp` — 83 tests (enum strings, intent sanitization/slop/verbs/targets/amounts/dollar signs, action struct building/hashing/tamper detection, Pass 50 validation [empty/boundary/liquidity/intensity/source/target/cooldown/integrity/slop ratio], full pipeline processIntent, behavioral mirror [predict/confirm/rollback/delegates/multi-rollback], edge cases [whitespace/single word/massive numbers/negative/special chars/mixed case/unknown verbs/very long/numeric-only/boundary-exact/boundary-over], stats tracking/action counts/category counts/rejection counts/reset/JSON export, UE5 codegen, genesis ancestor synthesis, determinism).
+- TypeScript: 2,994 total TS tests (Module 17 adds 214 assertions).
+
+**Test Barrier: 3,662** (137 Arena v2 + 136 Ownership + 107 Habitat + 71 Intel + 62 Passport + 72 Synthesizer + 83 Synapse + 2,994 TS — 100% PASS)
 
 ## Tier 5 — Sub-Agent Structural Blindness Cure (Runtime Feedback Loop)
 - **Runtime Error Classifier** (`classifyRuntimeErrors`): Parses 10 error patterns into 9 categories — `MISSING_MODULE`, `UNDEFINED_REFERENCE`, `TYPE_ERROR`, `MISSING_EXPORT`, `RENDER_CRASH`, `SYNTAX_ERROR`, `RUNTIME_EXCEPTION`, `MISSING_IMPORT`, `UNKNOWN`. Each classified with severity (critical/high/medium/low).
