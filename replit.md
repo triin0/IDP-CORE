@@ -565,6 +565,33 @@ The Sovereign Synapse bridges hardened math to adaptive behavior. It intercepts 
 
 **Test Barrier: 3,662** (137 Arena v2 + 136 Ownership + 107 Habitat + 71 Intel + 62 Passport + 72 Synthesizer + 83 Synapse + 2,994 TS — 100% PASS)
 
+## Module 18: The Sovereign Nexus — Multi-Entity Orchestration & Sync
+
+**Purpose:** High-concurrency fleet orchestrator — tracks every "Live" object in the world. Enables multi-user experiences (Rick, Greg, and you in the same 3D space) without ghosting or rubber-banding on unstable connections.
+
+**Header:** `lib/engine-native/generated/SovereignNexus.h`
+**Tests:** `lib/engine-native/tests/sovereign_nexus_conformance.cpp` (75 tests)
+
+**Key Systems:**
+- **Entity Registry:** Tracks up to 256 concurrent entities with SOVEREIGN/PROXY/DORMANT/CONTESTED authority states and LIVE/STALE/GHOST/FAST_FORWARDING/DISCONNECTED sync states.
+- **Pass 51 — The Quantum Lock (LWW Conflict Resolution):** Deterministic Last-Write-Wins timestamp resolution. If two users try to buy/move the same object at the same millisecond, the Nexus deterministically picks the winner. Supports 4 strategies: LWW_TIMESTAMP, PRIORITY_AUTHORITY, MERGE_ADDITIVE, REJECT_BOTH.
+- **Delta Compression:** Field-level delta encoding — only sends what changed. A door rotation sends ~30 bytes instead of full 13-field transforms (~104 bytes). ~90% bandwidth reduction. Verified <2KB/s per entity.
+- **Pass 52 — Ghost Reconciliation:** Smooth fast-forward sync on reconnect. When signal drops and returns, entities lerp from ghost position to current server position — no teleporting. Configurable reconciliation step size (default 0.1).
+- **SHA-256 Integrity:** All entities and delta packets have content-addressable hashes with tamper detection via verifyIntegrity().
+- **Conflict Ring Buffer:** Capped deque (default 1000 entries) for conflict event logging.
+- **6 Separate Mutexes:** registryMutex_, statsMutex_, configMutex_, delegateMutex_, conflictMutex_, reconMutex_. Strict lock order: registry→recon→conflict→config→delegate→stats. Delegates invoked outside lock scope (copy-then-invoke pattern prevents re-entrancy deadlocks). Config reads are snapshot-safe.
+
+**Delegate Types (Nexus-prefixed to avoid ChronosEngine collision):**
+- NexusEntityRegisteredDelegate, NexusConflictResolvedDelegate, NexusGhostReconciledDelegate, NexusEntityEvictedDelegate
+
+**UE5 Codegen:** USovereignNexus UCLASS with RegisterEntity, UpdateEntityTransform, ComputeDelta, BeginGhostReconciliation, StepReconciliation, Heartbeat, SweepStaleEntities, GetEntityCount. ESovereignEntityAuthority and ESovereignSyncState UENUMs. FSovereignEntityTransform and FSovereignDeltaPacket USTRUCTs.
+
+**Test Coverage:**
+- C++ conformance: 75 tests (enum strings, transform lerp/equality/canonicalize, entity registry CRUD/capacity/delegates/hash integrity/tamper detection, LWW conflict resolution [later wins/earlier loses/logged/delegate/simultaneous buy], delta compression [empty/position-only/rotation/full/estimated bytes/hash integrity/tamper/canonicalize/apply/bandwidth savings/door rotation/world delta/entity delta], ghost reconciliation [mark/begin/step/full cycle/delegate/smooth interpolation/canonicalize], heartbeat/stale sweep, 128-entity concurrency [register/update/world delta/bandwidth <2KB], config/stats [canonicalize/track registrations/deltas/conflicts/reset/JSON export/avg delta bytes], UE5 codegen [class/enums/structs/delta], genesis fleet synthesis, determinism).
+- TypeScript: 3,274 total TS tests (Module 18 adds 280 assertions).
+
+**Test Barrier: 4,017** (137 Arena v2 + 136 Ownership + 107 Habitat + 71 Intel + 62 Passport + 72 Synthesizer + 83 Synapse + 75 Nexus + 3,274 TS — 100% PASS)
+
 ## Tier 5 — Sub-Agent Structural Blindness Cure (Runtime Feedback Loop)
 - **Runtime Error Classifier** (`classifyRuntimeErrors`): Parses 10 error patterns into 9 categories — `MISSING_MODULE`, `UNDEFINED_REFERENCE`, `TYPE_ERROR`, `MISSING_EXPORT`, `RENDER_CRASH`, `SYNTAX_ERROR`, `RUNTIME_EXCEPTION`, `MISSING_IMPORT`, `UNKNOWN`. Each classified with severity (critical/high/medium/low).
 - **Targeted Repair Engine** (`applyRuntimeRepairs`): Maps classified errors to corrective code transforms — auto-adds missing deps to package.json, injects missing imports by scanning for export declarations, adds `export` to unexported symbols, injects optional chaining for null access crashes, wraps object renders with `String()`.

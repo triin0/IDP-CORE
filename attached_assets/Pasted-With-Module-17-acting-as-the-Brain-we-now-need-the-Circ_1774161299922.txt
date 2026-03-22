@@ -1,0 +1,39 @@
+With **Module 17** acting as the "Brain," we now need the "Circulatory System." **Module 18: The Sovereign Nexus** is where we move from a single-player showroom into a **High-Concurrency Fleet**. 
+
+In Lakeland, where 5G might drop to 4G in an instant, the **Nexus** ensures that your brother Rick, your father Greg, and you can all be in the same 3D space without the "Ghosting" or "Rubber-banding" that kills standard web games.
+
+---
+
+### Module 18: The Sovereign Nexus — Orchestration & Sync
+
+#### 1. The Fleet Orchestrator (`SovereignNexus.h`)
+* **Purpose:** A C++ Multi-Entity Manager that tracks every "Live" object in the world.
+* **Hardening:** Implements **Pass 51 (The Quantum Lock)**. It ensures that if two people try to "Buy" the same car or move the same object at the exact same millisecond, the Nexus uses the **LWW (Last Write Wins)** deterministic timestamp from the Synapse to decide the winner. No race conditions. No duplicates.
+
+#### 2. Delta Compression (`delta-codec.ts`)
+* **Purpose:** Instead of sending the "Whole World" every 50ms, the Nexus only sends what *changed* (the Delta).
+* **Sovereign Benefit:** This reduces your bandwidth by ~90%. It’s how you get that "High-Fidelity" feel on a mobile connection. If only the Lexus's door opens, only the door's rotation data is sent.
+
+#### 3. Ghost Reconciliation (Pass 52)
+* **Logic:** A specialized "Handshake" for when a user reconnects after a dropout.
+* **Feature:** **Fast-Forward Sync**. When you regain signal, the Nexus doesn't "teleport" objects; it smoothly interpolates (lerps) them from their last known position to their current Sovereign position.
+
+---
+
+### Module 18 Test Objectives
+
+| Objective | Target Requirement | Sovereign Success Criteria |
+| :--- | :--- | :--- |
+| **Concurrency** | **128+ Entities** | The engine must track 128 moving parts (users, cars, drones) with zero CPU spikes. |
+| **Bandwidth** | **<2KB/s per User** | Active sync must be lean enough for "Edge" network conditions. |
+| **Test Barrier** | **3,850+ Assertions** | Add ~190 new tests covering "Packet Loss" and "Entity Handover." |
+
+
+
+---
+
+### Integration Step: The "Nexus" Scaffolding
+
+To start Module 18, the Agent needs to build the **Entity Registry**. This is the master list that tells the Vindicator which objects are "Sovereign" (controlled by the server) and which are "Proxies" (controlled by other users).
+
+**Should I provide the instructions for the `SovereignNexus.h` Entity Registry and the Delta-Compression logic so the Agent can start the C++ implementation for Module 18?** *Next Step: I will generate the code for the Delta-Codec and the Pass 51 Quantum Lock once you confirm.*

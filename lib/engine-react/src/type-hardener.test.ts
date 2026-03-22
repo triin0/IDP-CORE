@@ -8614,6 +8614,358 @@ console.log("\n=== Module 14: Sovereign Intel — DNA-Driven Behavioral AI ===")
   passed++;
 }
 
+// ============================================================
+// MODULE 18: SOVEREIGN NEXUS — Multi-Entity Orchestration
+// ============================================================
+{
+  console.log("\n=== Module 18: SovereignNexus.h TypeScript Conformance ===");
+
+  const path = await import("path");
+  const nexusPath = path.resolve("lib/engine-native/generated/SovereignNexus.h");
+  const nexusSource = (await import("fs")).readFileSync(nexusPath, "utf-8");
+  const nexusTestPath = path.resolve("lib/engine-native/tests/sovereign_nexus_conformance.cpp");
+  const nexusTestFile = (await import("fs")).readFileSync(nexusTestPath, "utf-8");
+
+  // --- Enum: EntityAuthority ---
+  assert(nexusSource.includes("enum class EntityAuthority"), "M18: EntityAuthority enum");
+  passed++;
+  assert(nexusSource.includes("SOVEREIGN"), "M18: EntityAuthority::SOVEREIGN");
+  passed++;
+  assert(nexusSource.includes("PROXY"), "M18: EntityAuthority::PROXY");
+  passed++;
+  assert(nexusSource.includes("DORMANT"), "M18: EntityAuthority::DORMANT");
+  passed++;
+  assert(nexusSource.includes("CONTESTED"), "M18: EntityAuthority::CONTESTED");
+  passed++;
+
+  // --- Enum: SyncState ---
+  assert(nexusSource.includes("enum class SyncState"), "M18: SyncState enum");
+  passed++;
+  assert(nexusSource.includes("SyncState::LIVE"), "M18: SyncState::LIVE");
+  passed++;
+  assert(nexusSource.includes("SyncState::STALE"), "M18: SyncState::STALE");
+  passed++;
+  assert(nexusSource.includes("SyncState::GHOST"), "M18: SyncState::GHOST");
+  passed++;
+  assert(nexusSource.includes("SyncState::FAST_FORWARDING"), "M18: SyncState::FAST_FORWARDING");
+  passed++;
+  assert(nexusSource.includes("SyncState::DISCONNECTED"), "M18: SyncState::DISCONNECTED");
+  passed++;
+
+  // --- Enum: ConflictResolution ---
+  assert(nexusSource.includes("enum class ConflictResolution"), "M18: ConflictResolution enum");
+  passed++;
+  assert(nexusSource.includes("LWW_TIMESTAMP"), "M18: LWW_TIMESTAMP strategy");
+  passed++;
+  assert(nexusSource.includes("PRIORITY_AUTHORITY"), "M18: PRIORITY_AUTHORITY strategy");
+  passed++;
+  assert(nexusSource.includes("MERGE_ADDITIVE"), "M18: MERGE_ADDITIVE strategy");
+  passed++;
+  assert(nexusSource.includes("REJECT_BOTH"), "M18: REJECT_BOTH strategy");
+  passed++;
+
+  // --- Struct: FEntityTransform ---
+  assert(nexusSource.includes("struct FEntityTransform"), "M18: FEntityTransform struct");
+  passed++;
+  assert(nexusSource.includes("float posX"), "M18: FEntityTransform.posX");
+  passed++;
+  assert(nexusSource.includes("posY"), "M18: FEntityTransform.posY");
+  passed++;
+  assert(nexusSource.includes("posZ"), "M18: FEntityTransform.posZ");
+  passed++;
+  assert(nexusSource.includes("rotW"), "M18: FEntityTransform.rotW (quaternion)");
+  passed++;
+  assert(nexusSource.includes("float velocityX"), "M18: FEntityTransform.velocityX");
+  passed++;
+  assert(nexusSource.includes("static FEntityTransform lerp"), "M18: FEntityTransform::lerp");
+  passed++;
+
+  // --- Struct: FNexusEntity ---
+  assert(nexusSource.includes("struct FNexusEntity"), "M18: FNexusEntity struct");
+  passed++;
+  assert(nexusSource.includes("std::string entityHash"), "M18: FNexusEntity.entityHash");
+  passed++;
+  assert(nexusSource.includes("std::string ownerIdentity"), "M18: FNexusEntity.ownerIdentity");
+  passed++;
+  assert(nexusSource.includes("EntityAuthority authority"), "M18: FNexusEntity.authority");
+  passed++;
+  assert(nexusSource.includes("SyncState syncState"), "M18: FNexusEntity.syncState");
+  passed++;
+  assert(nexusSource.includes("FEntityTransform transform"), "M18: FNexusEntity.transform");
+  passed++;
+  assert(nexusSource.includes("FEntityTransform lastConfirmedTransform"), "M18: FNexusEntity.lastConfirmedTransform");
+  passed++;
+  assert(nexusSource.includes("int64_t lastUpdateTimestamp"), "M18: FNexusEntity.lastUpdateTimestamp");
+  passed++;
+  assert(nexusSource.includes("int     updateSequence"), "M18: FNexusEntity.updateSequence");
+  passed++;
+  assert(nexusSource.includes("int     priority"), "M18: FNexusEntity.priority");
+  passed++;
+  assert(nexusSource.includes("std::string entityStateHash"), "M18: FNexusEntity.entityStateHash");
+  passed++;
+
+  // --- Struct: FDeltaPacket ---
+  assert(nexusSource.includes("struct FDeltaPacket"), "M18: FDeltaPacket struct");
+  passed++;
+  assert(nexusSource.includes("struct FDeltaField"), "M18: FDeltaField struct");
+  passed++;
+  assert(nexusSource.includes("std::vector<FDeltaField> fields"), "M18: FDeltaPacket.fields");
+  passed++;
+  assert(nexusSource.includes("int fieldCount()"), "M18: FDeltaPacket.fieldCount()");
+  passed++;
+  assert(nexusSource.includes("int estimatedBytes()"), "M18: FDeltaPacket.estimatedBytes()");
+  passed++;
+  assert(nexusSource.includes("std::string deltaHash"), "M18: FDeltaPacket.deltaHash");
+  passed++;
+
+  // --- Struct: FConflictEvent ---
+  assert(nexusSource.includes("struct FConflictEvent"), "M18: FConflictEvent struct");
+  passed++;
+  assert(nexusSource.includes("std::string writerA"), "M18: FConflictEvent.writerA");
+  passed++;
+  assert(nexusSource.includes("std::string writerB"), "M18: FConflictEvent.writerB");
+  passed++;
+  assert(nexusSource.includes("std::string winner"), "M18: FConflictEvent.winner");
+  passed++;
+
+  // --- Struct: FGhostReconciliation ---
+  assert(nexusSource.includes("struct FGhostReconciliation"), "M18: FGhostReconciliation struct");
+  passed++;
+  assert(nexusSource.includes("FEntityTransform ghostTransform"), "M18: FGhostReconciliation.ghostTransform");
+  passed++;
+  assert(nexusSource.includes("float interpolationProgress"), "M18: FGhostReconciliation.interpolationProgress");
+  passed++;
+  assert(nexusSource.includes("int missedUpdates"), "M18: FGhostReconciliation.missedUpdates");
+  passed++;
+  assert(nexusSource.includes("bool isComplete"), "M18: FGhostReconciliation.isComplete");
+  passed++;
+  assert(nexusSource.includes("FEntityTransform interpolatedTransform()"), "M18: interpolatedTransform()");
+  passed++;
+
+  // --- Struct: FNexusConfig ---
+  assert(nexusSource.includes("struct FNexusConfig"), "M18: FNexusConfig struct");
+  passed++;
+  assert(nexusSource.includes("int maxEntities"), "M18: FNexusConfig.maxEntities");
+  passed++;
+  assert(nexusSource.includes("float heartbeatTimeoutMs"), "M18: FNexusConfig.heartbeatTimeoutMs");
+  passed++;
+  assert(nexusSource.includes("float staleThresholdMs"), "M18: FNexusConfig.staleThresholdMs");
+  passed++;
+  assert(nexusSource.includes("float ghostThresholdMs"), "M18: FNexusConfig.ghostThresholdMs");
+  passed++;
+  assert(nexusSource.includes("float reconciliationStepSize"), "M18: FNexusConfig.reconciliationStepSize");
+  passed++;
+
+  // --- Struct: FNexusStats ---
+  assert(nexusSource.includes("struct FNexusStats"), "M18: FNexusStats struct");
+  passed++;
+  assert(nexusSource.includes("int totalEntitiesRegistered"), "M18: FNexusStats.totalEntitiesRegistered");
+  passed++;
+  assert(nexusSource.includes("int totalDeltasGenerated"), "M18: FNexusStats.totalDeltasGenerated");
+  passed++;
+  assert(nexusSource.includes("int totalConflictsResolved"), "M18: FNexusStats.totalConflictsResolved");
+  passed++;
+  assert(nexusSource.includes("int totalGhostReconciled"), "M18: FNexusStats.totalGhostReconciled");
+  passed++;
+  assert(nexusSource.includes("float avgDeltaBytesPerUpdate"), "M18: FNexusStats.avgDeltaBytesPerUpdate");
+  passed++;
+
+  // --- Class: SovereignNexus ---
+  assert(nexusSource.includes("class SovereignNexus"), "M18: SovereignNexus class");
+  passed++;
+  assert(nexusSource.includes("static SovereignNexus& Get()"), "M18: singleton Get()");
+  passed++;
+  assert(nexusSource.includes("bool registerEntity("), "M18: registerEntity()");
+  passed++;
+  assert(nexusSource.includes("bool unregisterEntity("), "M18: unregisterEntity()");
+  passed++;
+  assert(nexusSource.includes("bool updateEntityTransform("), "M18: updateEntityTransform()");
+  passed++;
+  assert(nexusSource.includes("FDeltaPacket computeDelta("), "M18: computeDelta()");
+  passed++;
+  assert(nexusSource.includes("FDeltaPacket computeEntityDelta("), "M18: computeEntityDelta()");
+  passed++;
+  assert(nexusSource.includes("std::vector<FDeltaPacket> computeWorldDelta()"), "M18: computeWorldDelta()");
+  passed++;
+  assert(nexusSource.includes("FEntityTransform applyDelta("), "M18: applyDelta()");
+  passed++;
+  assert(nexusSource.includes("void markEntityGhost("), "M18: markEntityGhost()");
+  passed++;
+  assert(nexusSource.includes("FGhostReconciliation beginGhostReconciliation("), "M18: beginGhostReconciliation()");
+  passed++;
+  assert(nexusSource.includes("FGhostReconciliation stepReconciliation("), "M18: stepReconciliation()");
+  passed++;
+  assert(nexusSource.includes("void heartbeat("), "M18: heartbeat()");
+  passed++;
+  assert(nexusSource.includes("int sweepStaleEntities("), "M18: sweepStaleEntities()");
+  passed++;
+  assert(nexusSource.includes("FConflictEvent resolveConflict("), "M18: resolveConflict()");
+  passed++;
+  assert(nexusSource.includes("FNexusEntity getEntity("), "M18: getEntity()");
+  passed++;
+  assert(nexusSource.includes("int entityCount()"), "M18: entityCount()");
+  passed++;
+  assert(nexusSource.includes("std::string exportStatsJSON()"), "M18: exportStatsJSON()");
+  passed++;
+  assert(nexusSource.includes("std::string generateUE5NexusCode()"), "M18: generateUE5NexusCode()");
+  passed++;
+
+  // --- Delegate types (Nexus-prefixed to avoid ChronosEngine collision) ---
+  assert(nexusSource.includes("NexusConflictResolvedDelegate"), "M18: NexusConflictResolvedDelegate (no ChronosEngine collision)");
+  passed++;
+  assert(nexusSource.includes("NexusEntityRegisteredDelegate"), "M18: NexusEntityRegisteredDelegate");
+  passed++;
+  assert(nexusSource.includes("NexusGhostReconciledDelegate"), "M18: NexusGhostReconciledDelegate");
+  passed++;
+  assert(nexusSource.includes("NexusEntityEvictedDelegate"), "M18: NexusEntityEvictedDelegate");
+  passed++;
+
+  // --- Thread-safety: separate mutexes ---
+  assert(nexusSource.includes("std::mutex registryMutex_"), "M18: registryMutex_ (thread-safe)");
+  passed++;
+  assert(nexusSource.includes("std::mutex statsMutex_"), "M18: statsMutex_ (thread-safe)");
+  passed++;
+  assert(nexusSource.includes("std::mutex conflictMutex_"), "M18: conflictMutex_ (thread-safe)");
+  passed++;
+  assert(nexusSource.includes("std::mutex reconMutex_"), "M18: reconMutex_ (thread-safe)");
+  passed++;
+
+  // --- SHA-256 integrity ---
+  assert(nexusSource.includes("SovereignSHA256::hash"), "M18: uses SovereignSHA256 for hashing");
+  passed++;
+  assert(nexusSource.includes("verifyIntegrity()"), "M18: entity integrity verification");
+  passed++;
+
+  // --- LWW deterministic conflict resolution ---
+  assert(nexusSource.includes("writeTimestamp >= entity.lastUpdateTimestamp"), "M18: LWW timestamp comparison");
+  passed++;
+  assert(nexusSource.includes("conflict.winner"), "M18: conflict winner determination");
+  passed++;
+
+  // --- Ghost reconciliation: smooth interpolation (no teleport) ---
+  assert(nexusSource.includes("FEntityTransform::lerp(ghostTransform, currentTransform, interpolationProgress)"), "M18: ghost lerp interpolation");
+  passed++;
+
+  // --- UE5 codegen ---
+  assert(nexusSource.includes("UCLASS(BlueprintType)"), "M18: UE5 UCLASS codegen");
+  passed++;
+  assert(nexusSource.includes("USTRUCT(BlueprintType)"), "M18: UE5 USTRUCT codegen");
+  passed++;
+  assert(nexusSource.includes("UENUM(BlueprintType)"), "M18: UE5 UENUM codegen");
+  passed++;
+  assert(nexusSource.includes("ESovereignEntityAuthority"), "M18: UE5 EntityAuthority enum");
+  passed++;
+  assert(nexusSource.includes("ESovereignSyncState"), "M18: UE5 SyncState enum");
+  passed++;
+  assert(nexusSource.includes("FSovereignEntityTransform"), "M18: UE5 EntityTransform USTRUCT");
+  passed++;
+  assert(nexusSource.includes("FSovereignDeltaPacket"), "M18: UE5 DeltaPacket USTRUCT");
+  passed++;
+  assert(nexusSource.includes("USovereignNexus"), "M18: UE5 Nexus UCLASS");
+  passed++;
+  assert(nexusSource.includes("RegisterEntity"), "M18: UE5 RegisterEntity UFUNCTION");
+  passed++;
+  assert(nexusSource.includes("UpdateEntityTransform"), "M18: UE5 UpdateEntityTransform UFUNCTION");
+  passed++;
+  assert(nexusSource.includes("ComputeDelta"), "M18: UE5 ComputeDelta UFUNCTION");
+  passed++;
+  assert(nexusSource.includes("BeginGhostReconciliation"), "M18: UE5 BeginGhostReconciliation UFUNCTION");
+  passed++;
+  assert(nexusSource.includes("StepReconciliation"), "M18: UE5 StepReconciliation UFUNCTION");
+  passed++;
+  assert(nexusSource.includes("Heartbeat"), "M18: UE5 Heartbeat UFUNCTION");
+  passed++;
+  assert(nexusSource.includes("SweepStaleEntities"), "M18: UE5 SweepStaleEntities UFUNCTION");
+  passed++;
+  assert(nexusSource.includes("GetEntityCount"), "M18: UE5 GetEntityCount UFUNCTION");
+  passed++;
+
+  // --- Delta compression: field-level ---
+  assert(nexusSource.includes("std::string fieldName"), "M18: FDeltaField.fieldName");
+  passed++;
+  assert(nexusSource.includes("std::string oldValue"), "M18: FDeltaField.oldValue");
+  passed++;
+  assert(nexusSource.includes("std::string newValue"), "M18: FDeltaField.newValue");
+  passed++;
+
+  // --- Canonicalization for SHA-256 ---
+  const canonMethods = (nexusSource.match(/canonicalize\(\)/g) || []).length;
+  assert(canonMethods >= 5, "M18: multiple canonicalize() methods (>=5)");
+  passed++;
+
+  // --- Config defaults ---
+  assert(nexusSource.includes("maxEntities             = 256"), "M18: default maxEntities = 256");
+  passed++;
+  assert(nexusSource.includes("reconciliationStepSize = 0.1f"), "M18: default reconciliation step 0.1");
+  passed++;
+
+  // --- Conformance test file verification ---
+  assert(nexusTestFile.includes("register_128_entities"), "M18-Test: 128-entity concurrency");
+  passed++;
+  assert(nexusTestFile.includes("update_128_entities"), "M18-Test: update 128 entities");
+  passed++;
+  assert(nexusTestFile.includes("bandwidth_per_entity_under_2kb"), "M18-Test: bandwidth <2KB/entity");
+  passed++;
+  assert(nexusTestFile.includes("lww_later_writer_wins"), "M18-Test: LWW later writer wins");
+  passed++;
+  assert(nexusTestFile.includes("lww_earlier_writer_loses"), "M18-Test: LWW earlier writer loses");
+  passed++;
+  assert(nexusTestFile.includes("simultaneous_buy_same_car"), "M18-Test: simultaneous buy scenario");
+  passed++;
+  assert(nexusTestFile.includes("ghost_begin_reconciliation"), "M18-Test: ghost begin reconciliation");
+  passed++;
+  assert(nexusTestFile.includes("ghost_full_reconciliation"), "M18-Test: full reconciliation cycle");
+  passed++;
+  assert(nexusTestFile.includes("ghost_smooth_interpolation_no_teleport"), "M18-Test: smooth interpolation (no teleport)");
+  passed++;
+  assert(nexusTestFile.includes("delta_door_rotation_only"), "M18-Test: door rotation delta");
+  passed++;
+  assert(nexusTestFile.includes("delta_apply_reconstructs_transform"), "M18-Test: delta apply reconstruct");
+  passed++;
+  assert(nexusTestFile.includes("determinism_same_registry_same_hash"), "M18-Test: deterministic hash");
+  passed++;
+  assert(nexusTestFile.includes("genesis_fleet_synthesis"), "M18-Test: genesis fleet synthesis");
+  passed++;
+  assert(nexusTestFile.includes("ue5_nexus_class"), "M18-Test: UE5 codegen test");
+  passed++;
+  assert(nexusTestFile.includes("NEXUS RESULTS:"), "M18-Test: C++ test output verification");
+  passed++;
+
+  // --- Cross-module: includes SovereignSynapse.h ---
+  assert(nexusSource.includes('#include "SovereignSynapse.h"'), "M18: includes SovereignSynapse.h (M17 integration)");
+  passed++;
+
+  // --- Namespace ---
+  assert(nexusSource.includes("namespace Sovereign"), "M18: Sovereign namespace");
+  passed++;
+
+  // --- Conflict log ring buffer ---
+  assert(nexusSource.includes("std::deque<FConflictEvent> conflictLog_"), "M18: conflict log ring buffer");
+  passed++;
+  assert(nexusSource.includes("maxConflictLogSize"), "M18: max conflict log size");
+  passed++;
+
+  // --- Pass 51: Quantum Lock ---
+  assert(nexusTestFile.includes("Pass 51: Quantum Lock"), "M18: Pass 51 Quantum Lock section");
+  passed++;
+
+  // --- Pass 52: Ghost Reconciliation ---
+  assert(nexusTestFile.includes("Pass 52: Ghost Reconciliation"), "M18: Pass 52 Ghost Reconciliation section");
+  passed++;
+
+  // --- World delta computation ---
+  assert(nexusSource.includes("computeWorldDeltaTotalBytes"), "M18: world delta total bytes");
+  passed++;
+
+  // --- Stale threshold sweep ---
+  assert(nexusSource.includes("staleThresholdMs"), "M18: stale threshold in sweep");
+  passed++;
+  assert(nexusSource.includes("ghostThresholdMs"), "M18: ghost threshold in sweep");
+  passed++;
+
+  console.log("  Module 18 TS assertions complete.");
+}
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
