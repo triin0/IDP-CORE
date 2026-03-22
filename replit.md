@@ -275,6 +275,22 @@ A transpilation pipeline that reads Engine A's Pydantic schemas and generates ty
 - **verifyDeterminism()**: Runs same interaction twice and confirms identical result hash + outcome + round count.
 - C++ conformance: 137/137 tests passing.
 
+**Sovereign Spawner — The Evolutionary Engine** (`lib/engine-native/generated/SovereignSpawner.h`): Deterministic hereditary logic that turns the Biological Forge from a static generator into a living ecosystem. Two parent SHA-256 hashes + a sovereign seed produce a child with 100% reproducible genetic recombination:
+- **GeneticDominanceTable**: 16-locus `std::array<GeneticDominanceEntry, 16>` mapping every Forge gene to a dominance type (DOMINANT/RECESSIVE/CODOMINANT) and per-locus `mutationSensitivity`. Loci: primaryR/G/B (COD), accentR/G/B (REC), metallic (DOM), roughness (COD), emission (DOM), opacity (REC), meshIndex (DOM), scaleX/Y/Z (COD), subsurface (REC), anisotropy (REC). Byte offsets match BiologicalForge exactly.
+- **RecombinationEngine::crossover()**: Bitwise dominance check using middle bits of parent genomes. DOMINANT: stronger parent wins. RECESSIVE: weaker parent wins. CODOMINANT: 25% parent A, 25% parent B, 50% blend (weighted interpolation). `DeterministicRNG` (from Arena) seeded with `sovereignSeed + ":crossover"` for all stochastic decisions.
+- **Mutation Moat**: Per-locus effective rate = `baseMutationRate × mutationSensitivity × 100`, capped at 10%. When triggered, `generateMutation()` injects wildcard bytes via RNG. Ensures natural variance even with identical parents — the "Sovereign Koi" breeding principle.
+- **FSpawnLineage**: Complete birth record — childHash, parentAHash, parentBHash, sovereignSeed, generation, 16-element inheritanceMap (per-locus parent values, child value, mode, mutation roll), totalMutations, birthTimestamp. SHA-256 sealed `lineageHash` via `canonicalize()` → tamper-proof.
+- **Child Hash Formula**: `SHA256(bytesToHex(recombinedGenome) + ":" + effectiveSeed)` — the child hash is a valid 256-bit input for the Forge, producing a full `FVisualPhenotype`.
+- **Auto-Forge**: When `autoForgeChild=true`, the child hash is immediately fed to `BiologicalForge::Get().forge()` — the offspring materializes as a complete visual entity with classification, material, morphology, and LOD chain.
+- **Chronos Pedigree**: `flushToChronos()` enqueues birth event under `lineage:` key prefix with childHash, parentA, parentB, seed, generation, mutations, lineageHash, entityKey. Permanent ancestry ledger in the Authoritative Manifest.
+- **Ancestry Registry**: `getLineage(childHash)` retrieves birth record. `getAncestry(hash, maxDepth)` walks the parent chain. `getOffspring(parentHash)` finds all children. Full family tree traversal.
+- **Multi-Generation**: `spawnMultiGeneration(hashA, hashB, generations, seed)` chains spawns — each child becomes a parent for the next generation. Respects `maxGenerationDepth` (default 100).
+- **verifyDeterminism()**: Spawns same parents with same seed twice, confirms identical childHash + lineageHash + mutation count.
+- **Asymmetric**: A×B ≠ B×A — parent order matters (middle bits resolve differently).
+- **Delegates**: `SpawnCompleteDelegate`, `MutationDelegate` (fires per mutated locus), `LineageFlushedDelegate`.
+- **SpawnerStats**: totalSpawns, totalMutations, maxGenerationReached, totalFlushed, offspringClassDistribution, inheritanceModeDistribution.
+- C++ conformance: 326/326 tests passing.
+
 ## Project Showroom — Physical Runtime
 - **showroom-web** (`artifacts/showroom-web`): React/Vite + Three.js 3D showroom. Hardened by 46 React Vindicator passes. Preview at `/showroom-web/`. WebGL error boundary with graceful fallback for headless/no-GPU environments.
 - **showroom-api** (`showroom-api/`): FastAPI backend on port 8000. Hardened by 12 FastAPI Vindicator passes + Tier 5 SHA-256 integrity. SQLite local DB (`showroom.db`). Uses `SHOWROOM_DATABASE_URL` env var (defaults to SQLite). Endpoints: `/api/vehicles`, `/api/bids`, `/api/snapshots` (Chronos), `/ws/presence/{user_id}` (Mirror), `/api/world/lock|unlock|status`, `/api/integrity/status`.

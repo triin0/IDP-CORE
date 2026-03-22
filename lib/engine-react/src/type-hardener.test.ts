@@ -6402,6 +6402,364 @@ console.log("\n" + "=".repeat(60));
 console.log("  THE SOVEREIGN ARENA — OPERATIONAL");
 console.log("=".repeat(60));
 
+// ==============================================================================
+// MODULE 9: THE SOVEREIGN SPAWNER — Evolutionary/Hereditary Logic
+// ==============================================================================
+
+console.log("\n" + "=".repeat(60));
+console.log("  MODULE 9: THE SOVEREIGN SPAWNER — Hereditary Logic");
+console.log("=".repeat(60));
+
+{
+  const fs = await import("fs");
+  const spawnerHeader = fs.default.readFileSync("lib/engine-native/generated/SovereignSpawner.h", "utf-8");
+
+  // --- GeneDominance Enum ---
+  console.log("\n  -- GeneDominance Enum --");
+  assert(spawnerHeader.includes("enum class GeneDominance"), "Spawner: GeneDominance enum exists");
+  assert(spawnerHeader.includes("DOMINANT"), "Spawner: GeneDominance has DOMINANT");
+  assert(spawnerHeader.includes("RECESSIVE"), "Spawner: GeneDominance has RECESSIVE");
+  assert(spawnerHeader.includes("CODOMINANT"), "Spawner: GeneDominance has CODOMINANT");
+  assert(spawnerHeader.includes("dominanceToString"), "Spawner: dominanceToString helper");
+
+  // --- InheritanceMode Enum ---
+  console.log("  -- InheritanceMode Enum --");
+  assert(spawnerHeader.includes("enum class InheritanceMode"), "Spawner: InheritanceMode enum exists");
+  assert(spawnerHeader.includes("PARENT_A"), "Spawner: InheritanceMode PARENT_A");
+  assert(spawnerHeader.includes("PARENT_B"), "Spawner: InheritanceMode PARENT_B");
+  assert(spawnerHeader.includes("InheritanceMode::BLEND"), "Spawner: InheritanceMode BLEND");
+  assert(spawnerHeader.includes("InheritanceMode::MUTATION"), "Spawner: InheritanceMode MUTATION");
+  assert(spawnerHeader.includes("inheritanceModeToString"), "Spawner: inheritanceModeToString helper");
+
+  // --- GeneticDominanceEntry Struct ---
+  console.log("  -- GeneticDominanceEntry Struct --");
+  assert(spawnerHeader.includes("struct GeneticDominanceEntry"), "Spawner: GeneticDominanceEntry struct");
+  assert(spawnerHeader.includes("locusName"), "Spawner: GeneticDominanceEntry.locusName");
+  assert(spawnerHeader.includes("byteOffset"), "Spawner: GeneticDominanceEntry.byteOffset");
+  assert(spawnerHeader.includes("byteLength"), "Spawner: GeneticDominanceEntry.byteLength");
+  assert(spawnerHeader.includes("GeneDominance dominance"), "Spawner: GeneticDominanceEntry.dominance field");
+  assert(spawnerHeader.includes("mutationSensitivity"), "Spawner: GeneticDominanceEntry.mutationSensitivity");
+
+  // --- GeneticDominanceTable Class ---
+  console.log("  -- GeneticDominanceTable Class --");
+  assert(spawnerHeader.includes("class GeneticDominanceTable"), "Spawner: GeneticDominanceTable class");
+  assert(spawnerHeader.includes("std::array<GeneticDominanceEntry, 16>"), "Spawner: table has 16 entries");
+  assert(spawnerHeader.includes("getEntry"), "Spawner: getEntry accessor");
+  assert(spawnerHeader.includes("findByName"), "Spawner: findByName accessor");
+
+  // --- 16 Gene Loci in Dominance Table ---
+  console.log("  -- 16 Gene Loci Registered --");
+  const lociNames = [
+    "primaryR", "primaryG", "primaryB",
+    "accentR", "accentG", "accentB",
+    "metallic", "roughness", "emission", "opacity",
+    "meshIndex", "scaleX", "scaleY", "scaleZ",
+    "subsurface", "anisotropy"
+  ];
+  for (const locus of lociNames) {
+    assert(spawnerHeader.includes(`"${locus}"`), `Spawner: DomTable has locus "${locus}"`);
+  }
+
+  // --- Dominance Assignments ---
+  console.log("  -- Dominance Assignments --");
+  assert(spawnerHeader.includes('"primaryR"') && spawnerHeader.includes("GeneDominance::CODOMINANT"), "Spawner: primaryR is CODOMINANT");
+  assert(spawnerHeader.includes('"metallic"') && spawnerHeader.includes("GeneDominance::DOMINANT"), "Spawner: metallic is DOMINANT");
+  assert(spawnerHeader.includes('"emission"') && spawnerHeader.includes("GeneDominance::DOMINANT"), "Spawner: emission is DOMINANT");
+  assert(spawnerHeader.includes('"opacity"') && spawnerHeader.includes("GeneDominance::RECESSIVE"), "Spawner: opacity is RECESSIVE");
+  assert(spawnerHeader.includes('"roughness"') && spawnerHeader.includes("GeneDominance::CODOMINANT"), "Spawner: roughness is CODOMINANT");
+  assert(spawnerHeader.includes('"subsurface"') && spawnerHeader.includes("GeneDominance::RECESSIVE"), "Spawner: subsurface is RECESSIVE");
+  assert(spawnerHeader.includes('"anisotropy"') && spawnerHeader.includes("GeneDominance::RECESSIVE"), "Spawner: anisotropy is RECESSIVE");
+  assert(spawnerHeader.includes('"meshIndex"') && spawnerHeader.includes("GeneDominance::DOMINANT"), "Spawner: meshIndex is DOMINANT");
+  assert(spawnerHeader.includes('"scaleX"') && spawnerHeader.includes("GeneDominance::CODOMINANT"), "Spawner: scaleX is CODOMINANT");
+
+  // --- Byte Offset Mapping (must match BiologicalForge) ---
+  console.log("  -- Byte Offset Parity with BiologicalForge --");
+  const forgeHeader = fs.default.readFileSync("lib/engine-native/generated/BiologicalForge.h", "utf-8");
+
+  const forgeLocusOffsets: Record<string, [number, number]> = {
+    metallic: [6, 1], roughness: [7, 1], emission: [8, 1], opacity: [9, 1],
+    meshIndex: [10, 2], scaleX: [12, 2], scaleY: [14, 2], scaleZ: [16, 2],
+    subsurface: [22, 1], anisotropy: [23, 1]
+  };
+
+  for (const [name, [offset, len]] of Object.entries(forgeLocusOffsets)) {
+    const forgePattern = `"${name}", ${offset}, ${len}`;
+    assert(forgeHeader.includes(forgePattern), `ForgeParity: Forge has ${name} at [${offset},${len}]`);
+    const spawnerLine = spawnerHeader.includes(`"${name}"`);
+    assert(spawnerLine, `ForgeParity: Spawner has locus ${name}`);
+  }
+
+  // --- FLocusInheritance Struct ---
+  console.log("  -- FLocusInheritance Struct --");
+  assert(spawnerHeader.includes("struct FLocusInheritance"), "Spawner: FLocusInheritance struct");
+  assert(spawnerHeader.includes("InheritanceMode mode"), "Spawner: FLocusInheritance.mode");
+  assert(spawnerHeader.includes("parentAValue"), "Spawner: FLocusInheritance.parentAValue");
+  assert(spawnerHeader.includes("parentBValue"), "Spawner: FLocusInheritance.parentBValue");
+  assert(spawnerHeader.includes("childValue"), "Spawner: FLocusInheritance.childValue");
+  assert(spawnerHeader.includes("bool mutated"), "Spawner: FLocusInheritance.mutated");
+  assert(spawnerHeader.includes("mutationRoll"), "Spawner: FLocusInheritance.mutationRoll");
+  assert(spawnerHeader.includes("mutationThreshold"), "Spawner: FLocusInheritance.mutationThreshold");
+
+  // --- FSpawnLineage Struct ---
+  console.log("  -- FSpawnLineage Struct --");
+  assert(spawnerHeader.includes("struct FSpawnLineage"), "Spawner: FSpawnLineage struct");
+  assert(spawnerHeader.includes("childHash"), "Spawner: FSpawnLineage.childHash");
+  assert(spawnerHeader.includes("parentAHash"), "Spawner: FSpawnLineage.parentAHash");
+  assert(spawnerHeader.includes("parentBHash"), "Spawner: FSpawnLineage.parentBHash");
+  assert(spawnerHeader.includes("sovereignSeed"), "Spawner: FSpawnLineage.sovereignSeed");
+  assert(spawnerHeader.includes("lineageHash"), "Spawner: FSpawnLineage.lineageHash");
+  assert(spawnerHeader.includes("int generation"), "Spawner: FSpawnLineage.generation");
+  assert(spawnerHeader.includes("std::vector<FLocusInheritance> inheritanceMap"), "Spawner: FSpawnLineage.inheritanceMap");
+  assert(spawnerHeader.includes("birthTimestamp"), "Spawner: FSpawnLineage.birthTimestamp");
+  assert(spawnerHeader.includes("totalMutations"), "Spawner: FSpawnLineage.totalMutations");
+  assert(spawnerHeader.includes("flushedToChronos"), "Spawner: FSpawnLineage.flushedToChronos");
+  assert(spawnerHeader.includes("childEntityKey"), "Spawner: FSpawnLineage.childEntityKey");
+
+  // --- Lineage SHA-256 Integrity ---
+  console.log("  -- Lineage SHA-256 Integrity --");
+  assert(spawnerHeader.includes("computeLineageHash"), "Spawner: computeLineageHash method");
+  assert(spawnerHeader.includes("verifyIntegrity"), "Spawner: verifyIntegrity method");
+  assert(spawnerHeader.includes("SovereignSHA256::hash"), "Spawner: uses SovereignSHA256 for lineage hash");
+  assert(spawnerHeader.includes("canonicalize"), "Spawner: canonicalize for lineage serialization");
+
+  // --- RecombinationEngine Class ---
+  console.log("  -- RecombinationEngine Class --");
+  assert(spawnerHeader.includes("class RecombinationEngine"), "Spawner: RecombinationEngine class");
+  assert(spawnerHeader.includes("static std::vector<uint8_t> crossover"), "Spawner: crossover static method");
+
+  // --- Crossover Parameters ---
+  console.log("  -- Crossover Parameters --");
+  assert(spawnerHeader.includes("genomeA"), "Spawner: crossover takes genomeA");
+  assert(spawnerHeader.includes("genomeB"), "Spawner: crossover takes genomeB");
+  assert(spawnerHeader.includes("sovereignSeed"), "Spawner: crossover uses sovereign seed");
+  assert(spawnerHeader.includes("mutationRate"), "Spawner: crossover has mutation rate");
+  assert(spawnerHeader.includes("inheritanceLog"), "Spawner: crossover outputs inheritance log");
+
+  // --- Bitwise Dominance Check ---
+  console.log("  -- Bitwise Dominance Check --");
+  assert(spawnerHeader.includes("extractMiddleBits"), "Spawner: extractMiddleBits for dominance resolution");
+  assert(spawnerHeader.includes("middleBitsA"), "Spawner: middle bits from parent A");
+  assert(spawnerHeader.includes("middleBitsB"), "Spawner: middle bits from parent B");
+  assert(spawnerHeader.includes("aStronger"), "Spawner: dominance comparison");
+
+  // --- Dominance Resolution Logic ---
+  console.log("  -- Dominance Resolution Logic --");
+  assert(spawnerHeader.includes("case GeneDominance::DOMINANT:"), "Spawner: DOMINANT case in crossover");
+  assert(spawnerHeader.includes("case GeneDominance::RECESSIVE:"), "Spawner: RECESSIVE case in crossover");
+  assert(spawnerHeader.includes("case GeneDominance::CODOMINANT:"), "Spawner: CODOMINANT case in crossover");
+
+  // --- CODOMINANT Blend Logic ---
+  console.log("  -- CODOMINANT Blend Logic --");
+  assert(spawnerHeader.includes("blendValues"), "Spawner: blendValues for CODOMINANT");
+  assert(spawnerHeader.includes("dominanceRoll"), "Spawner: dominance roll for stochastic codominance");
+  assert(spawnerHeader.includes("0.25f"), "Spawner: 25% chance parent A in codominant");
+  assert(spawnerHeader.includes("0.50f"), "Spawner: 50% threshold for parent B in codominant");
+
+  // --- Mutation Moat ---
+  console.log("  -- Mutation Moat --");
+  assert(spawnerHeader.includes("generateMutation"), "Spawner: generateMutation method");
+  assert(spawnerHeader.includes("effectiveMutationRate"), "Spawner: effective mutation rate calculation");
+  assert(spawnerHeader.includes("mutationSensitivity"), "Spawner: per-locus mutation sensitivity");
+  assert(spawnerHeader.includes("InheritanceMode::MUTATION"), "Spawner: MUTATION inheritance mode assignment");
+  assert(spawnerHeader.includes("0.10f"), "Spawner: mutation rate capped at 10%");
+
+  // --- DeterministicRNG Usage ---
+  console.log("  -- DeterministicRNG Usage --");
+  assert(spawnerHeader.includes("DeterministicRNG"), "Spawner: uses DeterministicRNG from Arena");
+  assert(spawnerHeader.includes("rng.next01()"), "Spawner: RNG next01 for mutation/dominance rolls");
+  assert(spawnerHeader.includes(":crossover"), "Spawner: seed suffix ':crossover' for RNG");
+
+  // --- Unmapped Byte Handling ---
+  console.log("  -- Unmapped Byte Handling --");
+  assert(spawnerHeader.includes("fillUnmappedBytes"), "Spawner: fillUnmappedBytes method");
+  assert(spawnerHeader.includes("mappedBytes"), "Spawner: tracks mapped byte offsets");
+
+  // --- SpawnerStats Struct ---
+  console.log("  -- SpawnerStats Struct --");
+  assert(spawnerHeader.includes("struct SpawnerStats"), "Spawner: SpawnerStats struct");
+  assert(spawnerHeader.includes("totalSpawns"), "Spawner: SpawnerStats.totalSpawns");
+  assert(spawnerHeader.includes("totalMutations"), "Spawner: SpawnerStats.totalMutations");
+  assert(spawnerHeader.includes("totalGenerations"), "Spawner: SpawnerStats.totalGenerations");
+  assert(spawnerHeader.includes("maxGenerationReached"), "Spawner: SpawnerStats.maxGenerationReached");
+  assert(spawnerHeader.includes("lastSpawnTimestamp"), "Spawner: SpawnerStats.lastSpawnTimestamp");
+  assert(spawnerHeader.includes("totalFlushed"), "Spawner: SpawnerStats.totalFlushed");
+  assert(spawnerHeader.includes("offspringClassDistribution"), "Spawner: SpawnerStats.offspringClassDistribution");
+  assert(spawnerHeader.includes("inheritanceModeDistribution"), "Spawner: SpawnerStats.inheritanceModeDistribution");
+
+  // --- SovereignSpawner Singleton ---
+  console.log("  -- SovereignSpawner Singleton --");
+  assert(spawnerHeader.includes("class SovereignSpawner"), "Spawner: SovereignSpawner class");
+  assert(spawnerHeader.includes("static SovereignSpawner& Get()"), "Spawner: Get() singleton");
+  assert(spawnerHeader.includes("SovereignSpawner(const SovereignSpawner&) = delete"), "Spawner: copy constructor deleted");
+  assert(spawnerHeader.includes("operator=(const SovereignSpawner&) = delete"), "Spawner: copy assignment deleted");
+
+  // --- SpawnerConfig ---
+  console.log("  -- SpawnerConfig --");
+  assert(spawnerHeader.includes("struct SpawnerConfig"), "Spawner: SpawnerConfig struct");
+  assert(spawnerHeader.includes("baseMutationRate"), "Spawner: SpawnerConfig.baseMutationRate");
+  assert(spawnerHeader.includes("autoFlushToChronos"), "Spawner: SpawnerConfig.autoFlushToChronos");
+  assert(spawnerHeader.includes("autoForgeChild"), "Spawner: SpawnerConfig.autoForgeChild");
+  assert(spawnerHeader.includes("maxGenerationDepth"), "Spawner: SpawnerConfig.maxGenerationDepth");
+  assert(spawnerHeader.includes("configure(const SpawnerConfig&"), "Spawner: configure method");
+  assert(spawnerHeader.includes("getConfig()"), "Spawner: getConfig method");
+
+  // --- SpawnResult Struct ---
+  console.log("  -- SpawnResult Struct --");
+  assert(spawnerHeader.includes("struct SpawnResult"), "Spawner: SpawnResult struct");
+  assert(spawnerHeader.includes("FSpawnLineage lineage"), "Spawner: SpawnResult.lineage");
+  assert(spawnerHeader.includes("FVisualPhenotype childPhenotype"), "Spawner: SpawnResult.childPhenotype");
+  assert(spawnerHeader.includes("forgeSucceeded"), "Spawner: SpawnResult.forgeSucceeded");
+  assert(spawnerHeader.includes("integrityVerified"), "Spawner: SpawnResult.integrityVerified");
+
+  // --- Spawn Method ---
+  console.log("  -- spawn() Method --");
+  assert(spawnerHeader.includes("SpawnResult spawn("), "Spawner: spawn method");
+  assert(spawnerHeader.includes("parentAHash"), "Spawner: spawn takes parentAHash");
+  assert(spawnerHeader.includes("parentBHash"), "Spawner: spawn takes parentBHash");
+  assert(spawnerHeader.includes("parentGeneration"), "Spawner: spawn accepts parent generation");
+
+  // --- Effective Seed Logic ---
+  console.log("  -- Effective Seed Logic --");
+  assert(spawnerHeader.includes("effectiveSeed"), "Spawner: effectiveSeed computed");
+  assert(spawnerHeader.includes("sovereignSeed.empty()"), "Spawner: default seed from parent hashes");
+
+  // --- Child Hash Formula ---
+  console.log("  -- Child Hash Formula --");
+  assert(spawnerHeader.includes("bytesToHex"), "Spawner: bytesToHex for genome serialization");
+  assert(spawnerHeader.includes('childHex + ":" + effectiveSeed'), "Spawner: child hash = SHA256(childHex:seed)");
+
+  // --- GeneticGenomeParser Integration ---
+  console.log("  -- GeneticGenomeParser Integration --");
+  assert(spawnerHeader.includes("GeneticGenomeParser::hashToBytes"), "Spawner: uses hashToBytes from Forge parser");
+
+  // --- Auto-Forge Child ---
+  console.log("  -- Auto-Forge Child --");
+  assert(spawnerHeader.includes("BiologicalForge::Get()"), "Spawner: accesses BiologicalForge");
+  assert(spawnerHeader.includes("forge(childHash"), "Spawner: forges child hash");
+  assert(spawnerHeader.includes("autoForgeChild"), "Spawner: auto-forge config flag");
+
+  // --- Chronos Flush ---
+  console.log("  -- Chronos Flush --");
+  assert(spawnerHeader.includes("flushToChronos"), "Spawner: flushToChronos method");
+  assert(spawnerHeader.includes("ChronosEngine::Get()"), "Spawner: accesses ChronosEngine");
+  assert(spawnerHeader.includes('"lineage:"'), "Spawner: Chronos key prefix 'lineage:'");
+  assert(spawnerHeader.includes("chronos.enqueue"), "Spawner: enqueues to Chronos");
+  assert(spawnerHeader.includes("autoFlushToChronos"), "Spawner: auto-flush config flag");
+
+  // --- Chronos Payload Fields ---
+  console.log("  -- Chronos Payload Fields --");
+  assert(spawnerHeader.includes('"childHash"'), "Spawner: Chronos payload has childHash");
+  assert(spawnerHeader.includes('"parentA"'), "Spawner: Chronos payload has parentA");
+  assert(spawnerHeader.includes('"parentB"'), "Spawner: Chronos payload has parentB");
+  assert(spawnerHeader.includes('"seed"'), "Spawner: Chronos payload has seed");
+  assert(spawnerHeader.includes('"generation"'), "Spawner: Chronos payload has generation");
+  assert(spawnerHeader.includes('"mutations"'), "Spawner: Chronos payload has mutations");
+  assert(spawnerHeader.includes('"lineageHash"'), "Spawner: Chronos payload has lineageHash");
+  assert(spawnerHeader.includes('"entityKey"'), "Spawner: Chronos payload has entityKey");
+
+  // --- spawnFromPhenotypes ---
+  console.log("  -- spawnFromPhenotypes --");
+  assert(spawnerHeader.includes("spawnFromPhenotypes"), "Spawner: spawnFromPhenotypes method");
+  assert(spawnerHeader.includes("parentA.sourceHash"), "Spawner: extracts sourceHash from phenotype A");
+  assert(spawnerHeader.includes("parentB.sourceHash"), "Spawner: extracts sourceHash from phenotype B");
+
+  // --- spawnMultiGeneration ---
+  console.log("  -- spawnMultiGeneration --");
+  assert(spawnerHeader.includes("spawnMultiGeneration"), "Spawner: spawnMultiGeneration method");
+  assert(spawnerHeader.includes("maxGenerationDepth"), "Spawner: respects max generation depth");
+  assert(spawnerHeader.includes("currentA"), "Spawner: tracks current parent A across generations");
+  assert(spawnerHeader.includes("currentB"), "Spawner: tracks current parent B across generations");
+
+  // --- Verify Determinism ---
+  console.log("  -- verifyDeterminism --");
+  assert(spawnerHeader.includes("verifyDeterminism"), "Spawner: verifyDeterminism method");
+
+  // --- Lineage Registry ---
+  console.log("  -- Lineage Registry --");
+  assert(spawnerHeader.includes("lineageRegistry_"), "Spawner: private lineage registry");
+  assert(spawnerHeader.includes("getLineage"), "Spawner: getLineage accessor");
+  assert(spawnerHeader.includes("registry()"), "Spawner: public registry accessor");
+
+  // --- Ancestry Chain ---
+  console.log("  -- Ancestry Chain --");
+  assert(spawnerHeader.includes("getAncestry"), "Spawner: getAncestry method");
+  assert(spawnerHeader.includes("maxDepth"), "Spawner: ancestry max depth param");
+
+  // --- Offspring Query ---
+  console.log("  -- Offspring Query --");
+  assert(spawnerHeader.includes("getOffspring"), "Spawner: getOffspring method");
+
+  // --- Spawn History ---
+  console.log("  -- Spawn History --");
+  assert(spawnerHeader.includes("spawnHistory_"), "Spawner: private spawn history");
+  assert(spawnerHeader.includes("history()"), "Spawner: public history accessor");
+
+  // --- Delegates ---
+  console.log("  -- Delegates --");
+  assert(spawnerHeader.includes("SpawnCompleteDelegate"), "Spawner: SpawnCompleteDelegate typedef");
+  assert(spawnerHeader.includes("MutationDelegate"), "Spawner: MutationDelegate typedef");
+  assert(spawnerHeader.includes("LineageFlushedDelegate"), "Spawner: LineageFlushedDelegate typedef");
+  assert(spawnerHeader.includes("onSpawnComplete"), "Spawner: onSpawnComplete setter");
+  assert(spawnerHeader.includes("onMutation"), "Spawner: onMutation setter");
+  assert(spawnerHeader.includes("onLineageFlushed"), "Spawner: onLineageFlushed setter");
+
+  // --- Thread Safety ---
+  console.log("  -- Thread Safety --");
+  assert(spawnerHeader.includes("std::mutex"), "Spawner: mutex for thread safety");
+  assert(spawnerHeader.includes("std::lock_guard"), "Spawner: lock_guard in spawn");
+
+  // --- Reset ---
+  console.log("  -- Reset --");
+  assert(spawnerHeader.includes("void reset()"), "Spawner: reset method");
+
+  // --- Include Chain ---
+  console.log("  -- Module Include Chain --");
+  assert(spawnerHeader.includes('#include "SovereignArena.h"'), "Spawner: includes SovereignArena.h");
+  assert(spawnerHeader.includes("DeterministicRNG"), "Spawner: uses DeterministicRNG from Arena");
+  assert(spawnerHeader.includes("PhenotypeClass"), "Spawner: uses PhenotypeClass from Forge");
+  assert(spawnerHeader.includes("FVisualPhenotype"), "Spawner: uses FVisualPhenotype from Forge");
+  assert(spawnerHeader.includes("GeneticGenomeParser"), "Spawner: uses GeneticGenomeParser from Forge");
+  assert(spawnerHeader.includes("ChronosEngine"), "Spawner: uses ChronosEngine");
+  assert(spawnerHeader.includes("SovereignSHA256"), "Spawner: uses SovereignSHA256 from Serializer");
+
+  // --- Entity Key Format ---
+  console.log("  -- Entity Key Format --");
+  assert(spawnerHeader.includes('"spawn:"'), "Spawner: entity key uses 'spawn:' prefix");
+  assert(spawnerHeader.includes("substr(0, 16)"), "Spawner: entity key uses first 16 chars of hash");
+
+  // --- Stats Accessor ---
+  console.log("  -- Stats Accessor --");
+  assert(spawnerHeader.includes("SpawnerStats stats()"), "Spawner: stats() accessor method");
+
+  // --- Thread-Safe Accessors (return by value) ---
+  console.log("  -- Thread-Safe Accessors --");
+  assert(spawnerHeader.includes("std::vector<FSpawnLineage> history()"), "Spawner: history() returns by value (thread-safe)");
+  assert(spawnerHeader.includes("std::map<std::string, FSpawnLineage> registry()"), "Spawner: registry() returns by value (thread-safe)");
+  assert(spawnerHeader.includes("getLineageCopy"), "Spawner: getLineageCopy thread-safe accessor");
+
+  // --- Delegate Calls Outside Lock ---
+  console.log("  -- Delegate Calls Outside Lock --");
+  assert(spawnerHeader.includes("shouldFlush"), "Spawner: deferred flush flag outside lock");
+  assert(spawnerHeader.includes("shouldFireSpawnComplete"), "Spawner: deferred spawn complete flag");
+  assert(spawnerHeader.includes("spawnDelegate"), "Spawner: copied spawn delegate for outside-lock invocation");
+  assert(spawnerHeader.includes("mutDelegate"), "Spawner: copied mutation delegate for outside-lock invocation");
+  assert(spawnerHeader.includes("flushedDelegate"), "Spawner: copied flush delegate for outside-lock invocation");
+
+  // --- Biparental Ancestry (BFS) ---
+  console.log("  -- Biparental Ancestry --");
+  assert(spawnerHeader.includes("parentBHash") && spawnerHeader.includes("queue"), "Spawner: ancestry traverses both parents (BFS)");
+  assert(spawnerHeader.includes("visited"), "Spawner: ancestry uses visited set to prevent cycles");
+
+  // --- Namespace ---
+  console.log("  -- Namespace --");
+  assert(spawnerHeader.includes("namespace Sovereign"), "Spawner: in Sovereign namespace");
+}
+
+// --- Spawner Cross-Engine Summary ---
+console.log("\n" + "=".repeat(60));
+console.log("  THE SOVEREIGN SPAWNER — OPERATIONAL");
+console.log("=".repeat(60));
+
 console.log(`\n${"=".repeat(50)}`);
 console.log(`RESULTS: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
