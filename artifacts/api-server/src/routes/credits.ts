@@ -37,4 +37,23 @@ router.get("/credits/history", requireAuth, async (req: Request, res: Response) 
   }
 });
 
+router.post("/credits/admin/grant", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { userId, amount, reason } = req.body;
+    const targetUser = userId || req.user!.id;
+    const grantAmount = parseInt(String(amount), 10);
+    if (!grantAmount || grantAmount <= 0) {
+      res.status(400).json({ error: "Invalid amount" });
+      return;
+    }
+    await grantCredits(targetUser, grantAmount, reason || "admin_grant");
+    const balance = await getBalance(targetUser);
+    res.json({ success: true, userId: targetUser, granted: grantAmount, ...balance });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to grant credits";
+    console.error("Failed to grant credits:", message);
+    res.status(500).json({ error: message });
+  }
+});
+
 export default router;
