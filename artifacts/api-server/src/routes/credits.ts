@@ -37,7 +37,19 @@ router.get("/credits/history", requireAuth, async (req: Request, res: Response) 
   }
 });
 
-router.post("/credits/admin/grant", requireAuth, async (req: Request, res: Response) => {
+const ADMIN_USER_IDS = new Set(
+  (process.env.ADMIN_USER_IDS || "50529956").split(",").map((id) => id.trim())
+);
+
+function requireAdmin(req: Request, res: Response, next: Function): void {
+  if (!req.user || !ADMIN_USER_IDS.has(String(req.user.id))) {
+    res.status(403).json({ error: "Admin access required" });
+    return;
+  }
+  next();
+}
+
+router.post("/credits/admin/grant", requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { userId, amount, reason } = req.body;
     const targetUser = userId || req.user!.id;
