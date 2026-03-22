@@ -1,0 +1,500 @@
+{
+  "title": "Sovereign Spawner Genetics Audit: Volcanic x Crystalline",
+  "module": "Module 9: The Sovereign Spawner",
+  "crossType": "VOLCANIC x CRYSTALLINE",
+  "sovereignSeed": "obsidian-glass-genesis",
+  "parentA": {
+    "hash": "6feb7ca617bf5e0d6f10a06ff25e3ba8f27f674bc381e3aefe1bd9bd51e184b8",
+    "classification": "ORGANIC",
+    "genome": "6feb7ca617bf5e0d6f10a06ff25e3ba8f27f674bc381e3aefe1bd9bd51e184b8"
+  },
+  "parentB": {
+    "hash": "a4c42d6720292bec39403872589d0c3749d2969f44bcd99c762090238a6d806e",
+    "classification": "ORGANIC",
+    "genome": "a4c42d6720292bec39403872589d0c3749d2969f44bcd99c762090238a6d806e"
+  },
+  "child": {
+    "hash": "7e05136a6829185fac9ce51cf6e25124266c7859b2ea56d2992ec4535df86335",
+    "classification": "ORGANIC",
+    "generation": 1,
+    "totalMutations": 1,
+    "lineageHash": "c0e6c97e8944fd8ff258056b8185b8095ccce2ca2b6b982f51daf17da02247f3",
+    "entityKey": "spawn:7e05136a6829185f",
+    "recombinedGenome": "6fc92d6720f92b0d6f10a06f9b8c3ba8901200000000e3ae0000000000000000",
+    "note": "recombinedGenome is the actual genome bytes from crossover; hash = SHA256(hex(recombinedGenome) + ':' + seed)"
+  },
+  "locusInheritance": [
+    {
+      "index": 0,
+      "locusName": "primaryR",
+      "byteOffset": 0,
+      "byteLength": 1,
+      "dominanceType": "CODOMINANT",
+      "mutationSensitivity": 0.0200,
+      "parentA": {
+        "hexValue": "6f",
+        "rawValue": 111,
+        "normalized": 0.435294
+      },
+      "parentB": {
+        "hexValue": "a4",
+        "rawValue": 164,
+        "normalized": 0.643137
+      },
+      "child": {
+        "hexValue": "6f",
+        "rawValue": 111,
+        "normalized": 0.435294
+      },
+      "inheritanceMode": "BLEND",
+      "mutated": false,
+      "mutationRoll": 0.95063293,
+      "mutationThreshold": 0.02000000
+    },
+    {
+      "index": 1,
+      "locusName": "primaryG",
+      "byteOffset": 1,
+      "byteLength": 1,
+      "dominanceType": "CODOMINANT",
+      "mutationSensitivity": 0.0200,
+      "parentA": {
+        "hexValue": "eb",
+        "rawValue": 235,
+        "normalized": 0.921569
+      },
+      "parentB": {
+        "hexValue": "c4",
+        "rawValue": 196,
+        "normalized": 0.768627
+      },
+      "child": {
+        "hexValue": "c9",
+        "rawValue": 201,
+        "normalized": 0.788235
+      },
+      "inheritanceMode": "BLEND",
+      "mutated": false,
+      "mutationRoll": 0.11080694,
+      "mutationThreshold": 0.02000000
+    },
+    {
+      "index": 2,
+      "locusName": "primaryB",
+      "byteOffset": 2,
+      "byteLength": 1,
+      "dominanceType": "CODOMINANT",
+      "mutationSensitivity": 0.0200,
+      "parentA": {
+        "hexValue": "7c",
+        "rawValue": 124,
+        "normalized": 0.486275
+      },
+      "parentB": {
+        "hexValue": "2d",
+        "rawValue": 45,
+        "normalized": 0.176471
+      },
+      "child": {
+        "hexValue": "2d",
+        "rawValue": 45,
+        "normalized": 0.176471
+      },
+      "inheritanceMode": "PARENT_B",
+      "mutated": false,
+      "mutationRoll": 0.16409720,
+      "mutationThreshold": 0.02000000
+    },
+    {
+      "index": 3,
+      "locusName": "accentR",
+      "byteOffset": 3,
+      "byteLength": 1,
+      "dominanceType": "RECESSIVE",
+      "mutationSensitivity": 0.0300,
+      "parentA": {
+        "hexValue": "a6",
+        "rawValue": 166,
+        "normalized": 0.650980
+      },
+      "parentB": {
+        "hexValue": "67",
+        "rawValue": 103,
+        "normalized": 0.403922
+      },
+      "child": {
+        "hexValue": "67",
+        "rawValue": 103,
+        "normalized": 0.403922
+      },
+      "inheritanceMode": "PARENT_B",
+      "mutated": false,
+      "mutationRoll": 0.09755265,
+      "mutationThreshold": 0.03000000
+    },
+    {
+      "index": 4,
+      "locusName": "accentG",
+      "byteOffset": 4,
+      "byteLength": 1,
+      "dominanceType": "RECESSIVE",
+      "mutationSensitivity": 0.0300,
+      "parentA": {
+        "hexValue": "17",
+        "rawValue": 23,
+        "normalized": 0.090196
+      },
+      "parentB": {
+        "hexValue": "20",
+        "rawValue": 32,
+        "normalized": 0.125490
+      },
+      "child": {
+        "hexValue": "20",
+        "rawValue": 32,
+        "normalized": 0.125490
+      },
+      "inheritanceMode": "PARENT_B",
+      "mutated": false,
+      "mutationRoll": 0.62626553,
+      "mutationThreshold": 0.03000000
+    },
+    {
+      "index": 5,
+      "locusName": "accentB",
+      "byteOffset": 5,
+      "byteLength": 1,
+      "dominanceType": "RECESSIVE",
+      "mutationSensitivity": 0.0300,
+      "parentA": {
+        "hexValue": "bf",
+        "rawValue": 191,
+        "normalized": 0.749020
+      },
+      "parentB": {
+        "hexValue": "29",
+        "rawValue": 41,
+        "normalized": 0.160784
+      },
+      "child": {
+        "hexValue": "f9",
+        "rawValue": 249,
+        "normalized": 0.976471
+      },
+      "inheritanceMode": "MUTATION",
+      "mutated": true,
+      "mutationRoll": 0.00871386,
+      "mutationThreshold": 0.03000000
+    },
+    {
+      "index": 6,
+      "locusName": "metallic",
+      "byteOffset": 6,
+      "byteLength": 1,
+      "dominanceType": "DOMINANT",
+      "mutationSensitivity": 0.0100,
+      "parentA": {
+        "hexValue": "5e",
+        "rawValue": 94,
+        "normalized": 0.368627
+      },
+      "parentB": {
+        "hexValue": "2b",
+        "rawValue": 43,
+        "normalized": 0.168627
+      },
+      "child": {
+        "hexValue": "2b",
+        "rawValue": 43,
+        "normalized": 0.168627
+      },
+      "inheritanceMode": "PARENT_B",
+      "mutated": false,
+      "mutationRoll": 0.11278422,
+      "mutationThreshold": 0.01000000
+    },
+    {
+      "index": 7,
+      "locusName": "roughness",
+      "byteOffset": 7,
+      "byteLength": 1,
+      "dominanceType": "CODOMINANT",
+      "mutationSensitivity": 0.0100,
+      "parentA": {
+        "hexValue": "0d",
+        "rawValue": 13,
+        "normalized": 0.050980
+      },
+      "parentB": {
+        "hexValue": "ec",
+        "rawValue": 236,
+        "normalized": 0.925490
+      },
+      "child": {
+        "hexValue": "0d",
+        "rawValue": 13,
+        "normalized": 0.050980
+      },
+      "inheritanceMode": "PARENT_A",
+      "mutated": false,
+      "mutationRoll": 0.63896227,
+      "mutationThreshold": 0.01000000
+    },
+    {
+      "index": 8,
+      "locusName": "emission",
+      "byteOffset": 8,
+      "byteLength": 1,
+      "dominanceType": "DOMINANT",
+      "mutationSensitivity": 0.0200,
+      "parentA": {
+        "hexValue": "6f",
+        "rawValue": 111,
+        "normalized": 0.435294
+      },
+      "parentB": {
+        "hexValue": "39",
+        "rawValue": 57,
+        "normalized": 0.223529
+      },
+      "child": {
+        "hexValue": "6f",
+        "rawValue": 111,
+        "normalized": 0.435294
+      },
+      "inheritanceMode": "PARENT_A",
+      "mutated": false,
+      "mutationRoll": 0.04243451,
+      "mutationThreshold": 0.02000000
+    },
+    {
+      "index": 9,
+      "locusName": "opacity",
+      "byteOffset": 9,
+      "byteLength": 1,
+      "dominanceType": "RECESSIVE",
+      "mutationSensitivity": 0.0050,
+      "parentA": {
+        "hexValue": "10",
+        "rawValue": 16,
+        "normalized": 0.062745
+      },
+      "parentB": {
+        "hexValue": "40",
+        "rawValue": 64,
+        "normalized": 0.250980
+      },
+      "child": {
+        "hexValue": "10",
+        "rawValue": 16,
+        "normalized": 0.062745
+      },
+      "inheritanceMode": "PARENT_A",
+      "mutated": false,
+      "mutationRoll": 0.82225841,
+      "mutationThreshold": 0.00500000
+    },
+    {
+      "index": 10,
+      "locusName": "meshIndex",
+      "byteOffset": 10,
+      "byteLength": 2,
+      "dominanceType": "DOMINANT",
+      "mutationSensitivity": 0.0150,
+      "parentA": {
+        "hexValue": "a06f",
+        "rawValue": 41071,
+        "normalized": 0.626703
+      },
+      "parentB": {
+        "hexValue": "3872",
+        "rawValue": 14450,
+        "normalized": 0.220493
+      },
+      "child": {
+        "hexValue": "a06f",
+        "rawValue": 41071,
+        "normalized": 0.626703
+      },
+      "inheritanceMode": "PARENT_A",
+      "mutated": false,
+      "mutationRoll": 0.94097197,
+      "mutationThreshold": 0.01500000
+    },
+    {
+      "index": 11,
+      "locusName": "scaleX",
+      "byteOffset": 12,
+      "byteLength": 2,
+      "dominanceType": "CODOMINANT",
+      "mutationSensitivity": 0.0100,
+      "parentA": {
+        "hexValue": "f25e",
+        "rawValue": 62046,
+        "normalized": 0.946761
+      },
+      "parentB": {
+        "hexValue": "589d",
+        "rawValue": 22685,
+        "normalized": 0.346151
+      },
+      "child": {
+        "hexValue": "9b8c",
+        "rawValue": 39820,
+        "normalized": 0.607614
+      },
+      "inheritanceMode": "BLEND",
+      "mutated": false,
+      "mutationRoll": 0.47830087,
+      "mutationThreshold": 0.01000000
+    },
+    {
+      "index": 12,
+      "locusName": "scaleY",
+      "byteOffset": 14,
+      "byteLength": 2,
+      "dominanceType": "CODOMINANT",
+      "mutationSensitivity": 0.0100,
+      "parentA": {
+        "hexValue": "3ba8",
+        "rawValue": 15272,
+        "normalized": 0.233036
+      },
+      "parentB": {
+        "hexValue": "0c37",
+        "rawValue": 3127,
+        "normalized": 0.047715
+      },
+      "child": {
+        "hexValue": "3ba8",
+        "rawValue": 15272,
+        "normalized": 0.233036
+      },
+      "inheritanceMode": "PARENT_A",
+      "mutated": false,
+      "mutationRoll": 0.61199617,
+      "mutationThreshold": 0.01000000
+    },
+    {
+      "index": 13,
+      "locusName": "scaleZ",
+      "byteOffset": 16,
+      "byteLength": 2,
+      "dominanceType": "CODOMINANT",
+      "mutationSensitivity": 0.0100,
+      "parentA": {
+        "hexValue": "f27f",
+        "rawValue": 62079,
+        "normalized": 0.947265
+      },
+      "parentB": {
+        "hexValue": "49d2",
+        "rawValue": 18898,
+        "normalized": 0.288365
+      },
+      "child": {
+        "hexValue": "9012",
+        "rawValue": 36882,
+        "normalized": 0.562783
+      },
+      "inheritanceMode": "BLEND",
+      "mutated": false,
+      "mutationRoll": 0.65435779,
+      "mutationThreshold": 0.01000000
+    },
+    {
+      "index": 14,
+      "locusName": "subsurface",
+      "byteOffset": 22,
+      "byteLength": 1,
+      "dominanceType": "RECESSIVE",
+      "mutationSensitivity": 0.0200,
+      "parentA": {
+        "hexValue": "e3",
+        "rawValue": 227,
+        "normalized": 0.890196
+      },
+      "parentB": {
+        "hexValue": "d9",
+        "rawValue": 217,
+        "normalized": 0.850980
+      },
+      "child": {
+        "hexValue": "e3",
+        "rawValue": 227,
+        "normalized": 0.890196
+      },
+      "inheritanceMode": "PARENT_A",
+      "mutated": false,
+      "mutationRoll": 0.45458648,
+      "mutationThreshold": 0.02000000
+    },
+    {
+      "index": 15,
+      "locusName": "anisotropy",
+      "byteOffset": 23,
+      "byteLength": 1,
+      "dominanceType": "RECESSIVE",
+      "mutationSensitivity": 0.0250,
+      "parentA": {
+        "hexValue": "ae",
+        "rawValue": 174,
+        "normalized": 0.682353
+      },
+      "parentB": {
+        "hexValue": "9c",
+        "rawValue": 156,
+        "normalized": 0.611765
+      },
+      "child": {
+        "hexValue": "ae",
+        "rawValue": 174,
+        "normalized": 0.682353
+      },
+      "inheritanceMode": "PARENT_A",
+      "mutated": false,
+      "mutationRoll": 0.52271247,
+      "mutationThreshold": 0.02500000
+    }
+  ],
+  "phenotypeComparison": {
+    "parentA": {
+      "primaryColor": {"R": 0.43529412, "G": 0.92156863, "B": 0.48627451},
+      "accentColor": {"R": 0.65098041, "G": 0.09019608, "B": 0.74901962},
+      "metallic": 0.36862746,
+      "roughness": 0.05098039,
+      "emission": 4.35294104,
+      "opacity": 0.34392157,
+      "meshIndex": 15,
+      "classification": "ORGANIC"
+    },
+    "parentB": {
+      "primaryColor": {"R": 0.64313728, "G": 0.76862746, "B": 0.17647059},
+      "accentColor": {"R": 0.40392157, "G": 0.12549020, "B": 0.16078432},
+      "metallic": 0.16862746,
+      "roughness": 0.92549020,
+      "emission": 2.23529410,
+      "opacity": 0.47568631,
+      "meshIndex": 2,
+      "classification": "ORGANIC"
+    },
+    "child": {
+      "primaryColor": {"R": 0.49411765, "G": 0.01960784, "B": 0.07450981},
+      "accentColor": {"R": 0.41568628, "G": 0.40784314, "B": 0.16078432},
+      "metallic": 0.09411765,
+      "roughness": 0.37254903,
+      "emission": 6.74509811,
+      "opacity": 0.72823530,
+      "meshIndex": 12,
+      "classification": "ORGANIC"
+    }
+  },
+  "integrityVerification": {
+    "lineageIntegrity": true,
+    "childPhenotypeIntegrity": true,
+    "parentAPhenotypeIntegrity": true,
+    "parentBPhenotypeIntegrity": true,
+    "lineageHashFormula": "SHA256(canonicalize({childHash, generation, parentAHash, parentBHash, sovereignSeed, totalMutations}))",
+    "childHashFormula": "SHA256(bytesToHex(recombinedGenome) + ':' + effectiveSeed)"
+  }
+}

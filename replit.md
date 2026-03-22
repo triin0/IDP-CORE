@@ -290,6 +290,12 @@ A transpilation pipeline that reads Engine A's Pydantic schemas and generates ty
 - **Delegates**: `SpawnCompleteDelegate`, `MutationDelegate` (fires per mutated locus), `LineageFlushedDelegate`.
 - **SpawnerStats**: totalSpawns, totalMutations, maxGenerationReached, totalFlushed, offspringClassDistribution, inheritanceModeDistribution.
 - C++ conformance: 326/326 tests passing.
+- ASAN (AddressSanitizer): Clean pass on spawner conformance (326 tests) and proof generator. No heap-buffer-overflow, use-after-free, or stack-buffer-overflow detected.
+
+**Proof Deliverables** (`lib/engine-native/proofs/`):
+- `genetics_audit.json`: 498-line JSON with full locus-by-locus inheritance audit for Volcanic × Crystalline cross (seed: `obsidian-glass-genesis`). Includes per-locus hex values, raw values, normalized values, inheritance mode, mutation rolls, and integrity verification for all 3 phenotypes.
+- `sovereign_spawner_proof_report.md`: 268-line Markdown report containing: (1) Cross summary with all hashes, (2) 16-locus Ribosome Proof table with dominance/blend analysis, (3) Bitwise crossover mask derivation, (4) Showroom camera rig (auto-selected Cinematic perspective) + 4 camera angles (Hero/Macro/Top-Down/Side), (5) Lighting profile (Organic), (6) FSovereignPedigree truth overlay with 16 gene loci, (7) Chronos crash-recovery simulation (enqueue → hard crash → disk recovery → inspection state persistence → orientation restore = PASS), (8) Determinism proof (2 identical runs = byte-identical childHash + lineageHash).
+- `volcanic_crystalline_proof.cpp`: Generator source. Compiles with `g++ -std=c++17 -O2`, produces both deliverables.
 
 ## Project Showroom — Physical Runtime
 - **showroom-web** (`artifacts/showroom-web`): React/Vite + Three.js 3D showroom. Hardened by 46 React Vindicator passes. Preview at `/showroom-web/`. WebGL error boundary with graceful fallback for headless/no-GPU environments.
