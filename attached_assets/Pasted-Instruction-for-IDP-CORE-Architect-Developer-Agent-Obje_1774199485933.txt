@@ -1,0 +1,48 @@
+Instruction for IDP.CORE Architect/Developer Agent
+Objective: Refactor Engine A (Web) and Engine B (Native) into a Unified Modular Forge. Move from a sequential, language-specific pipeline to a Platform-Agnostic Generative Kernel where a single prompt creates a shared "DNA" (Genome) that manifests across Web, AAA Games, and Assets simultaneously.
+
+1. Structural Reorganization (Monorepo Migration)
+Action: Flatten the current silos. Move EngineA/ and EngineB/ into a modules/ directory.
+
+New Hierarchy: * /core: The "Brain." Contains the Unified Intermediate Representation (UIR) and Genome logic.
+
+/modules/web-emitter: Refactored Engine A (React/TypeScript/Express).
+
+/modules/native-emitter: Refactored Engine B (C++/UE5/Sovereign).
+
+/modules/asset-emitter: New module for procedural USD/SDF 3D generation.
+
+2. Implement the Unified Intermediate Representation (UIR)
+Action: Create a "Master Manifest" (JSON/Schema) that precedes code generation.
+
+Requirement: When a user prompts the IDP, the Architect Agent must first produce a platform-agnostic UIR. This manifest must include:
+
+LogicGraph: Business rules and state machines.
+
+GenomeSeed: The 32-byte deterministic seed (from Engine B) to ensure visual/functional parity.
+
+EntityRegistry: A list of assets and their properties (e.g., a "Sword" with both a ReactTable view and a UE5Mesh view).
+
+3. Shift to Graph-Based "Concurrent" Orchestration
+Action: Replace the 6-agent sequential pipeline (1→2→3) with a Directed Acyclic Graph (DAG).
+
+Requirement: Use the Orchestrator to trigger emitters in parallel.
+
+Web-Emitter builds the dashboard.
+
+Native-Emitter builds the simulation.
+
+Security/Reality-Check (Pass 50) acts as a global validator that can "veto" or "self-heal" artifacts from any emitter if they violate the UIR or physics constraints.
+
+4. Standardize the Transpilation & Parity Layer
+Action: Generalize the transpiler.ts from Engine B.
+
+Requirement: Implement Sovereign Serialization across all modules. Every piece of code generated (whether TS or C++) must include a ToSovereignJson() method to maintain SHA-256 hash parity. Ensure the "Glass Engine" design system personas are mapped to both CSS/Tailwind (Web) and PBR Materials (UE5).
+
+5. The "Any Imagination" Validation Gate
+Action: Integrate the "10-pass Reality Check" as a Core service.
+
+Requirement: Before finalizing a build, the system must simulate the output. If it’s a web app, simulate load. If it’s a game asset, simulate physics/collision. Only if the simulation passes is the "Golden Path" deployment triggered.
+
+Final Goal Statement for the Agent:
+"Your mission is to ensure that a single natural language intent produces a 'Sovereign Passport' (UIR). This passport must be able to deploy a React interface via Engine A and a high-fidelity UE5 environment via Engine B, ensuring that the logic, security, and aesthetics are 100% identical and deterministically reproducible across both platforms."
