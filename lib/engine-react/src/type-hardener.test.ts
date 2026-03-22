@@ -6034,6 +6034,131 @@ console.log("\n=== Engine B: Biological Forge (The Asset Assembler) ===");
   assert(forgeHeader.includes("JsonValue"), "Forge: uses JsonValue for payload forging");
 }
 
+// === Engine B: Sovereign Showroom (Cinematic Layer) ===
+console.log("\n=== Engine B: Sovereign Showroom (Cinematic Layer) ===");
+{
+  const fs = await import("fs");
+  const path = await import("path");
+
+  const showroomHeader = fs.default.readFileSync(
+    path.default.resolve("lib/engine-native/generated/SovereignShowroom.h"), "utf-8"
+  );
+
+  console.log("  -- Showroom Singleton --");
+  assert(showroomHeader.includes("class ASovereignShowroom"), "Showroom: ASovereignShowroom class");
+  assert(showroomHeader.includes("static ASovereignShowroom& Get()"), "Showroom: singleton pattern");
+  assert(showroomHeader.includes("ASovereignShowroom(const ASovereignShowroom&) = delete"), "Showroom: copy deleted");
+
+  console.log("  -- Adaptive Cine-Rig --");
+  assert(showroomHeader.includes("class ASovereignCineCamera"), "Showroom: ASovereignCineCamera class");
+  assert(showroomHeader.includes("struct FCineRigConfig"), "Showroom: FCineRigConfig struct");
+  assert(showroomHeader.includes("computeRig"), "Showroom: computeRig method");
+  assert(showroomHeader.includes("springArmLength"), "Showroom: springArmLength field");
+  assert(showroomHeader.includes("focalLength"), "Showroom: focalLength field");
+  assert(showroomHeader.includes("fieldOfView"), "Showroom: fieldOfView field");
+  assert(showroomHeader.includes("aperture"), "Showroom: aperture (f-stop)");
+  assert(showroomHeader.includes("focusDistance"), "Showroom: focusDistance field");
+  assert(showroomHeader.includes("dollySpeed"), "Showroom: dollySpeed field");
+  assert(showroomHeader.includes("orbitSpeed"), "Showroom: orbitSpeed field");
+
+  console.log("  -- Camera Perspectives --");
+  assert(showroomHeader.includes("enum class CameraPerspective"), "Showroom: CameraPerspective enum");
+  assert(showroomHeader.includes("HERO"), "Showroom: HERO perspective");
+  assert(showroomHeader.includes("STANDARD"), "Showroom: STANDARD perspective");
+  assert(showroomHeader.includes("MACRO"), "Showroom: MACRO perspective");
+  assert(showroomHeader.includes("CINEMATIC"), "Showroom: CINEMATIC perspective");
+  assert(showroomHeader.includes("perspectiveToString"), "Showroom: perspective to string");
+
+  console.log("  -- Phenotype Lighting Manager --");
+  assert(showroomHeader.includes("class USovereignLightingRig"), "Showroom: USovereignLightingRig class");
+  assert(showroomHeader.includes("struct FLightingProfile"), "Showroom: FLightingProfile struct");
+  assert(showroomHeader.includes("computeProfile"), "Showroom: computeProfile method");
+  assert(showroomHeader.includes("globalIlluminationIntensity"), "Showroom: GI intensity");
+  assert(showroomHeader.includes("bloomThreshold"), "Showroom: bloom threshold");
+  assert(showroomHeader.includes("bloomIntensity"), "Showroom: bloom intensity");
+  assert(showroomHeader.includes("lensFlareIntensity"), "Showroom: lens flare intensity");
+  assert(showroomHeader.includes("chromaticAberrationIntensity"), "Showroom: chromatic aberration");
+  assert(showroomHeader.includes("refractionDepth"), "Showroom: refraction depth");
+  assert(showroomHeader.includes("ssrQuality"), "Showroom: SSR quality");
+  assert(showroomHeader.includes("causticsIntensity"), "Showroom: caustics intensity");
+  assert(showroomHeader.includes("reflectionSamples"), "Showroom: reflection samples");
+  assert(showroomHeader.includes("enableHDRISkybox"), "Showroom: HDRI skybox flag");
+  assert(showroomHeader.includes("enableHighContrastHDRI"), "Showroom: high-contrast HDRI flag");
+  assert(showroomHeader.includes("ambientTint"), "Showroom: ambient tint color");
+  assert(showroomHeader.includes("fogColor"), "Showroom: fog color");
+  assert(showroomHeader.includes("fogDensity"), "Showroom: fog density");
+  assert(showroomHeader.includes("vignetteIntensity"), "Showroom: vignette intensity");
+  assert(showroomHeader.includes("saturation"), "Showroom: saturation");
+  assert(showroomHeader.includes("contrast"), "Showroom: contrast");
+  assert(showroomHeader.includes("temperatureShift"), "Showroom: color temperature shift");
+
+  console.log("  -- Lighting Profiles per Phenotype --");
+  assert(showroomHeader.includes("\"Volcanic\""), "Showroom: Volcanic profile name");
+  assert(showroomHeader.includes("\"Metallic\""), "Showroom: Metallic profile name");
+  assert(showroomHeader.includes("\"Crystalline\""), "Showroom: Crystalline profile name");
+  assert(showroomHeader.includes("\"Aqueous\""), "Showroom: Aqueous profile name");
+  assert(showroomHeader.includes("\"Ethereal\""), "Showroom: Ethereal profile name");
+  assert(showroomHeader.includes("\"Organic\""), "Showroom: Organic profile name");
+
+  console.log("  -- Zero-Drift Compliance --");
+  assert(showroomHeader.includes("allValuesClamped"), "Showroom: allValuesClamped validator");
+  assert(showroomHeader.includes("verifyZeroDrift"), "Showroom: verifyZeroDrift method");
+
+  console.log("  -- Inspection State (Chronos Persistence) --");
+  assert(showroomHeader.includes("struct FInspectionState"), "Showroom: FInspectionState struct");
+  assert(showroomHeader.includes("rotationYaw"), "Showroom: rotation yaw");
+  assert(showroomHeader.includes("rotationPitch"), "Showroom: rotation pitch");
+  assert(showroomHeader.includes("rotationRoll"), "Showroom: rotation roll");
+  assert(showroomHeader.includes("zoomLevel"), "Showroom: zoom level");
+  assert(showroomHeader.includes("orbitRadius"), "Showroom: orbit radius");
+  assert(showroomHeader.includes("stateHash"), "Showroom: state hash for persistence");
+  assert(showroomHeader.includes("updateHash"), "Showroom: updateHash method");
+  assert(showroomHeader.includes("verifyHash"), "Showroom: verifyHash method");
+  assert(showroomHeader.includes("persistInspectionState"), "Showroom: persistInspectionState method");
+  assert(showroomHeader.includes("recoverInspectionState"), "Showroom: recoverInspectionState method");
+
+  console.log("  -- Truth Overlay (Sovereign Pedigree) --");
+  assert(showroomHeader.includes("struct FSovereignPedigree"), "Showroom: FSovereignPedigree struct");
+  assert(showroomHeader.includes("rawHash"), "Showroom: raw 256-bit hash display");
+  assert(showroomHeader.includes("struct FGeneLocus"), "Showroom: FGeneLocus struct (16 loci)");
+  assert(showroomHeader.includes("serverVerified"), "Showroom: server verified flag");
+  assert(showroomHeader.includes("isVerifiedBadgeGreen"), "Showroom: verified badge green check");
+  assert(showroomHeader.includes("enum class VerificationStatus"), "Showroom: VerificationStatus enum");
+  assert(showroomHeader.includes("UNVERIFIED"), "Showroom: UNVERIFIED status");
+  assert(showroomHeader.includes("VERIFIED"), "Showroom: VERIFIED status");
+  assert(showroomHeader.includes("MISMATCH"), "Showroom: MISMATCH status");
+  assert(showroomHeader.includes("SERVER_UNREACHABLE"), "Showroom: SERVER_UNREACHABLE status");
+  assert(showroomHeader.includes("authoritySource"), "Showroom: authority source field");
+  assert(showroomHeader.includes("verifyWithServer"), "Showroom: verifyWithServer method");
+
+  console.log("  -- Showroom Operations --");
+  assert(showroomHeader.includes("struct ShowroomScene"), "Showroom: ShowroomScene struct");
+  assert(showroomHeader.includes("loadEntity"), "Showroom: loadEntity method");
+  assert(showroomHeader.includes("updateInspectionRotation"), "Showroom: updateInspectionRotation method");
+  assert(showroomHeader.includes("struct ShowroomStats"), "Showroom: ShowroomStats struct");
+  assert(showroomHeader.includes("totalInspections"), "Showroom: stats totalInspections");
+  assert(showroomHeader.includes("totalStatesSaved"), "Showroom: stats totalStatesSaved");
+  assert(showroomHeader.includes("totalStatesRecovered"), "Showroom: stats totalStatesRecovered");
+  assert(showroomHeader.includes("totalVerifications"), "Showroom: stats totalVerifications");
+
+  console.log("  -- Delegates --");
+  assert(showroomHeader.includes("ShowroomReadyDelegate"), "Showroom: showroom ready delegate");
+  assert(showroomHeader.includes("InspectionStateChangedDelegate"), "Showroom: inspection changed delegate");
+  assert(showroomHeader.includes("VerificationCompleteDelegate"), "Showroom: verification complete delegate");
+  assert(showroomHeader.includes("LightingProfileChangedDelegate"), "Showroom: lighting changed delegate");
+  assert(showroomHeader.includes("onShowroomReady"), "Showroom: onShowroomReady setter");
+  assert(showroomHeader.includes("onInspectionChanged"), "Showroom: onInspectionChanged setter");
+  assert(showroomHeader.includes("onVerificationComplete"), "Showroom: onVerificationComplete setter");
+
+  console.log("  -- Module Integration --");
+  assert(showroomHeader.includes("#include \"BiologicalForge.h\""), "Showroom: includes BiologicalForge.h");
+  assert(showroomHeader.includes("#include \"ChronosEngine.h\""), "Showroom: includes ChronosEngine.h");
+  assert(showroomHeader.includes("ChronosEngine::Get()"), "Showroom: uses ChronosEngine for persistence");
+  assert(showroomHeader.includes("GeneticGenomeParser"), "Showroom: uses genome parser for pedigree loci");
+  assert(showroomHeader.includes("AuthoritativeManifest"), "Showroom: uses AuthoritativeManifest for verification");
+  assert(showroomHeader.includes("SovereignSHA256"), "Showroom: uses SHA-256 for state hashing");
+}
+
 // --- Cross-Engine Summary ---
 console.log("\n" + "=".repeat(60));
 console.log("  PROJECT SHOWROOM — COMPLETE");

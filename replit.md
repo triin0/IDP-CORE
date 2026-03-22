@@ -195,7 +195,7 @@ Wired into `pipeline.ts` after `enforcePackageVersions()`, emits `"type-hardenin
   - **FastAPI**: `presence_relay.py` (PresenceManager class with asyncio-safe WebSocket relay, automatic dead connection cleanup, `resolve_conflict()` for deterministic last-write-wins, `get_active_peers()` with timeout filtering); `/ws/presence/{user_id}` WebSocket endpoint and `/api/presence/active` REST endpoint injected into main.py.
   - **Mobile**: `lib/haptic-presence.ts` (6 event types: peer:joined, peer:left, object:moved, object:created, object:deleted, conflict:resolved; mapped to expo-haptics ImpactFeedbackStyle/NotificationFeedbackType; 100ms throttle; `usePresenceHaptics()` WebSocket listener hook); adds expo-haptics dependency.
 
-Test suite at `lib/engine-react/src/type-hardener.test.ts` — 962 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests + 50 Engine B Transport & Auth Bridge tests + 53 Chronos Engine tests + 86 Biological Forge tests.
+Test suite at `lib/engine-react/src/type-hardener.test.ts` — 1,054 tests covering all passes (React 46 passes, FastAPI 12 passes, Mobile 12 passes) + Project Showroom tri-engine integration stress test (Lexus RX300) + 28 Vindicator Identity tests + 42 Structural Blindness tests + 44 Engine B transpiler tests + 50 Engine B Transport & Auth Bridge tests + 53 Chronos Engine tests + 86 Biological Forge tests + 92 Sovereign Showroom tests.
 
 ## Engine B: The Native Foundry (Pydantic→UE5 Transpiler)
 A transpilation pipeline that reads Engine A's Pydantic schemas and generates type-safe C++/UE5 code with SHA-256 parity.
@@ -252,6 +252,15 @@ A transpilation pipeline that reads Engine A's Pydantic schemas and generates ty
 - **Audit Trail**: `ForgeAuditEntry` records every forge operation with timestamps and verification status.
 - **Cache**: `phenotypeCache_` prevents redundant forging; cache hits skip delegates.
 - C++ conformance: 176/176 tests passing.
+
+**Sovereign Showroom — The Cinematic Layer** (`lib/engine-native/generated/SovereignShowroom.h`): Dynamic cinematic environment where visual mood is a direct slave to the 256-bit genome:
+- **ASovereignCineCamera**: Adaptive cine-rig that reads morphology genes → `FCineRigConfig` (springArmLength, focalLength, aperture, FOV, dollySpeed, orbitSpeed). 4 perspectives: HERO (wide-angle for large entities, 18mm, 90° FOV), MACRO (tight focus for small entities, 100mm, 25° FOV), STANDARD (mid-range, 35mm, 60° FOV), CINEMATIC (dramatic angle for ethereal/emissive, 50mm, 45° FOV). All values clamped to physical lens ranges.
+- **USovereignLightingRig**: Maps `PhenotypeClass` → `FLightingProfile` (22 post-process parameters). VOLCANIC: decreased GI, low bloom threshold (0.1), high lens flare, warm amber tint, 3500K. METALLIC: 32 ray-traced reflection samples, high-contrast HDRI skybox, 7000K. CRYSTALLINE: deep refraction, high chromatic aberration, 16 reflection samples, 8000K. AQUEOUS: 95% SSR quality, high caustics, blue ambient, dense fog. ETHEREAL: heavy bloom, lens flare, purple tint, strong vignette. ORGANIC: neutral daylight baseline, 6500K.
+- **Zero-Drift**: `allValuesClamped()` validator + `verifyZeroDrift()` ensure identical output on any hardware. All lighting values bounded: GI/bloom/fog/vignette in [0,1], exposure in [-5,5], reflection samples in [1,64], saturation/contrast in [0,2].
+- **Chronos State Persistence**: `persistInspectionState()` hashes InspectionRotation (yaw/pitch/roll/zoom) via SHA-256 and saves to Chronos Engine. `recoverInspectionState()` restores exact camera angle from disk after crash. Full cycle: inspect → crash → recover → restore verified.
+- **Truth Overlay**: `FSovereignPedigree` displays raw 256-bit hash, 16 gene loci (name, byte offset, hex value, normalized value), classification, mesh family. `isVerifiedBadgeGreen()` only returns true when `USovereignHttpClient` confirms local asset matches server `AuthoritativeManifest`.
+- **Verification**: `verifyWithServer()` validates hash against authoritative manifest. 5 states: UNVERIFIED, VERIFIED, MISMATCH, SERVER_UNREACHABLE, PENDING.
+- C++ conformance: 201/201 tests passing.
 
 ## Project Showroom — Physical Runtime
 - **showroom-web** (`artifacts/showroom-web`): React/Vite + Three.js 3D showroom. Hardened by 46 React Vindicator passes. Preview at `/showroom-web/`. WebGL error boundary with graceful fallback for headless/no-GPU environments.

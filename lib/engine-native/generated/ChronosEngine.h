@@ -386,6 +386,10 @@ public:
         return queue_.pendingCount();
     }
 
+    const std::vector<ChronosQueueEntry>& getEntries() const {
+        return queue_.entries();
+    }
+
     ChronosState getState() const {
         std::lock_guard<std::mutex> lock(mutex_);
         return state_;
