@@ -7,6 +7,8 @@ import {
   verifyDocument,
   orchestrate,
   UIRDocumentSchema,
+  WebEmitter,
+  NativeEmitter,
   type UIRDocument,
   type Emitter,
   type EmitResult,
@@ -722,6 +724,465 @@ async function runTests() {
     assert.equal(spatialEntities.length, 4);
     const totalConstraints = spatialEntities.reduce((sum, e) => sum + e.spatialConstraints.length, 0);
     assert.ok(totalConstraints > 5);
+  });
+
+  // ============================================================
+  // Web Emitter Tests
+  // ============================================================
+
+  const webEmitter = new WebEmitter();
+
+  test("WebEmitter: supports docs with 'web' target", () => {
+    const doc = minimalWebApp();
+    assert.ok(webEmitter.supports(doc));
+  });
+
+  test("WebEmitter: does not support docs without 'web' target", () => {
+    const doc = genomeCreature();
+    doc.targets = ["native"] as any;
+    assert.ok(!webEmitter.supports(doc));
+  });
+
+  await test("WebEmitter: generates TypeScript interfaces for all data entities", async () => {
+    const doc = minimalWebApp();
+    const result = await webEmitter.emit(doc);
+    const typeFiles = result.files.filter((f) => f.path.startsWith("src/types/"));
+    assert.equal(typeFiles.length, 2);
+    const taskType = typeFiles.find((f) => f.path.includes("Task"));
+    assert.ok(taskType);
+    assert.ok(taskType.content.includes("export interface Task"));
+    assert.ok(taskType.content.includes("id: string;"));
+    assert.ok(taskType.content.includes("title: string;"));
+    assert.ok(taskType.content.includes("completed: boolean;"));
+    assert.ok(taskType.content.includes("createdAt: Date;"));
+  });
+
+  await test("WebEmitter: generates Drizzle schemas with correct column types", async () => {
+    const doc = minimalWebApp();
+    const result = await webEmitter.emit(doc);
+    const schemaFiles = result.files.filter((f) => f.path.startsWith("src/db/schema/"));
+    assert.equal(schemaFiles.length, 2);
+    const taskSchema = schemaFiles.find((f) => f.path.includes("Task"));
+    assert.ok(taskSchema);
+    assert.ok(taskSchema.content.includes("pgTable"));
+    assert.ok(taskSchema.content.includes('uuid("id")'));
+    assert.ok(taskSchema.content.includes(".primaryKey()"));
+    assert.ok(taskSchema.content.includes('boolean("completed")'));
+  });
+
+  await test("WebEmitter: generates Express routes for entities with endpoints", async () => {
+    const doc = minimalWebApp();
+    const result = await webEmitter.emit(doc);
+    const routeFiles = result.files.filter((f) => f.path.startsWith("src/routes/"));
+    assert.ok(routeFiles.length > 0);
+    const taskRoutes = routeFiles.find((f) => f.path.includes("task"));
+    assert.ok(taskRoutes);
+    assert.ok(taskRoutes.content.includes("Router()"));
+    assert.ok(taskRoutes.content.includes(".get("));
+    assert.ok(taskRoutes.content.includes(".post("));
+    assert.ok(taskRoutes.content.includes(".delete("));
+  });
+
+  await test("WebEmitter: generates Zod schemas with constraints", async () => {
+    const doc = minimalWebApp();
+    const result = await webEmitter.emit(doc);
+    const zodFiles = result.files.filter((f) => f.path.startsWith("src/schemas/"));
+    assert.equal(zodFiles.length, 2);
+    const taskZod = zodFiles.find((f) => f.path.includes("Task"));
+    assert.ok(taskZod);
+    assert.ok(taskZod.content.includes("z.object("));
+    assert.ok(taskZod.content.includes("z.string().uuid()"));
+    assert.ok(taskZod.content.includes("z.boolean()"));
+    assert.ok(taskZod.content.includes(".min(1)"));
+    assert.ok(taskZod.content.includes(".max(255)"));
+  });
+
+  await test("WebEmitter: generates server.ts with route imports and middleware", async () => {
+    const doc = minimalWebApp();
+    const result = await webEmitter.emit(doc);
+    const serverFile = result.files.find((f) => f.path === "src/server.ts");
+    assert.ok(serverFile);
+    assert.ok(serverFile.content.includes("import express"));
+    assert.ok(serverFile.content.includes("import helmet"));
+    assert.ok(serverFile.content.includes("import cors"));
+    assert.ok(serverFile.content.includes('app.use(helmet())'));
+    assert.ok(serverFile.content.includes('app.use(cors())'));
+    assert.ok(serverFile.content.includes("/health"));
+  });
+
+  await test("WebEmitter: includes hash from source UIR", async () => {
+    const doc = minimalWebApp();
+    const result = await webEmitter.emit(doc);
+    assert.equal(result.hash, hashUIR(doc));
+    assert.equal(result.target, "web");
+  });
+
+  await test("WebEmitter: handles optional fields", async () => {
+    const doc: UIRDocument = {
+      version: "1.0.0",
+      name: "OptionalTest",
+      targets: ["web"],
+      entities: [{
+        name: "Profile",
+        kind: "data",
+        fields: [
+          { name: "id", type: "uuid", isOptional: false, isArray: false, isMap: false, constraints: [] },
+          { name: "bio", type: "string", isOptional: true, isArray: false, isMap: false, constraints: [] },
+          { name: "age", type: "int", isOptional: true, isArray: false, isMap: false, constraints: [] },
+        ],
+        spatialConstraints: [],
+        tags: [],
+      }],
+      relations: [],
+      endpoints: [],
+      businessRules: [],
+      metadata: {},
+    };
+    const result = await webEmitter.emit(doc);
+    const typeFile = result.files.find((f) => f.path.includes("Profile.ts") && f.path.startsWith("src/types/"));
+    assert.ok(typeFile);
+    assert.ok(typeFile.content.includes("bio?: string;"));
+    assert.ok(typeFile.content.includes("age?: number;"));
+  });
+
+  await test("WebEmitter: handles array and map fields", async () => {
+    const doc: UIRDocument = {
+      version: "1.0.0",
+      name: "CollectionTest",
+      targets: ["web"],
+      entities: [{
+        name: "Inventory",
+        kind: "data",
+        fields: [
+          { name: "id", type: "uuid", isOptional: false, isArray: false, isMap: false, constraints: [] },
+          { name: "tags", type: "string", isOptional: false, isArray: true, isMap: false, constraints: [] },
+          { name: "metadata", type: "json", isOptional: false, isArray: false, isMap: true, constraints: [] },
+        ],
+        spatialConstraints: [],
+        tags: [],
+      }],
+      relations: [],
+      endpoints: [],
+      businessRules: [],
+      metadata: {},
+    };
+    const result = await webEmitter.emit(doc);
+    const typeFile = result.files.find((f) => f.path.includes("Inventory.ts") && f.path.startsWith("src/types/"));
+    assert.ok(typeFile);
+    assert.ok(typeFile.content.includes("tags: string[];"));
+    assert.ok(typeFile.content.includes("Record<string, Record<string, unknown>>"));
+  });
+
+  await test("WebEmitter: generates auth middleware in routes", async () => {
+    const doc = minimalWebApp();
+    const result = await webEmitter.emit(doc);
+    const routeFile = result.files.find((f) => f.path.startsWith("src/routes/"));
+    assert.ok(routeFile);
+    assert.ok(routeFile.content.includes("req.user"));
+    assert.ok(routeFile.content.includes("401"));
+  });
+
+  await test("WebEmitter: warns on entities with no fields", async () => {
+    const doc: UIRDocument = {
+      version: "1.0.0",
+      name: "EmptyTest",
+      targets: ["web"],
+      entities: [{
+        name: "Ghost",
+        kind: "system",
+        fields: [],
+        spatialConstraints: [],
+        tags: [],
+      }],
+      relations: [],
+      endpoints: [],
+      businessRules: [],
+      metadata: {},
+    };
+    const result = await webEmitter.emit(doc);
+    assert.ok(result.diagnostics.some((d) => d.severity === "warning"));
+  });
+
+  await test("WebEmitter: handles foreign key relations in Drizzle schema", async () => {
+    const doc = minimalWebApp();
+    const result = await webEmitter.emit(doc);
+    const taskSchema = result.files.find((f) => f.path === "src/db/schema/Task.ts");
+    assert.ok(taskSchema);
+    assert.ok(taskSchema.content.includes("userId"));
+  });
+
+  // ============================================================
+  // Native Emitter Tests
+  // ============================================================
+
+  const nativeEmitter = new NativeEmitter();
+
+  test("NativeEmitter: supports docs with 'native' target", () => {
+    const doc = genomeCreature();
+    assert.ok(nativeEmitter.supports(doc));
+  });
+
+  test("NativeEmitter: does not support docs without 'native' target", () => {
+    const doc = minimalWebApp();
+    assert.ok(!nativeEmitter.supports(doc));
+  });
+
+  await test("NativeEmitter: generates USTRUCT header with UPROPERTY macros", async () => {
+    const doc = genomeCreature();
+    const result = await nativeEmitter.emit(doc);
+    const headers = result.files.filter((f) => f.path.endsWith(".h"));
+    assert.ok(headers.length > 0);
+    const creatureHeader = headers.find((f) => f.path.includes("Creature.h"));
+    assert.ok(creatureHeader);
+    assert.ok(creatureHeader.content.includes("#pragma once"));
+    assert.ok(creatureHeader.content.includes("USTRUCT(BlueprintType)"));
+    assert.ok(creatureHeader.content.includes("struct FCreature"));
+    assert.ok(creatureHeader.content.includes("GENERATED_BODY()"));
+    assert.ok(creatureHeader.content.includes("UPROPERTY(EditAnywhere, BlueprintReadWrite"));
+  });
+
+  await test("NativeEmitter: maps UIR field types to correct C++ types", async () => {
+    const doc = genomeCreature();
+    const result = await nativeEmitter.emit(doc);
+    const header = result.files.find((f) => f.path.includes("Creature.h"));
+    assert.ok(header);
+    assert.ok(header.content.includes("FString Id;"));
+    assert.ok(header.content.includes("FString Name;"));
+    assert.ok(header.content.includes("int32 Health;"));
+    assert.ok(header.content.includes("int32 Attack;"));
+    assert.ok(header.content.includes("double Speed;"));
+  });
+
+  await test("NativeEmitter: generates genome seed and derived properties", async () => {
+    const doc = genomeCreature();
+    const result = await nativeEmitter.emit(doc);
+    const header = result.files.find((f) => f.path.includes("Creature.h"));
+    assert.ok(header);
+    assert.ok(header.content.includes("TArray<uint8> GenomeSeed;"));
+    assert.ok(header.content.includes("Sovereign|Genome"));
+    assert.ok(header.content.includes("Sovereign|Derived"));
+  });
+
+  await test("NativeEmitter: generates transform properties for spatial entities", async () => {
+    const doc = genomeCreature();
+    const result = await nativeEmitter.emit(doc);
+    const header = result.files.find((f) => f.path.includes("Creature.h"));
+    assert.ok(header);
+    assert.ok(header.content.includes("FVector Position"));
+    assert.ok(header.content.includes("FRotator Rotation"));
+    assert.ok(header.content.includes("FVector Scale"));
+  });
+
+  await test("NativeEmitter: generates serializer with ToSovereignJson", async () => {
+    const doc = genomeCreature();
+    const result = await nativeEmitter.emit(doc);
+    const serializers = result.files.filter((f) => f.path.includes("Serializer.cpp"));
+    assert.ok(serializers.length > 0);
+    const creatureSerializer = serializers.find((f) => f.path.includes("Creature"));
+    assert.ok(creatureSerializer);
+    assert.ok(creatureSerializer.content.includes("ToSovereignJson"));
+    assert.ok(creatureSerializer.content.includes("namespace Sovereign"));
+    assert.ok(creatureSerializer.content.includes('obj["id"]'));
+    assert.ok(creatureSerializer.content.includes('obj["name"]'));
+    assert.ok(creatureSerializer.content.includes('obj["health"]'));
+  });
+
+  await test("NativeEmitter: generates genome deriver with byte extraction", async () => {
+    const doc = genomeCreature();
+    const result = await nativeEmitter.emit(doc);
+    const derivers = result.files.filter((f) => f.path.includes("GenomeDeriver.cpp"));
+    assert.ok(derivers.length > 0);
+    const deriver = derivers[0];
+    assert.ok(deriver.content.includes("DeriveFromGenome"));
+    assert.ok(deriver.content.includes("GenomeSeed.Num()"));
+    assert.ok(deriver.content.includes("GetData()"));
+    assert.ok(deriver.content.includes("Seed[0]"));
+    assert.ok(deriver.content.includes("LookupTable"));
+    assert.ok(deriver.content.includes('"claws"'));
+    assert.ok(deriver.content.includes('"tentacles"'));
+  });
+
+  await test("NativeEmitter: generates constraint validation checks", async () => {
+    const doc = genomeCreature();
+    const result = await nativeEmitter.emit(doc);
+    const header = result.files.find((f) => f.path.includes("Creature.h"));
+    assert.ok(header);
+    assert.ok(header.content.includes("ValidateCreature"));
+    assert.ok(header.content.includes("health must be >= 0"));
+    assert.ok(header.content.includes("health must be <= 1000"));
+    assert.ok(header.content.includes("speed must be >= 0"));
+    assert.ok(header.content.includes("speed must be <= 100"));
+  });
+
+  await test("NativeEmitter: includes hash from source UIR", async () => {
+    const doc = genomeCreature();
+    const result = await nativeEmitter.emit(doc);
+    assert.equal(result.hash, hashUIR(doc));
+    assert.equal(result.target, "native");
+  });
+
+  await test("NativeEmitter: handles optional fields with TOptional wrapper", async () => {
+    const doc: UIRDocument = {
+      version: "1.0.0",
+      name: "OptionalNativeTest",
+      targets: ["native"],
+      entities: [{
+        name: "Config",
+        kind: "data",
+        fields: [
+          { name: "id", type: "uuid", isOptional: false, isArray: false, isMap: false, constraints: [] },
+          { name: "label", type: "string", isOptional: true, isArray: false, isMap: false, constraints: [] },
+          { name: "count", type: "int", isOptional: true, isArray: false, isMap: false, constraints: [] },
+        ],
+        spatialConstraints: [],
+        tags: [],
+      }],
+      relations: [],
+      endpoints: [],
+      businessRules: [],
+      metadata: {},
+    };
+    const result = await nativeEmitter.emit(doc);
+    const header = result.files.find((f) => f.path.includes("Config.h"));
+    assert.ok(header);
+    assert.ok(header.content.includes("TOptional<FString> Label;"));
+    assert.ok(header.content.includes("TOptional<int32> Count;"));
+  });
+
+  await test("NativeEmitter: handles array fields with TArray wrapper", async () => {
+    const doc: UIRDocument = {
+      version: "1.0.0",
+      name: "ArrayNativeTest",
+      targets: ["native"],
+      entities: [{
+        name: "Container",
+        kind: "data",
+        fields: [
+          { name: "id", type: "uuid", isOptional: false, isArray: false, isMap: false, constraints: [] },
+          { name: "items", type: "string", isOptional: false, isArray: true, isMap: false, constraints: [] },
+          { name: "scores", type: "float", isOptional: false, isArray: true, isMap: false, constraints: [] },
+        ],
+        spatialConstraints: [],
+        tags: [],
+      }],
+      relations: [],
+      endpoints: [],
+      businessRules: [],
+      metadata: {},
+    };
+    const result = await nativeEmitter.emit(doc);
+    const header = result.files.find((f) => f.path.includes("Container.h"));
+    assert.ok(header);
+    assert.ok(header.content.includes("TArray<FString> Items;"));
+    assert.ok(header.content.includes("TArray<double> Scores;"));
+  });
+
+  await test("NativeEmitter: warns on entity with no fields/genome/transform", async () => {
+    const doc: UIRDocument = {
+      version: "1.0.0",
+      name: "EmptyNativeTest",
+      targets: ["native"],
+      entities: [{
+        name: "EmptyActor",
+        kind: "actor",
+        fields: [],
+        spatialConstraints: [],
+        tags: [],
+      }],
+      relations: [],
+      endpoints: [],
+      businessRules: [],
+      metadata: {},
+    };
+    const result = await nativeEmitter.emit(doc);
+    assert.ok(result.diagnostics.some((d) => d.severity === "warning" && d.message.includes("EmptyActor")));
+  });
+
+  // ============================================================
+  // Cross-Emitter / Bridge Proof Tests
+  // ============================================================
+
+  await test("Bridge proof: same UIR → web + native with matching source hash", async () => {
+    const doc = genomeCreature();
+    const webResult = await webEmitter.emit(doc);
+    const nativeResult = await nativeEmitter.emit(doc);
+    assert.equal(webResult.hash, nativeResult.hash);
+    assert.equal(webResult.hash, hashUIR(doc));
+  });
+
+  await test("Bridge proof: orchestrator dispatches to both emitters in parallel", async () => {
+    const doc = genomeCreature();
+    const result = await orchestrate(doc, [webEmitter, nativeEmitter]);
+    assert.ok(result.success);
+    assert.equal(result.results.length, 2);
+    const targets = result.results.map((r) => r.target).sort();
+    assert.deepEqual(targets, ["native", "web"]);
+    assert.ok(result.results.every((r) => r.hash === result.sourceHash));
+  });
+
+  await test("Bridge proof: web emitter generates TypeScript, native emitter generates C++ for same entity", async () => {
+    const doc = genomeCreature();
+    const webResult = await webEmitter.emit(doc);
+    const nativeResult = await nativeEmitter.emit(doc);
+
+    const tsInterface = webResult.files.find((f) => f.path.includes("Creature.ts") && f.path.startsWith("src/types/"));
+    const cppHeader = nativeResult.files.find((f) => f.path.includes("Creature.h"));
+
+    assert.ok(tsInterface);
+    assert.ok(cppHeader);
+
+    assert.ok(tsInterface.content.includes("health: number;"));
+    assert.ok(cppHeader.content.includes("int32 Health;"));
+
+    assert.ok(tsInterface.content.includes("name: string;"));
+    assert.ok(cppHeader.content.includes("FString Name;"));
+
+    assert.ok(tsInterface.content.includes("speed: number;"));
+    assert.ok(cppHeader.content.includes("double Speed;"));
+  });
+
+  await test("Bridge proof: modified UIR changes hash, both emitters reflect it", async () => {
+    const doc1 = genomeCreature();
+    const doc2 = genomeCreature();
+    doc2.entities[0].fields.push({
+      name: "defense",
+      type: "int",
+      isOptional: false,
+      isArray: false,
+      isMap: false,
+      constraints: [{ type: "min", value: 0 }],
+    });
+
+    const webResult1 = await webEmitter.emit(doc1);
+    const webResult2 = await webEmitter.emit(doc2);
+    const nativeResult2 = await nativeEmitter.emit(doc2);
+
+    assert.notEqual(webResult1.hash, webResult2.hash);
+    assert.equal(webResult2.hash, nativeResult2.hash);
+
+    const tsFile = webResult2.files.find((f) => f.path.includes("Creature.ts") && f.path.startsWith("src/types/"));
+    assert.ok(tsFile!.content.includes("defense: number;"));
+
+    const cppFile = nativeResult2.files.find((f) => f.path.includes("Creature.h"));
+    assert.ok(cppFile!.content.includes("int32 Defense;"));
+  });
+
+  await test("Bridge proof: genome deriver handles all transform types", async () => {
+    const doc = genomeCreature();
+    const result = await nativeEmitter.emit(doc);
+    const deriver = result.files.find((f) => f.path.includes("GenomeDeriver.cpp"));
+    assert.ok(deriver);
+    assert.ok(deriver.content.includes("(linear)"));
+    assert.ok(deriver.content.includes("(lookup)"));
+    assert.ok(deriver.content.includes("(step)"));
+    assert.ok(deriver.content.includes("(exponential)"));
+  });
+
+  await test("Bridge proof: total file count from full orchestration", async () => {
+    const doc = genomeCreature();
+    const result = await orchestrate(doc, [webEmitter, nativeEmitter]);
+    const totalFiles = result.results.reduce((sum, r) => sum + r.files.length, 0);
+    assert.ok(totalFiles >= 6, `Expected at least 6 files, got ${totalFiles}`);
   });
 
   console.log("\n" + "=".repeat(60));

@@ -42,3 +42,6 @@ export type { SignedUIRDocument } from "./integrity.js";
 
 export { orchestrate } from "./emitter.js";
 export type { Emitter, EmitResult, EmittedFile, EmitDiagnostic, OrchestratorResult } from "./emitter.js";
+
+export { WebEmitter } from "./emitters/web-emitter.js";
+export { NativeEmitter } from "./emitters/native-emitter.js";

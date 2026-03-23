@@ -121,7 +121,9 @@ The Unified Intermediate Representation (UIR) is the shared schema that connects
 - `lib/uir-core/src/validator.ts` — Semantic validation (duplicate detection, reference resolution, genome bounds, spatial consistency, target coherence)
 - `lib/uir-core/src/integrity.ts` — Deterministic canonicalization, SHA-256 hashing, sign/verify
 - `lib/uir-core/src/emitter.ts` — Emitter interface and orchestrator (parallel dispatch)
-- `lib/uir-core/tests/uir.test.ts` — 53 tests covering schema validation, semantic validation, integrity, and orchestration
+- `lib/uir-core/src/emitters/web-emitter.ts` — WebEmitter: UIR → TypeScript interfaces, Zod schemas, Drizzle table defs, Express routes, server.ts
+- `lib/uir-core/src/emitters/native-emitter.ts` — NativeEmitter: UIR → C++ USTRUCT headers, UPROPERTY macros, constraint validators, ToSovereignJson serializers, genome derivers
+- `lib/uir-core/tests/uir.test.ts` — 85 tests covering schema, validation, integrity, orchestration, web-emitter, native-emitter, and cross-emitter bridge proofs
 
 **Entity kinds:** data, spatial, actor, component, system
 **Emit targets:** web, native, asset, mobile, api
