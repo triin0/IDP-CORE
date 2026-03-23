@@ -105,6 +105,31 @@ A transpilation pipeline generating type-safe C++/UE5 code from Pydantic schemas
 - No emoji fallback. WebGL error boundary is text-only. Canvas mounts unconditionally (failIfMajorPerformanceCaveat: false).
 - HDR city env map, ACES Filmic tone mapping, ContactShadows, MeshReflectorMaterial floor.
 
+## UIR Core (Nexus Bridge — Phase 1)
+The Unified Intermediate Representation (UIR) is the shared schema that connects Engine A and Engine B. Located at `lib/uir-core/`.
+
+**What it does:**
+- Defines a platform-agnostic JSON schema for entities, relationships, spatial constraints, genome mappings, materials, endpoints, and business rules
+- Validates UIR documents for structural correctness (Zod) and semantic correctness (cross-references, genome bounds, spatial consistency)
+- SHA-256 integrity hashing via deterministic canonicalization (sorted keys, stable JSON)
+- Sign/verify workflow for tamper detection
+- Emitter interface: the contract that Engine A (web-emitter) and Engine B (native-emitter) adapters implement
+- Orchestrator: parallel dispatch to multiple emitters from a single UIR document
+
+**Key files:**
+- `lib/uir-core/src/schema.ts` — Zod schemas for all UIR types (UIRDocument, UIREntity, UIRField, UIRGenome, UIRSpatialConstraint, etc.)
+- `lib/uir-core/src/validator.ts` — Semantic validation (duplicate detection, reference resolution, genome bounds, spatial consistency, target coherence)
+- `lib/uir-core/src/integrity.ts` — Deterministic canonicalization, SHA-256 hashing, sign/verify
+- `lib/uir-core/src/emitter.ts` — Emitter interface and orchestrator (parallel dispatch)
+- `lib/uir-core/tests/uir.test.ts` — 53 tests covering schema validation, semantic validation, integrity, and orchestration
+
+**Entity kinds:** data, spatial, actor, component, system
+**Emit targets:** web, native, asset, mobile, api
+**Spatial constraints:** gravity, collision, clearance, support, containment, alignment, attachment, reachability
+**Genome transforms:** linear, exponential, step, modulo, lookup
+
+**Test command:** `pnpm --filter @workspace/uir-core run test`
+
 ## External Dependencies
 *   **Monorepo Tool:** pnpm workspaces
 *   **Database:** PostgreSQL, Drizzle ORM
